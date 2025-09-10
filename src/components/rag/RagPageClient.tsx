@@ -1,0 +1,243 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { RagQueryForm } from '@/components/rag/RagQueryForm';
+import { RagHitsTable, type Hit } from '@/components/rag/RagHitsTable';
+import { AskResultCard } from '@/components/rag/AskResultCard';
+import { askPost, type AskResponse } from '@/lib/api/ask';
+import { toast } from 'sonner';
+
+export function RagPageClient() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  // State
+  const [query, setQuery] = useState('');
+  const [topK, setTopK] = useState(8);
+  const [hits, setHits] = useState<Hit[]>([]);
+  const [topScore, setTopScore] = useState<number | undefined>();
+  const [ragLoading, setRagLoading] = useState(false);
+  const [askResult, setAskResult] = useState<AskResponse | undefined>();
+  const [askLoading, setAskLoading] = useState(false);
+  const [askError, setAskError] = useState<string | null>(null);
+  const [streamingAnswer, setStreamingAnswer] = useState<string>('');
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  // Initialize from URL params
+  useEffect(() => {
+    const urlQuery = searchParams.get('q');
+    const urlTopK = searchParams.get('k');
+    
+    if (urlQuery) setQuery(urlQuery);
+    if (urlTopK) setTopK(Math.max(1, Math.min(20, parseInt(urlTopK) || 8)));
+  }, [searchParams]);
+
+  // Update URL when query/topK changes
+  const updateURL = useCallback((newQuery: string, newTopK: number) => {
+    const params = new URLSearchParams();
+    if (newQuery) params.set('q', newQuery);
+    if (newTopK !== 8) params.set('k', newTopK.toString());
+    
+    const newURL = params.toString() ? `?${params.toString()}` : '';
+    router.replace(`/admin/rag${newURL}`, { scroll: false });
+  }, [router]);
+
+  // RAG probe handler
+  const handleRunRAG = useCallback(async (q: string, k: number) => {
+    try {
+      setRagLoading(true);
+      setAskError(null);
+      // Clear previous results immediately when starting new query
+      setHits([]);
+      setTopScore(undefined);
+      
+      const response = await fetch(`/api/smoke/rag?q=${encodeURIComponent(q)}&topk=${k}`);
+      
+      if (!response.ok) {
+        throw new Error(`RAG probe failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Handle proxy error responses
+      if (data.error) {
+        throw new Error(data.details || data.error);
+      }
+      
+      // Transform the response to our Hit format
+      const transformedHits: Hit[] = data.hits?.map((hit: unknown, index: number) => {
+        const h = hit as { score?: number; vec_sim?: number; trgm_sim?: number; preview?: string; text?: string };
+        return {
+          idx: index + 1,
+          score: h.score || 0,
+          vec_sim: h.vec_sim || 0,
+          trgm_sim: h.trgm_sim || 0,
+          preview: h.preview || h.text || 'No preview available'
+        };
+      }) || [];
+      
+      setHits(transformedHits);
+      setTopScore(transformedHits.length > 0 ? transformedHits[0].score : undefined);
+      
+      // Update URL
+      updateURL(q, k);
+      
+      toast.success(`Found ${transformedHits.length} results`);
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'RAG probe failed';
+      setAskError(errorMessage);
+      toast.error(`RAG probe failed: ${errorMessage}`);
+      console.error('RAG probe error:', err);
+    } finally {
+      setRagLoading(false);
+    }
+  }, [updateURL]);
+
+  // Ask handler
+  const handleTryAsk = useCallback(async (q: string) => {
+    try {
+      setAskLoading(true);
+      setAskError(null);
+      // Clear previous ask result when starting new query
+      setAskResult(undefined);
+      
+      const result = await askPost({
+        question: q,
+        session_id: 'ui-rag-test'
+      });
+      
+      setAskResult(result);
+      toast.success('Ask completed successfully');
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Ask failed';
+      setAskError(errorMessage);
+      toast.error(`Ask failed: ${errorMessage}`);
+      console.error('Ask error:', err);
+    } finally {
+      setAskLoading(false);
+    }
+  }, []);
+
+  // Streaming handler
+  const handleStreamAsk = useCallback(async (q: string) => {
+    try {
+      console.log('Starting stream ask for:', q);
+      setIsStreaming(true);
+      setAskError(null);
+      setStreamingAnswer('');
+      setAskResult(undefined);
+      
+      console.log('Making request to /api/ask/stream');
+      const response = await fetch('/api/ask/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-slug': process.env.NEXT_PUBLIC_TENANT_SLUG || 'abilitix',
+          'x-widget-key': process.env.ADMIN_TOKEN || '' // Using ADMIN_TOKEN as widget key for now
+        },
+        body: JSON.stringify({
+          question: q,
+          session_id: 'ui-rag-stream-test'
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Streaming response error:', response.status, errorText);
+        throw new Error(`Streaming failed: ${response.status} - ${errorText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      const decoder = new TextDecoder();
+      let answer = '';
+
+      console.log('Starting to read stream...');
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log('Stream completed');
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        console.log('Received chunk:', chunk);
+        
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') {
+              console.log('Stream marked as done');
+              setIsStreaming(false);
+              return;
+            }
+            
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.delta) {
+                answer += parsed.delta;
+                setStreamingAnswer(answer);
+                console.log('Added delta:', parsed.delta, 'Total length:', answer.length);
+              }
+            } catch (e) {
+              console.log('Failed to parse line as JSON:', data);
+            }
+          }
+        }
+      }
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Streaming failed';
+      setAskError(errorMessage);
+      toast.error(`Streaming failed: ${errorMessage}`);
+      console.error('Streaming error:', err);
+    } finally {
+      setIsStreaming(false);
+    }
+  }, []);
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">RAG Hygiene</h1>
+      </div>
+
+      {/* Query Form */}
+      <RagQueryForm
+        defaultQuery={query}
+        defaultTopK={topK}
+        onRun={handleRunRAG}
+        onAsk={handleTryAsk}
+        onStream={handleStreamAsk}
+      />
+
+      {/* Results Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* RAG Hits Table */}
+        <RagHitsTable
+          hits={hits}
+          topScore={topScore}
+          loading={ragLoading}
+        />
+        
+        {/* Ask Result Card */}
+        <AskResultCard
+          data={askResult}
+          loading={askLoading}
+          error={askError}
+          streamingAnswer={streamingAnswer}
+          isStreaming={isStreaming}
+        />
+      </div>
+    </div>
+  );
+}

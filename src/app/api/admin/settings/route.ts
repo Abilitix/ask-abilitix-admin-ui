@@ -7,7 +7,11 @@ export async function GET() {
   const TENANT_ID = process.env.TENANT_ID!;
   const TENANT_SLUG = process.env.NEXT_PUBLIC_TENANT_SLUG!;
   const data = await adminGet(`/admin/tenants/${TENANT_ID}/settings`);
-  return NextResponse.json({ ...data, tenant_id: TENANT_ID, tenant_slug: TENANT_SLUG }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ 
+    ...(data && typeof data === 'object' ? data : {}), 
+    tenant_id: TENANT_ID, 
+    tenant_slug: TENANT_SLUG 
+  }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export async function PUT(req: Request) {

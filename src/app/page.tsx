@@ -2,10 +2,10 @@ import Link from "next/link";
 
 const cards = [
   { href: "/signup", title: "Onboarding", desc: "Create a tenant and get a one-time widget key" },
-  { href: "/debug", title: "RAG Testing", desc: "Stream answers; see first token and total time" },
-  { href: "/inbox", title: "Inbox", desc: "Approve/reject Q&A; copy citations" },
-  { href: "/docs", title: "Documents", desc: "Upload; archive/unarchive; supersede" },
-  { href: "/settings", title: "Settings", desc: "Tune DOC_MIN_SCORE and RAG_TOPK" },
+  { href: "/admin/rag", title: "RAG Testing", desc: "Stream answers; see first token and total time" },
+  { href: "/admin/inbox", title: "Inbox", desc: "Approve/reject Q&A; copy citations" },
+  { href: "/admin/docs", title: "Documents", desc: "Upload; archive/unarchive; supersede" },
+  { href: "/admin/settings", title: "Settings", desc: "Tune DOC_MIN_SCORE and RAG_TOPK" },
 ];
 
 export default function Page() {

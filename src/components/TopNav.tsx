@@ -4,11 +4,11 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/", label: "Dashboard" },
-  { href: "/inbox", label: "Inbox" },
-  { href: "/docs", label: "Docs" },
-  { href: "/settings", label: "Settings" },
+  { href: "/admin/inbox", label: "Inbox" },
+  { href: "/admin/docs", label: "Docs" },
+  { href: "/admin/settings", label: "Settings" },
   { href: "/signup", label: "Onboarding" },
-  { href: "/debug", label: "Debug" },
+  { href: "/admin/rag", label: "Debug" },
 ];
 
 export default function TopNav() {

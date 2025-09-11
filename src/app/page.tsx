@@ -43,7 +43,9 @@ export default function Page() {
       </div>
 
       {/* Visual test for Tailwind */}
-      <div className="h-2 rounded bg-emerald-600 my-4" />
+      <div className="h-4 rounded bg-emerald-600 my-4 p-4 text-white font-bold text-center">
+        ✅ Tailwind is working! If you see this green bar with white text, styling is active.
+      </div>
     </div>
   );
 }

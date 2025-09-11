@@ -53,9 +53,9 @@ async function handleRequest(
     
     const targetUrl = `${ADMIN_BASE}${fullPath}`;
     
-    const headers = {
+    const headers: Record<string, string> = {
       'Authorization': `Bearer ${ADMIN_TOKEN}`,
-      'X-Tenant-Id': TENANT_ID,
+      'X-Tenant-Id': TENANT_ID!,
       'Content-Type': 'application/json',
     };
 

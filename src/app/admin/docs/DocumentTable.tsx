@@ -116,3 +116,4 @@ export default function DocumentTable({ documents, onArchive, onUnarchive, loadi
     </div>
   );
 }
+

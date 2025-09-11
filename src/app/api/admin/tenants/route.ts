@@ -17,3 +17,4 @@ export async function POST(req: NextRequest) {
   });
   return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });
 }
+

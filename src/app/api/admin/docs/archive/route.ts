@@ -23,3 +23,4 @@ export async function POST(req: Request) {
   const data = await r.json().catch(() => ({}));
   return NextResponse.json(data, { status: r.status, headers: { 'Cache-Control': 'no-store' } });
 }
+

@@ -9,8 +9,15 @@ export async function POST(req: NextRequest) {
     
     console.log('Environment check:', { ADMIN_BASE, SIGNUP_KEY: SIGNUP_KEY ? 'SET' : 'NOT SET' });
     
-    if (!ADMIN_BASE || !SIGNUP_KEY) {
-      return new Response(JSON.stringify({ error: 'Missing environment variables' }), {
+    if (!ADMIN_BASE) {
+      return new Response(JSON.stringify({ error: 'ADMIN_BASE not configured' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    if (!SIGNUP_KEY) {
+      return new Response(JSON.stringify({ error: 'PUBLIC_SIGNUP_KEY not configured' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });

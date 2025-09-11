@@ -46,6 +46,9 @@ export default function TopNav() {
               </li>
             );
           })}
+          <li className="ml-2 pl-3 border-l text-xs text-slate-500" id="tenantBadge">
+            Tenant: {process.env.NEXT_PUBLIC_TENANT_SLUG || 'loading...'}
+          </li>
         </ul>
       </nav>
     </header>

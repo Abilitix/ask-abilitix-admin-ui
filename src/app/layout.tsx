@@ -24,19 +24,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const useCdn = process.env.NEXT_PUBLIC_TW_CDN === "1";
-  
   return (
     <html lang="en">
       <head>
-        {useCdn && (
-          <>
-            <Script src="https://cdn.tailwindcss.com" strategy="beforeInteractive" />
-            <Script id="tw-config" strategy="beforeInteractive">
-              {`tailwind.config = { darkMode: 'class' }`}
-            </Script>
-          </>
-        )}
+        <Script src="https://cdn.tailwindcss.com" strategy="beforeInteractive" />
+        <Script id="tw-config" strategy="beforeInteractive">
+          {`tailwind.config = { darkMode: 'class' }`}
+        </Script>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} bg-gray-50`}>
         <Navigation />

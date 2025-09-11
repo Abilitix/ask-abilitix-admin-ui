@@ -1,0 +1,3 @@
+[33m7f593ac[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Fix TypeScript error in signup route
+[33m55f3a90[m Fix environment variables, add email integration, and improve signup functionality
+[33mfb5306f[m feat: add Admin UI landing page with navigation

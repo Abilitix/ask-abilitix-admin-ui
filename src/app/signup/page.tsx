@@ -6,34 +6,161 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [res, setRes] = useState<any>(null);
   const [err, setErr] = useState<string|null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault(); setErr(null); setRes(null);
-    const r = await fetch('/api/public/signup', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ company, email }),
-    });
-    if (!r.ok) { setErr('Signup failed'); return; }
-    setRes(await r.json());
+    e.preventDefault(); 
+    setErr(null); 
+    setRes(null);
+    setLoading(true);
+    
+    try {
+      const r = await fetch('/api/public/signup', {
+        method:'POST', 
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ company, email }),
+      });
+      
+      if (!r.ok) { 
+        const errorData = await r.json();
+        setErr(errorData.error || 'Signup failed'); 
+        return; 
+      }
+      
+      const data = await r.json();
+      setRes(data);
+    } catch (error) {
+      setErr('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="p-6 max-w-lg space-y-4">
-      <h1 className="text-2xl font-semibold">Create your workspace</h1>
-      <form onSubmit={submit} className="space-y-3">
-        <input value={company} onChange={e=>setCompany(e.target.value)} placeholder="Company" className="w-full border p-2 rounded"/>
-        <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" className="w-full border p-2 rounded"/>
-        <button className="px-4 py-2 rounded border">Create</button>
-      </form>
-      {err && <div className="text-red-600 text-sm">{err}</div>}
-      {res && (
-        <div className="p-3 rounded bg-yellow-50 border text-sm">
-          <div className="mb-1">Tenant slug: <code>{res.tenant_slug}</code></div>
-          <div className="mb-1">One-time widget key (copy now): <code className="break-all">{res.widget_key_once}</code></div>
-          <button onClick={() => navigator.clipboard.writeText(res.widget_key_once)} className="mt-2 px-2 py-1 text-xs rounded border">Copy key</button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-full mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to Abilitix</h1>
+          <p className="text-gray-600">Create your AI-powered workspace</p>
         </div>
-      )}
+
+        {/* Signup Form */}
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <form onSubmit={submit} className="space-y-6">
+            <div>
+              <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
+                Company Name
+              </label>
+              <input
+                id="company"
+                type="text"
+                value={company}
+                onChange={e => setCompany(e.target.value)}
+                placeholder="Enter your company name"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                required
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                required
+              />
+            </div>
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? 'Creating Workspace...' : 'Create Workspace'}
+            </button>
+          </form>
+
+          {/* Error Message */}
+          {err && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex">
+                <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <div className="text-sm text-red-700">{err}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {res && (
+            <div className="mt-6 p-6 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-start">
+                <svg className="w-6 h-6 text-green-400 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-green-800 mb-3">Workspace Created Successfully!</h3>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium text-green-700">Workspace ID:</label>
+                      <div className="mt-1 p-2 bg-white border border-green-200 rounded text-sm font-mono text-gray-800">
+                        {res.tenant_slug}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-green-700">Widget Key (copy now - shown only once):</label>
+                      <div className="mt-1 flex">
+                        <input
+                          type="text"
+                          value={res.widget_key_once}
+                          readOnly
+                          className="flex-1 p-2 bg-white border border-green-200 rounded-l text-sm font-mono text-gray-800"
+                        />
+                        <button
+                          onClick={() => navigator.clipboard.writeText(res.widget_key_once)}
+                          className="px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-r hover:bg-indigo-700 transition-colors"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded">
+                    <h4 className="text-sm font-semibold text-blue-800 mb-2">Next Steps:</h4>
+                    <ul className="text-sm text-blue-700 space-y-1">
+                      <li>• Save your widget key securely</li>
+                      <li>• Check your email for welcome instructions</li>
+                      <li>• Access your admin dashboard to upload documents</li>
+                      <li>• Configure your AI assistant settings</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="text-center mt-8 text-sm text-gray-500">
+          <p>© 2024 Abilitix. All rights reserved.</p>
+        </div>
+      </div>
     </div>
   );
 }
-

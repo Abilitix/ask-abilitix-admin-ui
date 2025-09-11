@@ -41,6 +41,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Visual test for Tailwind */}
+      <div className="h-2 rounded bg-emerald-600" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-12">

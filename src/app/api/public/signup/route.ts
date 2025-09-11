@@ -69,7 +69,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('Signup API error:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: 'Internal server error', details: errorMessage }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

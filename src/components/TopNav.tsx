@@ -1,8 +1,10 @@
 "use client";
+
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
-const items = [
+const nav = [
   { href: "/", label: "Dashboard" },
   { href: "/admin/inbox", label: "Inbox" },
   { href: "/admin/docs", label: "Docs" },
@@ -14,27 +16,37 @@ const items = [
 export default function TopNav() {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-40 border-b bg-white/90 backdrop-blur">
-      <nav className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
-        <Link href="/" className="font-semibold tracking-tight">Abilitix Admin</Link>
-        <ul className="flex gap-3 text-sm text-slate-700">
-          {items.map(it => {
-            const active = pathname === it.href;
+    <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
+      <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+        <Link href="/" className="flex items-center gap-2">
+          <Image
+            src="/abilitix-logo.png"
+            alt="AbilitiX"
+            width={28}
+            height={28}
+            priority
+            className="rounded"
+          />
+          <span className="font-semibold tracking-tight">AbilitiX Admin</span>
+        </Link>
+        <ul className="flex items-center gap-3 text-sm text-slate-700">
+          {nav.map((item) => {
+            const active = pathname === item.href;
             return (
-              <li key={it.href}>
+              <li key={item.href}>
                 <Link
-                  href={it.href}
-                  className={`px-2 py-1 rounded-md hover:bg-slate-100 ${active ? "bg-slate-200 font-medium" : ""}`}
+                  href={item.href}
+                  className={`px-2 py-1 rounded-md hover:bg-slate-100 ${
+                    active ? "bg-slate-200 font-medium" : ""
+                  }`}
+                  aria-current={active ? "page" : undefined}
                 >
-                  {it.label}
+                  {item.label}
                 </Link>
               </li>
             );
           })}
         </ul>
-        <div className="ml-auto text-xs text-slate-500">
-          {process.env.NEXT_PUBLIC_TW_CDN === "1" ? "Demo style (CDN)" : "Build style"}
-        </div>
       </nav>
     </header>
   );

@@ -1,18 +1,12 @@
 import "./globals.css";
-import Script from "next/script";
+import type { Metadata } from "next";
 import TopNav from "@/components/TopNav";
 
-export const metadata = { title: "Abilitix Admin" };
+export const metadata: Metadata = { title: "AbilitiX Admin" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <Script src="https://cdn.tailwindcss.com" strategy="beforeInteractive" />
-        <Script id="tw-config" strategy="beforeInteractive">
-          {`tailwind.config = { darkMode: 'class' }`}
-        </Script>
-      </head>
       <body className="min-h-screen bg-slate-50 text-slate-900">
         <TopNav />
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>

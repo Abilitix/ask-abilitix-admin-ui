@@ -1,6 +1,21 @@
 import { NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
 
+export async function GET(req: NextRequest) {
+  // Establish SSE connection for EventSource
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-store",
+      "Connection": "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST",
+      "Access-Control-Allow-Headers": "Content-Type, x-tenant-slug, x-widget-key",
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
   const ASK_BASE = process.env.ASK_BASE!;
   const body = await req.text(); // raw for SSE

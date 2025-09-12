@@ -29,7 +29,7 @@ export default function TopNav() {
           />
           <span className="font-semibold tracking-tight">AbilitiX Admin</span>
         </Link>
-        <ul className="flex items-center gap-3 text-sm text-slate-700">
+        <ul className="flex items-center gap-5 text-sm text-slate-700">
           {nav.map((item) => {
             const active = pathname === item.href;
             return (

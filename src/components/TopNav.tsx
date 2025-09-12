@@ -29,14 +29,14 @@ export default function TopNav() {
           />
           <span className="font-semibold tracking-tight">AbilitiX Admin</span>
         </Link>
-        <ul className="flex items-center gap-6 text-sm text-slate-700">
+        <ul className="flex items-center gap-8 text-sm text-slate-700">
           {nav.map((item) => {
             const active = pathname === item.href;
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`px-3 py-2 rounded-md hover:bg-slate-100 ${
+                  className={`px-4 py-2 rounded-md hover:bg-slate-100 ${
                     active ? "bg-slate-200 font-medium" : ""
                   }`}
                   aria-current={active ? "page" : undefined}

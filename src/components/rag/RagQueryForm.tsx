@@ -5,25 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Search, Play, Loader2, Zap } from 'lucide-react';
+import { Search, Play, Loader2 } from 'lucide-react';
 
 type Props = {
   defaultQuery?: string;
   defaultTopK?: number; // default 8
   onRun: (q: string, k: number) => void;
   onAsk?: (q: string) => void; // optional callback for Try /ask
-  onStream?: (q: string) => void; // optional callback for Stream Answer
 };
 
-export function RagQueryForm({ defaultQuery = '', defaultTopK = 8, onRun, onAsk, onStream }: Props) {
+export function RagQueryForm({ defaultQuery = '', defaultTopK = 8, onRun, onAsk }: Props) {
   const [query, setQuery] = useState(defaultQuery);
   const [topK, setTopK] = useState(defaultTopK);
   const [ragLoading, setRagLoading] = useState(false);
   const [askLoading, setAskLoading] = useState(false);
-  const [streamLoading, setStreamLoading] = useState(false);
 
   const handleRunRAG = async () => {
-    if (!query.trim() || ragLoading || askLoading || streamLoading) return;
+    if (!query.trim() || ragLoading || askLoading) return;
     
     setRagLoading(true);
     try {
@@ -34,7 +32,7 @@ export function RagQueryForm({ defaultQuery = '', defaultTopK = 8, onRun, onAsk,
   };
 
   const handleTryAsk = async () => {
-    if (!query.trim() || ragLoading || askLoading || streamLoading) return;
+    if (!query.trim() || ragLoading || askLoading) return;
     
     setAskLoading(true);
     try {
@@ -44,16 +42,6 @@ export function RagQueryForm({ defaultQuery = '', defaultTopK = 8, onRun, onAsk,
     }
   };
 
-  const handleStreamAsk = async () => {
-    if (!query.trim() || ragLoading || askLoading || streamLoading) return;
-    
-    setStreamLoading(true);
-    try {
-      onStream?.(query.trim());
-    } finally {
-      setStreamLoading(false);
-    }
-  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !ragLoading && !askLoading) {
@@ -62,7 +50,7 @@ export function RagQueryForm({ defaultQuery = '', defaultTopK = 8, onRun, onAsk,
   };
 
   const isQueryValid = query.trim().length > 0;
-  const isDisabled = ragLoading || askLoading || streamLoading;
+  const isDisabled = ragLoading || askLoading;
 
   return (
     <Card>
@@ -141,26 +129,6 @@ export function RagQueryForm({ defaultQuery = '', defaultTopK = 8, onRun, onAsk,
             </Button>
           )}
 
-          {onStream && (
-            <Button
-              onClick={handleStreamAsk}
-              disabled={!isQueryValid || isDisabled}
-              variant="outline"
-              className="flex-1"
-            >
-              {streamLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Streaming...
-                </>
-              ) : (
-                <>
-                  <Zap className="mr-2 h-4 w-4" />
-                  Stream Answer
-                </>
-              )}
-            </Button>
-          )}
         </div>
       </CardContent>
     </Card>

@@ -160,7 +160,7 @@ export function AskResultCard({ data, loading, error, streamingAnswer, isStreami
               📋 Copy
             </button>
           </div>
-          <div className="text-sm leading-relaxed bg-muted/50 p-3 rounded-md overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical' }}>
+          <div className="text-sm leading-relaxed bg-muted/50 p-3 rounded-md">
             {streamingAnswer || data?.answer || ''}
             {isStreaming && <span className="animate-pulse">|</span>}
           </div>

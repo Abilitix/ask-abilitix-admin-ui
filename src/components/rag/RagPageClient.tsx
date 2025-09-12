@@ -217,7 +217,6 @@ export function RagPageClient() {
         defaultTopK={topK}
         onRun={handleRunRAG}
         onAsk={handleTryAsk}
-        onStream={handleStreamAsk}
       />
 
       {/* Results Grid */}

@@ -17,7 +17,36 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // Simple test response first
-  return NextResponse.json({ message: "POST handler working", timestamp: new Date().toISOString() });
+  try {
+    const ASK_BASE = process.env.ASK_BASE!;
+    const body = await req.text(); // raw for SSE
+    const tenantSlug = req.headers.get("x-tenant-slug") || process.env.TENANT_SLUG || "";
+
+    const r = await fetch(`${ASK_BASE}/ask/stream`, {
+      method: "POST",
+      headers: {
+        "Accept": "text/event-stream",
+        "Content-Type": "application/json",
+        "x-tenant-slug": tenantSlug,
+        // Optionally forward widget key header if present in the client request
+        "X-Widget-Key": req.headers.get("x-widget-key") || "",
+      },
+      body,
+      cache: "no-store",
+    });
+
+    return new NextResponse(r.body, {
+      status: r.status,
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-store",
+        "Connection": "keep-alive",
+      },
+    });
+  } catch (error) {
+    return NextResponse.json({ error: "Streaming failed", details: error instanceof Error ? error.message : String(error) }, {
+      status: 500
+    });
+  }
 }
 

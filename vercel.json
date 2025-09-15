@@ -10,6 +10,17 @@
           "value": "ask-abilitix-admin-ui.vercel.app"
         }
       ]
+    },
+    {
+      "source": "/(.*)",
+      "destination": "https://app.abilitix.com.au/$1",
+      "statusCode": 301,
+      "has": [
+        {
+          "type": "host",
+          "value": "ask-abilitix-admin-a9h6ehfrk-abilitix-consultings-projects.vercel.app"
+        }
+      ]
     }
   ]
 }

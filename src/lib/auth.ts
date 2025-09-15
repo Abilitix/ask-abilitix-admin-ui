@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { hasPermission, type UserRole } from './roles';
 
 export interface User {
   tenant_id: string;
@@ -58,13 +59,21 @@ export async function requireAdminAuth(): Promise<User> {
 }
 
 export function isAdminRole(role: string): boolean {
-  return ['owner', 'admin'].includes(role);
+  return hasPermission(role as UserRole, 'canManageSettings');
 }
 
 export function canManageDocs(role: string): boolean {
-  return ['owner', 'admin', 'curator'].includes(role);
+  return hasPermission(role as UserRole, 'canManageDocs');
 }
 
 export function canManageSettings(role: string): boolean {
-  return ['owner', 'admin'].includes(role);
+  return hasPermission(role as UserRole, 'canManageSettings');
+}
+
+export function canUploadDocs(role: string): boolean {
+  return hasPermission(role as UserRole, 'canUploadDocs');
+}
+
+export function canApproveInbox(role: string): boolean {
+  return hasPermission(role as UserRole, 'canApproveInbox');
 }

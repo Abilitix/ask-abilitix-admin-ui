@@ -5,20 +5,13 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useTenant } from "./TenantContext";
-
-const nav = [
-  { href: "/", label: "Dashboard" },
-  { href: "/admin/inbox", label: "Inbox" },
-  { href: "/admin/docs", label: "Docs" },
-  { href: "/admin/settings", label: "Settings" },
-  { href: "/admin/rag", label: "Debug" },
-];
+import { getVisibleNavItems, type UserRole } from "@/lib/roles";
 
 export default function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const { tenant, loading, error } = useTenant();
 
   // Fetch user role on component mount
@@ -32,29 +25,19 @@ export default function TopNav() {
         });
         if (response.ok) {
           const userData = await response.json();
-          setUserRole(userData.role || 'admin'); // Default to admin if no role
+          setUserRole(userData.role || 'viewer'); // Default to viewer if no role
         }
       } catch (error) {
         console.error('Failed to fetch user role:', error);
-        setUserRole('admin'); // Default to admin on error
+        setUserRole('viewer'); // Default to viewer on error
       }
     };
     
     fetchUserRole();
   }, []);
 
-  // Filter navigation items based on user role
-  const getVisibleNavItems = () => {
-    if (userRole === 'viewer') {
-      // Viewers only see Dashboard and RAG/Debug
-      return nav.filter(item => 
-        item.href === '/' || 
-        item.href === '/admin/rag'
-      );
-    }
-    // Admins and owners see all navigation items
-    return nav;
-  };
+  // Get visible navigation items based on user role
+  const visibleNavItems = userRole ? getVisibleNavItems(userRole) : [];
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -101,7 +84,7 @@ export default function TopNav() {
           </span>
         </Link>
         <ul className="flex items-center text-sm text-slate-700" style={{ gap: '1.25rem' }}>
-          {getVisibleNavItems().map((item) => {
+          {visibleNavItems.map((item) => {
             const active = pathname === item.href;
             return (
               <li key={item.href}>

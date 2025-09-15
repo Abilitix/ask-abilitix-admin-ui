@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the session cookie specifically
-    const sessionCookie = request.cookies.get('aa_sess');
+    const sessionCookie = request.cookies['aa_sess'];
     
     if (!sessionCookie) {
       console.log('No session cookie found in /api/auth/me');
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('Forwarding session to Admin API:', {
-      cookieValue: sessionCookie.value.substring(0, 20) + '...',
+      cookieValue: sessionCookie.substring(0, 20) + '...',
       adminBase: ADMIN_BASE
     });
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${ADMIN_BASE}/auth/me`, {
       method: 'GET',
       headers: {
-        'Cookie': `aa_sess=${sessionCookie.value}`,
+        'Cookie': `aa_sess=${sessionCookie}`,
         'Content-Type': 'application/json'
       },
       cache: 'no-store',

@@ -8,11 +8,11 @@ export async function middleware(req: NextRequest) {
   if (!pathname.startsWith(PROD_ADMIN_PREFIX)) return NextResponse.next();
 
   // Check for session cookie
-  const cookie = req.cookies.get('aa_sess');
+  const cookie = req.cookies['aa_sess'];
   console.log('Middleware checking session:', { 
     path: pathname,
     hasCookie: !!cookie,
-    cookieValue: cookie?.value?.substring(0, 20) + '...'
+    cookieValue: cookie?.substring(0, 20) + '...'
   });
 
   if (!cookie) {
@@ -27,7 +27,7 @@ export async function middleware(req: NextRequest) {
   try {
     const response = await fetch(`${adminApi}/auth/me`, {
       headers: { 
-        'Cookie': `aa_sess=${cookie.value}`,
+        'Cookie': `aa_sess=${cookie}`,
         'Content-Type': 'application/json'
       },
       cache: "no-store",

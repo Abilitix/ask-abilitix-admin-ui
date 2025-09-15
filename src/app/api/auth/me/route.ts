@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
-    const ADMIN_BASE = process.env.ADMIN_BASE;
+    const ADMIN_API = process.env.ADMIN_API;
     
-    if (!ADMIN_BASE) {
-      return NextResponse.json({ error: 'ADMIN_BASE not configured' }, { status: 500 });
+    if (!ADMIN_API) {
+      return NextResponse.json({ error: 'ADMIN_API not configured' }, { status: 500 });
     }
 
     // Get the session cookie specifically
@@ -18,11 +18,11 @@ export async function GET(request: NextRequest) {
 
     console.log('Forwarding session to Admin API:', {
       cookieValue: sessionCookie.substring(0, 20) + '...',
-      adminBase: ADMIN_BASE
+      adminApi: ADMIN_API
     });
 
     // Forward the request to Admin API with the session cookie
-    const response = await fetch(`${ADMIN_BASE}/auth/me`, {
+    const response = await fetch(`${ADMIN_API}/auth/me`, {
       method: 'GET',
       headers: {
         'Cookie': `aa_sess=${sessionCookie}`,

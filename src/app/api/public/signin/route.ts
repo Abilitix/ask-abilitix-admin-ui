@@ -2,10 +2,10 @@ import { NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const ADMIN_BASE = process.env.ADMIN_BASE;
+    const ADMIN_API = process.env.ADMIN_API;
     
-    if (!ADMIN_BASE) {
-      return new Response(JSON.stringify({ error: 'ADMIN_BASE not configured' }), {
+    if (!ADMIN_API) {
+      return new Response(JSON.stringify({ error: 'ADMIN_API not configured' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log('Signin request body:', body);
 
-    const r = await fetch(`${ADMIN_BASE}/public/signin`, {
+    const r = await fetch(`${ADMIN_API}/public/signin`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

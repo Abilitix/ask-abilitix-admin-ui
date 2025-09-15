@@ -2,18 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
-    const ADMIN_BASE = process.env.ADMIN_BASE;
+    const ADMIN_API = process.env.ADMIN_API;
     
-    if (!ADMIN_BASE) {
-      return NextResponse.json({ error: 'ADMIN_BASE not configured' }, { status: 500 });
+    if (!ADMIN_API) {
+      return NextResponse.json({ error: 'ADMIN_API not configured' }, { status: 500 });
     }
 
     console.log('Testing Admin UI API route...');
-    console.log('ADMIN_BASE:', ADMIN_BASE);
+    console.log('ADMIN_API:', ADMIN_API);
     console.log('Cookie header:', request.headers.get('cookie'));
 
     // Test direct call to Admin API
-    const response = await fetch(`${ADMIN_BASE}/auth/me`, {
+    const response = await fetch(`${ADMIN_API}/auth/me`, {
       method: 'GET',
       headers: {
         'Cookie': request.headers.get('cookie') || '',

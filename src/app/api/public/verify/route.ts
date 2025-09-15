@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     // Redirect browser directly to Admin API for verification
     // This allows Admin API to set the httpOnly cookie properly
-    const adminApiUrl = `${process.env.ADMIN_BASE}/public/verify?token=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`;
+    const adminApiUrl = `${process.env.ADMIN_API}/public/verify?token=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`;
     
     console.log('Redirecting to Admin API:', adminApiUrl);
     return NextResponse.redirect(adminApiUrl);

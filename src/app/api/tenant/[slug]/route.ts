@@ -15,12 +15,12 @@ export async function GET(
     }
 
     // Get tenant data from authenticated session
-    const ADMIN_BASE = process.env.ADMIN_BASE;
-    if (!ADMIN_BASE) {
+    const ADMIN_API = process.env.ADMIN_API;
+    if (!ADMIN_API) {
       return NextResponse.json({ error: 'Admin API not configured' }, { status: 500 });
     }
 
-    const response = await fetch(`${ADMIN_BASE}/auth/me`, {
+    const response = await fetch(`${ADMIN_API}/auth/me`, {
       headers: {
         'Cookie': request.headers.get('cookie') || ''
       }

@@ -32,12 +32,14 @@ export async function POST(req: NextRequest) {
       adminFormData.append('title', title);
     }
 
+    // Forward cookies for session-based authentication
+    const cookieHeader = req.headers.get('cookie') || '';
+
     // Call Admin API
     const response = await fetch(`${process.env.ADMIN_API}/admin/docs/upload_file`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.ADMIN_TOKEN}`,
-        'X-Tenant-Id': process.env.TENANT_ID!,
+        'Cookie': cookieHeader,
       },
       body: adminFormData,
     });

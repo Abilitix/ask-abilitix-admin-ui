@@ -2,17 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const ADMIN_BASE = process.env.ADMIN_BASE;
+    const ADMIN_API = process.env.ADMIN_API;
     
-    if (!ADMIN_BASE) {
-      return NextResponse.json({ error: 'ADMIN_BASE not configured' }, { status: 500 });
+    if (!ADMIN_API) {
+      return NextResponse.json({ error: 'ADMIN_API not configured' }, { status: 500 });
     }
 
     // Get user session to determine tenant
     const cookieHeader = request.headers.get('cookie') || '';
     
     // First, get user info to determine tenant
-    const userResponse = await fetch(`${ADMIN_BASE}/auth/me`, {
+    const userResponse = await fetch(`${ADMIN_API}/auth/me`, {
       method: 'GET',
       headers: { 'Cookie': cookieHeader },
       cache: 'no-store',
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call reembed endpoint with tenant context
-    const response = await fetch(`${ADMIN_BASE}/admin/docs/reembed_missing`, {
+    const response = await fetch(`${ADMIN_API}/admin/docs/reembed_missing`, {
       method: 'POST',
       headers: {
         'Cookie': cookieHeader, // Pass the session cookie

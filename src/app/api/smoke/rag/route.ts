@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     // Get document names from Admin API for better user experience
     let documentNames: Record<string, string> = {};
     try {
-      const docsResponse = await fetch(`${process.env.ADMIN_BASE}/admin/docs?limit=100`, {
+      const docsResponse = await fetch(`${process.env.ADMIN_API}/admin/docs?limit=100`, {
         headers: {
           'Authorization': `Bearer ${process.env.ADMIN_TOKEN}`,
           'X-Tenant-Id': tenantId

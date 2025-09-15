@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const ADMIN_BASE = process.env.ADMIN_BASE;
+    const ADMIN_API = process.env.ADMIN_API;
     const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
     const TENANT_ID = process.env.TENANT_ID;
     
-    if (!ADMIN_BASE || !ADMIN_TOKEN || !TENANT_ID) {
+    if (!ADMIN_API || !ADMIN_TOKEN || !TENANT_ID) {
       return new Response(JSON.stringify({ error: 'Missing required environment variables' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Inviting user:', { email, role });
 
-    const response = await fetch(`${ADMIN_BASE}/admin/users/invite`, {
+    const response = await fetch(`${ADMIN_API}/admin/users/invite`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${ADMIN_TOKEN}`,

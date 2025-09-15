@@ -4,13 +4,13 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const ADMIN_BASE = process.env.ADMIN_BASE;
+    const ADMIN_API = process.env.ADMIN_API;
     const SIGNUP_KEY = process.env.PUBLIC_SIGNUP_KEY;
     
-    console.log('Environment check:', { ADMIN_BASE, SIGNUP_KEY: SIGNUP_KEY ? 'SET' : 'NOT SET' });
+    console.log('Environment check:', { ADMIN_API, SIGNUP_KEY: SIGNUP_KEY ? 'SET' : 'NOT SET' });
     
-    if (!ADMIN_BASE) {
-      return new Response(JSON.stringify({ error: 'ADMIN_BASE not configured' }), {
+    if (!ADMIN_API) {
+      return new Response(JSON.stringify({ error: 'ADMIN_API not configured' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       headers["X-Signup-Key"] = SIGNUP_KEY;
     }
 
-    const r = await fetch(`${ADMIN_BASE}/public/signup-new`, {
+    const r = await fetch(`${ADMIN_API}/public/signup-new`, {
       method: "POST",
       headers,
       body: JSON.stringify(adminApiBody),

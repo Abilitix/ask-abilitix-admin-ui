@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
-  const ADMIN_BASE = process.env.ADMIN_BASE!;
+  const ADMIN_API = process.env.ADMIN_API!;
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN!;
   const TENANT_ID = process.env.TENANT_ID!;
   
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     offset
   });
 
-  const r = await fetch(`${ADMIN_BASE}/admin/docs?${queryParams}`, {
+  const r = await fetch(`${ADMIN_API}/admin/docs?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${ADMIN_TOKEN}`,
       'X-Tenant-Id': TENANT_ID,

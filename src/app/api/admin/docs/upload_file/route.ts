@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Call Admin API
-    const response = await fetch(`${process.env.ADMIN_BASE}/admin/docs/upload_file`, {
+    const response = await fetch(`${process.env.ADMIN_API}/admin/docs/upload_file`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.ADMIN_TOKEN}`,

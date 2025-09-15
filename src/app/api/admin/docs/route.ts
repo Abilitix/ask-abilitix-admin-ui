@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
   const ADMIN_API = process.env.ADMIN_API!;
-  const ADMIN_TOKEN = process.env.ADMIN_TOKEN!;
-  const TENANT_ID = process.env.TENANT_ID!;
   
   const url = new URL(req.url);
   const q = url.searchParams.get('q') || '';
@@ -19,10 +17,12 @@ export async function GET(req: NextRequest) {
     offset
   });
 
+  // Forward cookies for session-based authentication
+  const cookieHeader = req.headers.get('cookie') || '';
+
   const r = await fetch(`${ADMIN_API}/admin/docs?${queryParams}`, {
     headers: {
-      'Authorization': `Bearer ${ADMIN_TOKEN}`,
-      'X-Tenant-Id': TENANT_ID,
+      'Cookie': cookieHeader,
       'Cache-Control': 'no-store'
     },
     cache: 'no-store',

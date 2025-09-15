@@ -55,7 +55,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
               Welcome to Abiliti<span className="text-sm">X</span> Admin
               {tenant && (
                 <span className="ml-2 text-lg font-normal text-slate-600">
-                  - {tenant.name}
+                  - {tenant.slug}
                 </span>
               )}
             </h1>

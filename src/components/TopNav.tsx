@@ -108,7 +108,7 @@ export default function TopNav() {
               'Demo Mode'
             ) : tenant ? (
               <>
-                Tenant: {tenant.name}
+                Tenant: {tenant.slug}
                 <span className="ml-1 px-1 py-0.5 rounded text-xs bg-slate-100">
                   {tenant.type}
                 </span>

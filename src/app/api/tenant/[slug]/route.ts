@@ -39,10 +39,10 @@ export async function GET(
     
     try {
       // Get all tenants and find the current one
-      const tenantsData = await adminFetch('/admin/tenants', {}, request);
+      const tenantsData = await adminFetch<{ items?: Array<{ id: string; slug: string; name: string }> }>('/admin/tenants', {}, request);
       
       if (tenantsData && tenantsData.items) {
-        const currentTenant = tenantsData.items.find((t: any) => t.id === userData.tenant_id);
+        const currentTenant = tenantsData.items.find((t) => t.id === userData.tenant_id);
         if (currentTenant) {
           tenantSlug = currentTenant.slug || tenantSlug;
           tenantName = currentTenant.name || tenantName;

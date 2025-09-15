@@ -1,0 +1,56 @@
+import { NextRequest } from "next/server";
+
+export async function POST(req: NextRequest) {
+  try {
+    const ADMIN_BASE = process.env.ADMIN_BASE;
+    
+    if (!ADMIN_BASE) {
+      return new Response(JSON.stringify({ error: 'ADMIN_BASE not configured' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const body = await req.json();
+    console.log('Signin request body:', body);
+
+    const r = await fetch(`${ADMIN_BASE}/public/signin`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+
+    console.log('Admin service response status:', r.status);
+    
+    const responseText = await r.text();
+    console.log('Admin service response body:', responseText);
+    
+    if (r.ok) {
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+    
+    return new Response(responseText, {
+      status: r.status,
+      headers: {
+        "Content-Type": r.headers.get("Content-Type") || "application/json",
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (error) {
+    console.error('Signin API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: 'Internal server error', details: errorMessage }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}

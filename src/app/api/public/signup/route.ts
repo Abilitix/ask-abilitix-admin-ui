@@ -16,35 +16,47 @@ export async function POST(req: NextRequest) {
       });
     }
     
-    if (!SIGNUP_KEY) {
-      return new Response(JSON.stringify({ error: 'PUBLIC_SIGNUP_KEY not configured' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    // Note: SIGNUP_KEY can be empty if Admin API doesn't require it
     
     const body = await req.json();
     console.log('Request body:', body);
+    
+    // Transform the request body to match Admin API expectations
+    const adminApiBody = {
+      company_name: body.company,
+      email: body.email
+    };
+    console.log('Admin API body:', adminApiBody);
 
-    const r = await fetch(`${ADMIN_BASE}/public/signup`, {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    // Only add X-Signup-Key header if SIGNUP_KEY is provided
+    if (SIGNUP_KEY) {
+      headers["X-Signup-Key"] = SIGNUP_KEY;
+    }
+
+    const r = await fetch(`${ADMIN_BASE}/public/signup-new`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Signup-Key": SIGNUP_KEY, // server-side only
-      },
-      body: JSON.stringify(body),
+      headers,
+      body: JSON.stringify(adminApiBody),
       cache: "no-store",
     });
 
     console.log('Admin service response status:', r.status);
     
+    // Log the response body for debugging
+    const responseText = await r.text();
+    console.log('Admin service response body:', responseText);
+    
     // If signup was successful, send welcome email
     if (r.ok) {
-      const signupData = await r.json();
+      const signupData = JSON.parse(responseText);
       
       // Try to send welcome email (non-blocking)
       try {
-        const dashboardUrl = `${process.env.NEXT_PUBLIC_ASK_BASE}/admin?tenant=${signupData.tenant_slug}`;
+        const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin?tenant=${signupData.tenant_slug}`;
         await sendWelcomeEmail(
           body.email,
           body.company,
@@ -57,8 +69,14 @@ export async function POST(req: NextRequest) {
         // Continue without failing the signup
       }
       
-      // Return the original response
-      return new Response(JSON.stringify(signupData), {
+      // Return the original response with additional UI data
+      const uiResponse = {
+        ...signupData,
+        tenant_slug: signupData.tenant_slug || 'unknown',
+        widget_key_once: signupData.widget_key_once || 'no-key-returned'
+      };
+      
+      return new Response(JSON.stringify(uiResponse), {
         status: 200,
         headers: {
           "Content-Type": "application/json",
@@ -67,7 +85,7 @@ export async function POST(req: NextRequest) {
       });
     }
     
-    return new Response(r.body, {
+    return new Response(responseText, {
       status: r.status,
       headers: {
         "Content-Type": r.headers.get("Content-Type") || "application/json",

@@ -1,34 +1,33 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 
-export default function SignupPage() {
-  const [company, setCompany] = useState('');
+export default function SignInPage() {
   const [email, setEmail] = useState('');
-  const [res, setRes] = useState<any>(null);
-  const [err, setErr] = useState<string|null>(null);
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); 
     setErr(null); 
-    setRes(null);
+    setSent(false);
     setLoading(true);
     
     try {
-      const r = await fetch('/api/public/signup', {
-        method:'POST', 
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ company, email }),
+      const r = await fetch('/api/public/signin', {
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email }),
       });
       
       if (!r.ok) { 
         const errorData = await r.json();
-        setErr(errorData.error || 'Signup failed'); 
+        setErr(errorData.error || 'Could not request sign-in link. Please try again.'); 
         return; 
       }
       
-      const data = await r.json();
-      setRes(data);
+      setSent(true);
     } catch (error) {
       setErr('Network error. Please try again.');
     } finally {
@@ -41,28 +40,13 @@ export default function SignupPage() {
       <div className="max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to Abilitix</h1>
-          <p className="text-gray-600">Create your AI-powered workspace</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
+          <p className="text-gray-600">Sign in to your workspace</p>
         </div>
 
-        {/* Signup Form */}
+        {/* Sign-in Form */}
         <div className="bg-white rounded-xl shadow-lg p-8">
           <form onSubmit={submit} className="space-y-6">
-            <div>
-              <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                Company Name
-              </label>
-              <input
-                id="company"
-                type="text"
-                value={company}
-                onChange={e => setCompany(e.target.value)}
-                placeholder="Enter your company name"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                required
-              />
-            </div>
-            
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
@@ -83,7 +67,7 @@ export default function SignupPage() {
               disabled={loading}
               className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Creating Workspace...' : 'Create Workspace'}
+              {loading ? 'Sending link...' : 'Email me a sign-in link'}
             </button>
           </form>
 
@@ -100,34 +84,34 @@ export default function SignupPage() {
           )}
 
           {/* Success Message */}
-          {res && (
+          {sent && (
             <div className="mt-6 p-6 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-start">
                 <svg className="w-6 h-6 text-green-400 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-green-800 mb-3">Workspace Created Successfully!</h3>
+                  <h3 className="text-lg font-semibold text-green-800 mb-3">Check your email</h3>
                   <p className="text-green-700 mb-4">
-                    Check your email for a sign-in link (valid 15 minutes).
+                    We've sent you a sign-in link (valid 15 minutes).
                   </p>
                   <div className="text-sm text-green-600">
-                    Once you click the link, you'll have full access to your admin dashboard.
+                    Click the link to access your workspace.
                   </div>
                 </div>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Link to Signin */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Already have a workspace?{' '}
-            <a href="/signin" className="text-indigo-600 hover:text-indigo-500 font-medium">
-              Sign in
-            </a>
-          </p>
+          {/* Link to Signup */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Don't have a workspace?{' '}
+              <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium">
+                Create one
+              </Link>
+            </p>
+          </div>
         </div>
 
         {/* Footer */}

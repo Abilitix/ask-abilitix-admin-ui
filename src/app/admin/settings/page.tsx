@@ -11,6 +11,12 @@ export default function SettingsPage() {
   const [rot, setRot] = useState<string|null>(null);
   const [err, setErr] = useState<string|null>(null);
   const [supportsGate, setSupportsGate] = useState(false);
+  
+  // User invitation state
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'viewer'>('viewer');
+  const [inviting, setInviting] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState(false);
 
   async function load() {
     setErr(null);
@@ -63,6 +69,44 @@ export default function SettingsPage() {
       setRot(j.key);
     } catch (e) {
       setErr(String(e));
+    }
+  }
+
+  async function inviteUser() {
+    if (!inviteEmail.trim()) {
+      setErr('Please enter an email address');
+      return;
+    }
+    
+    setInviting(true);
+    setErr(null);
+    setInviteSuccess(false);
+    
+    try {
+      const r = await fetch('/api/admin/users/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: inviteEmail.trim(), 
+          role: inviteRole 
+        }),
+        cache: 'no-store'
+      });
+      
+      if (!r.ok) {
+        const errorData = await r.json();
+        throw new Error(errorData.error || `HTTP ${r.status}`);
+      }
+      
+      setInviteSuccess(true);
+      setInviteEmail('');
+      // Reset success message after 3 seconds
+      setTimeout(() => setInviteSuccess(false), 3000);
+      
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setInviting(false);
     }
   }
 
@@ -174,6 +218,47 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* User Management Section */}
+      <div className="mt-8 pt-6 border-t border-gray-200">
+        <h2 className="text-xl font-semibold mb-4">User Management</h2>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Invite User</label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                placeholder="Enter email address"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded"
+              />
+              <select
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value as 'admin' | 'viewer')}
+                className="px-3 py-2 border border-gray-300 rounded"
+              >
+                <option value="admin">Admin</option>
+                <option value="viewer">Viewer</option>
+              </select>
+              <button
+                onClick={inviteUser}
+                disabled={inviting || !inviteEmail.trim()}
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {inviting ? 'Inviting...' : 'Invite'}
+              </button>
+            </div>
+          </div>
+          
+          {inviteSuccess && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700">
+              ✓ User invitation sent successfully!
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

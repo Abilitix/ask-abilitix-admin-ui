@@ -11,9 +11,7 @@ const nav = [
   { href: "/admin/inbox", label: "Inbox" },
   { href: "/admin/docs", label: "Docs" },
   { href: "/admin/settings", label: "Settings" },
-  { href: "/signup", label: "Onboarding" },
   { href: "/admin/rag", label: "Debug" },
-  { href: "/demo/signup", label: "Demo" },
 ];
 
 export default function TopNav() {
@@ -48,14 +46,13 @@ export default function TopNav() {
   // Filter navigation items based on user role
   const getVisibleNavItems = () => {
     if (userRole === 'viewer') {
-      // Viewers only see Dashboard and Ask/RAG
+      // Viewers only see Dashboard and RAG/Debug
       return nav.filter(item => 
         item.href === '/' || 
-        item.href === '/admin/rag' ||
-        item.href === '/signup' // Keep onboarding for all users
+        item.href === '/admin/rag'
       );
     }
-    // Admins see all navigation items
+    // Admins and owners see all navigation items
     return nav;
   };
 

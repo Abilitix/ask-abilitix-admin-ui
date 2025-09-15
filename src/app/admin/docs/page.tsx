@@ -1,6 +1,6 @@
 import { requireAuth, canManageDocs } from '@/lib/auth';
 import { DocsStatsCard } from '@/components/docs/DocsStatsCard';
-import { DocsUploadForm } from '@/components/docs/DocsUploadForm';
+import { DocumentManagementClient } from '@/components/docs/DocumentManagementClient';
 import { ReembedButton } from '@/components/docs/ReembedButton';
 
 // Force dynamic rendering
@@ -24,8 +24,8 @@ export default async function AdminDocsPage() {
           {/* Document Statistics */}
           <DocsStatsCard />
           
-          {/* Document Upload */}
-          <DocsUploadForm />
+          {/* Complete Document Management */}
+          <DocumentManagementClient />
           
           {/* Re-embed Button */}
           <ReembedButton />

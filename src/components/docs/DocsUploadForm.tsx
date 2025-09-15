@@ -127,23 +127,8 @@ export function DocsUploadForm({ onDone }: DocsUploadFormProps) {
     }
   };
 
-  if (!mounted) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Upload className="h-5 w-5" />
-            <span>Upload Document</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Debug logging to help troubleshoot
+  console.log('DocsUploadForm render:', { mounted, uploadType, title, text, file: !!file });
 
   return (
     <Card>
@@ -158,7 +143,7 @@ export function DocsUploadForm({ onDone }: DocsUploadFormProps) {
           {/* Upload Type Selector */}
           <div className="space-y-2">
             <Label>Upload Type</Label>
-            <div className="flex space-x-4">
+            <div className="flex space-x-4" key={`upload-type-${mounted}`}>
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="radio"

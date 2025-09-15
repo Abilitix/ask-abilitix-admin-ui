@@ -1,6 +1,9 @@
 import { Suspense } from 'react';
 import { RagPageClient } from '@/components/rag/RagPageClient';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export default function AdminRagPage() {
   return (
     <Suspense fallback={

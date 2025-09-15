@@ -14,28 +14,14 @@ export async function GET(
       );
     }
 
-    // Forward to Admin API to get tenant information
-    const adminApiUrl = `${process.env.ADMIN_BASE}/admin/tenant/${slug}`;
-    
-    const response = await fetch(adminApiUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${process.env.ADMIN_TOKEN}`,
-        'X-Tenant-Id': process.env.TENANT_ID,
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: 'Tenant not found' },
-        { status: response.status }
-      );
-    }
-
-    const tenantData = await response.json();
-    
-    return NextResponse.json(tenantData, {
+    // For now, return basic tenant info without Admin API call
+    // This can be enhanced later when we have proper tenant management
+    return NextResponse.json({
+      id: slug,
+      slug: slug,
+      name: `Tenant ${slug}`,
+      type: 'pilot'
+    }, {
       status: 200,
       headers: { 'Cache-Control': 'no-store' }
     });

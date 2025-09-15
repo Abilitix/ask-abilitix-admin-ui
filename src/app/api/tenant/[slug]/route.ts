@@ -32,10 +32,26 @@ export async function GET(
 
     const userData = await response.json();
     
-    // Return tenant data from user session
-    // If tenant_slug and tenant_name are not available, use fallbacks
-    const tenantSlug = userData.tenant_slug || `tenant-${userData.tenant_id.slice(0, 8)}`;
-    const tenantName = userData.tenant_name || `Tenant ${userData.tenant_id.slice(0, 8)}`;
+    // Fetch tenant details from Admin API using tenant ID
+    let tenantSlug = `tenant-${userData.tenant_id.slice(0, 8)}`;
+    let tenantName = `Tenant ${userData.tenant_id.slice(0, 8)}`;
+    
+    try {
+      const tenantResponse = await fetch(`${ADMIN_API}/admin/tenants/${userData.tenant_id}`, {
+        headers: {
+          'Cookie': request.headers.get('cookie') || ''
+        }
+      });
+      
+      if (tenantResponse.ok) {
+        const tenantData = await tenantResponse.json();
+        tenantSlug = tenantData.slug || tenantSlug;
+        tenantName = tenantData.name || tenantName;
+      }
+    } catch (error) {
+      console.error('Failed to fetch tenant details:', error);
+      // Use fallback values
+    }
     
     return NextResponse.json({
       id: userData.tenant_id,

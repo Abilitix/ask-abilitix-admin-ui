@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const ADMIN_BASE = process.env.ADMIN_BASE;
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
-const TENANT_ID = process.env.TENANT_ID;
 
-if (!ADMIN_BASE || !ADMIN_TOKEN || !TENANT_ID) {
-  throw new Error('Missing required environment variables: ADMIN_BASE, ADMIN_TOKEN, or TENANT_ID');
+if (!ADMIN_BASE) {
+  throw new Error('Missing required environment variable: ADMIN_BASE');
 }
 
 export async function GET(
@@ -54,8 +52,6 @@ async function handleRequest(
     const targetUrl = `${ADMIN_BASE}${fullPath}`;
     
     const headers: Record<string, string> = {
-      'Authorization': `Bearer ${ADMIN_TOKEN}`,
-      'X-Tenant-Id': TENANT_ID!,
       'Content-Type': 'application/json',
     };
 

@@ -1,4 +1,7 @@
 import { requireAuth, canManageDocs } from '@/lib/auth';
+import { DocsStatsCard } from '@/components/docs/DocsStatsCard';
+import { DocsUploadForm } from '@/components/docs/DocsUploadForm';
+import { ReembedButton } from '@/components/docs/ReembedButton';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -17,9 +20,15 @@ export default async function AdminDocsPage() {
       </div>
       
       {canManage ? (
-        <div className="text-center py-12">
-          <h2 className="text-xl font-semibold mb-4">Documents Management</h2>
-          <p className="text-slate-600">Document management features are available for admin users.</p>
+        <div className="space-y-6">
+          {/* Document Statistics */}
+          <DocsStatsCard />
+          
+          {/* Document Upload */}
+          <DocsUploadForm />
+          
+          {/* Re-embed Button */}
+          <ReembedButton />
         </div>
       ) : (
         <div className="rounded-md bg-blue-50 p-4">

@@ -41,24 +41,10 @@ export default function DashboardClient({ user }: DashboardClientProps) {
     <div className="space-y-8">
       {/* Hero */}
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Image
-            src="/abilitix-logo.png"
-            alt="AbilitiX"
-            width={44}
-            height={44}
-            className="rounded"
-            priority
-          />
-          <div>
-            <h1 className="text-2xl font-semibold leading-tight">
-              Welcome to Abiliti<span className="text-sm">X</span> Admin
-              {tenant && (
-                <span className="ml-2 text-lg font-normal text-slate-600">
-                  - {tenant.slug}
-                </span>
-              )}
-            </h1>
+        <div>
+          <h1 className="text-2xl font-semibold leading-tight">
+            Welcome to Abiliti<span className="text-xs">X</span> Admin
+          </h1>
             <p className="text-sm text-slate-600">
               Manage your AI-powered knowledge base: upload docs, configure settings,
               and monitor performance.

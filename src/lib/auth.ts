@@ -18,7 +18,7 @@ export async function getAuthUser(): Promise<User | null> {
       return null;
     }
 
-    const response = await fetch(`${process.env.ADMIN_BASE}/auth/me`, {
+    const response = await fetch(`${process.env.ADMIN_API}/auth/me`, {
       method: 'GET',
       headers: {
         'Cookie': cookieHeader,

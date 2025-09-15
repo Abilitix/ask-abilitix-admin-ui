@@ -1,5 +1,8 @@
 import { requireAuth, canManageDocs } from '@/lib/auth';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export default async function AdminDocsPage() {
   const user = await requireAuth();
   const canManage = canManageDocs(user.role);

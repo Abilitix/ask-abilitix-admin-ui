@@ -57,7 +57,6 @@ export default function DashboardClient({ user }: DashboardClientProps) {
                 </span>
               )}
             </div>
-          </div>
         </div>
       </section>
 

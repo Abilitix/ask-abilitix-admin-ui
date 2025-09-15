@@ -8,7 +8,7 @@ export async function middleware(req: NextRequest) {
   if (!pathname.startsWith(PROD_ADMIN_PREFIX)) return NextResponse.next();
 
   // Check for session cookie
-  const cookie = req.cookies['aa_sess'];
+  const cookie = req.cookies.get('aa_sess')?.value;
   console.log('Middleware checking session:', { 
     path: pathname,
     hasCookie: !!cookie,

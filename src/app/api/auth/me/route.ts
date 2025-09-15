@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the session cookie specifically
-    const sessionCookie = request.cookies['aa_sess'];
+    const sessionCookie = request.cookies.get('aa_sess')?.value;
     
     if (!sessionCookie) {
       console.log('No session cookie found in /api/auth/me');

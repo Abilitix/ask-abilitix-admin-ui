@@ -48,12 +48,40 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         const userData = await response.json();
         
         if (userData.tenant_id) {
-          setTenant({
-            id: userData.tenant_id,
-            slug: userData.tenant_slug || 'unknown',
-            name: userData.tenant_name || 'Unknown Tenant',
-            type: 'pilot'
-          });
+          // Try to get tenant details from the tenant API
+          try {
+            const tenantResponse = await fetch(`${api}/tenant/${userData.tenant_id}`, {
+              credentials: 'include',
+              cache: 'no-store'
+            });
+            
+            if (tenantResponse.ok) {
+              const tenantData = await tenantResponse.json();
+              setTenant({
+                id: userData.tenant_id,
+                slug: tenantData.slug || 'unknown',
+                name: tenantData.name || 'Unknown Tenant',
+                type: tenantData.type || 'pilot'
+              });
+            } else {
+              // Fallback if tenant API fails
+              setTenant({
+                id: userData.tenant_id,
+                slug: 'unknown',
+                name: 'Unknown Tenant',
+                type: 'pilot'
+              });
+            }
+          } catch (tenantErr) {
+            console.error('Tenant details fetch error:', tenantErr);
+            // Fallback if tenant API fails
+            setTenant({
+              id: userData.tenant_id,
+              slug: 'unknown',
+              name: 'Unknown Tenant',
+              type: 'pilot'
+            });
+          }
         } else {
           throw new Error('No tenant information in user session');
         }

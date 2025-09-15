@@ -136,11 +136,6 @@ export function RagPageClient() {
         'Content-Type': 'application/json',
       };
       
-      // Only add tenant slug header if it exists
-      if (process.env.NEXT_PUBLIC_TENANT_SLUG) {
-        headers['x-tenant-slug'] = process.env.NEXT_PUBLIC_TENANT_SLUG;
-      }
-      
       // Only add widget key header if it exists
       if (process.env.ADMIN_TOKEN) {
         headers['x-widget-key'] = process.env.ADMIN_TOKEN;

@@ -2,10 +2,9 @@
 // These functions can be called from both client and server code
 
 const ASK_BASE = process.env.NEXT_PUBLIC_ASK_BASE;
-const TENANT_SLUG = process.env.NEXT_PUBLIC_TENANT_SLUG;
 
-if (!ASK_BASE || !TENANT_SLUG) {
-  throw new Error('Missing required environment variables: NEXT_PUBLIC_ASK_BASE or NEXT_PUBLIC_TENANT_SLUG');
+if (!ASK_BASE) {
+  throw new Error('Missing required environment variable: NEXT_PUBLIC_ASK_BASE');
 }
 
 export type AskResponse = {
@@ -39,7 +38,6 @@ export async function askPost(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-tenant-slug': TENANT_SLUG!,
     },
     body: JSON.stringify(body),
   });

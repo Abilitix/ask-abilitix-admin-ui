@@ -27,7 +27,8 @@ export default function TopNav() {
   useEffect(() => {
     const fetchUserRole = async () => {
       try {
-        const response = await fetch('/api/auth/me', {
+        const api = process.env.NEXT_PUBLIC_ADMIN_API!;
+        const response = await fetch(`${api}/auth/me`, {
           credentials: 'include',
           cache: 'no-store'
         });
@@ -61,8 +62,10 @@ export default function TopNav() {
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
-      const response = await fetch('/api/auth/logout', {
+      const api = process.env.NEXT_PUBLIC_ADMIN_API!;
+      const response = await fetch(`${api}/auth/logout`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

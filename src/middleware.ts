@@ -23,7 +23,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Verify session with Admin API
-  const adminApi = process.env.ADMIN_BASE!;
+  const adminApi = process.env.NEXT_PUBLIC_ADMIN_API!;
   try {
     const response = await fetch(`${adminApi}/auth/me`, {
       headers: { 

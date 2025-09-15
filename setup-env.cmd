@@ -7,6 +7,7 @@ echo NEXT_PUBLIC_APP_URL=https://ask-abilitix-admin-ui.vercel.app >> .env.local
 echo. >> .env.local
 echo # Server-only (DO NOT expose to client) >> .env.local
 echo ADMIN_BASE=https://ask-abilitix-admin-api.onrender.com >> .env.local
+echo NEXT_PUBLIC_ADMIN_API=https://api.abilitix.com.au >> .env.local
 echo ASK_BASE=https://ask-abilitix-api.onrender.com >> .env.local
 echo COOKIE_NAME=aa_sess >> .env.local
 echo ADMIN_TOKEN=IoOg5yrZe3zZCg7SP3-esyyQWhwhK31-19f6lHDlij4kafMEAJ9PNne7eHOqlYbQ >> .env.local

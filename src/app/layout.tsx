@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import Script from "next/script";
-import TopNav from "@/components/TopNav";
+import ConditionalTopNav from "@/components/ConditionalTopNav";
 import { TenantProvider } from "@/components/TenantContext";
 
 export const metadata: Metadata = { title: "AbilitiX Admin" };
@@ -22,8 +22,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-slate-50 text-slate-900">
         <TenantProvider>
-          <TopNav />
-          <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+          <ConditionalTopNav />
+          <main className="mx-auto max-w-6xl px-4 py-8">
+            {children}
+          </main>
         </TenantProvider>
       </body>
     </html>

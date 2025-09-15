@@ -71,6 +71,31 @@ export default function SignInPage() {
             </button>
           </form>
 
+          {/* Terms and Privacy */}
+          <div className="mt-6 text-center text-xs text-gray-500">
+            <p>
+              By continuing, you confirm that you have read and agree to our{' '}
+              <a 
+                href="https://abilitix.com.au/abilitix-pilot-terms-of-use/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-indigo-600 hover:text-indigo-500 underline"
+              >
+                Terms of Service
+              </a>{' '}
+              and{' '}
+              <a 
+                href="https://abilitix.com.au/abilitix-privacy-policy/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-indigo-600 hover:text-indigo-500 underline"
+              >
+                Privacy Policy
+              </a>
+              .
+            </p>
+          </div>
+
           {/* Error Message */}
           {err && (
             <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">

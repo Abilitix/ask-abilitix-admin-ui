@@ -14,13 +14,30 @@ export async function GET(
       );
     }
 
-    // For now, return basic tenant info without Admin API call
-    // This can be enhanced later when we have proper tenant management
+    // Get tenant data from authenticated session
+    const ADMIN_BASE = process.env.ADMIN_BASE;
+    if (!ADMIN_BASE) {
+      return NextResponse.json({ error: 'Admin API not configured' }, { status: 500 });
+    }
+
+    const response = await fetch(`${ADMIN_BASE}/auth/me`, {
+      headers: {
+        'Cookie': request.headers.get('cookie') || ''
+      }
+    });
+
+    if (!response.ok) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const userData = await response.json();
+    
+    // Return tenant data from user session
     return NextResponse.json({
-      id: slug,
-      slug: slug,
-      name: `Tenant ${slug}`,
-      type: 'pilot'
+      id: userData.tenant_id,
+      slug: userData.tenant_slug,
+      name: userData.tenant_name,
+      type: userData.tenant_type || 'pilot'
     }, {
       status: 200,
       headers: { 'Cache-Control': 'no-store' }

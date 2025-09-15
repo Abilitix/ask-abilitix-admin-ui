@@ -34,37 +34,28 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         setLoading(true);
         setError(null);
 
-        // Get tenant from URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const tenantSlug = urlParams.get('tenant');
-        
-        if (!tenantSlug) {
-          // Demo mode - use hardcoded demo tenant
-          setTenant({
-            id: 'demo',
-            slug: 'abilitix',
-            name: 'Abilitix Demo',
-            type: 'demo'
-          });
-          setLoading(false);
-          return;
-        }
-
-        // Pilot mode - fetch tenant data
-        const response = await fetch(`/api/tenant/${tenantSlug}`);
+        // Get tenant information from authenticated user session
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include',
+          cache: 'no-store'
+        });
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch tenant: ${response.status}`);
+          throw new Error(`Authentication failed: ${response.status}`);
         }
 
-        const tenantData = await response.json();
+        const userData = await response.json();
         
-        setTenant({
-          id: tenantData.id,
-          slug: tenantData.slug,
-          name: tenantData.name,
-          type: 'pilot'
-        });
+        if (userData.tenant_id) {
+          setTenant({
+            id: userData.tenant_id,
+            slug: userData.tenant_slug || 'unknown',
+            name: userData.tenant_name || 'Unknown Tenant',
+            type: 'pilot'
+          });
+        } else {
+          throw new Error('No tenant information in user session');
+        }
 
       } catch (err) {
         console.error('Tenant loading error:', err);

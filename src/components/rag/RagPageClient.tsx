@@ -135,7 +135,7 @@ export function RagPageClient() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-tenant-slug': process.env.NEXT_PUBLIC_TENANT_SLUG || 'abilitix',
+          'x-tenant-slug': process.env.NEXT_PUBLIC_TENANT_SLUG,
           'x-widget-key': process.env.ADMIN_TOKEN || '' // Using ADMIN_TOKEN as widget key for now
         },
         body: JSON.stringify({

@@ -90,13 +90,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         console.error('Tenant loading error:', err);
         setError(err instanceof Error ? err.message : 'Failed to load tenant');
         
-        // Fallback to demo tenant on error
-        setTenant({
-          id: 'demo',
-          slug: 'abilitix',
-          name: 'Abilitix Demo',
-          type: 'demo'
-        });
+        // No fallback - show proper error instead of wrong tenant data
+        setTenant(null);
       } finally {
         setLoading(false);
       }

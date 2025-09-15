@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Tenant-Slug': process.env.NEXT_PUBLIC_TENANT_SLUG || 'abilitix',
+        'X-Tenant-Slug': process.env.NEXT_PUBLIC_TENANT_SLUG,
         'X-Widget-Key': process.env.ADMIN_TOKEN || ''
       },
       body: JSON.stringify({

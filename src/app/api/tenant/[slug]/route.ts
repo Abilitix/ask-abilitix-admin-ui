@@ -33,10 +33,14 @@ export async function GET(
     const userData = await response.json();
     
     // Return tenant data from user session
+    // If tenant_slug and tenant_name are not available, use fallbacks
+    const tenantSlug = userData.tenant_slug || `tenant-${userData.tenant_id.slice(0, 8)}`;
+    const tenantName = userData.tenant_name || `Tenant ${userData.tenant_id.slice(0, 8)}`;
+    
     return NextResponse.json({
       id: userData.tenant_id,
-      slug: userData.tenant_slug,
-      name: userData.tenant_name,
+      slug: tenantSlug,
+      name: tenantName,
       type: 'pilot' // Always show as pilot mode for now
     }, {
       status: 200,

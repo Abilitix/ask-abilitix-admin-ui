@@ -39,14 +39,16 @@ export default function SignInPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
-          <p className="text-gray-600">Sign in to your workspace</p>
+        <div className="text-center mb-10">
+          <div className="mb-6">
+            <h1 className="text-4xl font-bold text-gray-900 mb-3">Welcome back</h1>
+            <p className="text-lg text-gray-600">Sign in to your workspace</p>
+          </div>
         </div>
 
         {/* Sign-in Form */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <form onSubmit={submit} className="space-y-6">
+        <div className="bg-white rounded-xl shadow-xl p-10 border border-gray-100">
+          <form onSubmit={submit} className="space-y-8">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
@@ -65,7 +67,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-indigo-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02]"
             >
               {loading ? 'Sending link...' : 'Email me a sign-in link'}
             </button>

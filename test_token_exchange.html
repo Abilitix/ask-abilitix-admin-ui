@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Exchange Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input, textarea { width: 100%; padding: 8px; margin: 5px 0; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Abilitix Magic Link Token Exchange Test</h1>
+    
+    <div class="section info">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Get a fresh magic link by signing in at <a href="https://app.abilitix.com.au/signin" target="_blank">https://app.abilitix.com.au/signin</a></li>
+            <li>Copy the token from the magic link URL (the part after <code>?token=</code>)</li>
+            <li>Paste it below and test the exchange</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h3>Step 1: Enter Magic Link Token</h3>
+        <input type="text" id="tokenInput" placeholder="Paste your magic link token here..." />
+        <button onclick="testTokenExchange()">Test Token Exchange</button>
+    </div>
+
+    <div class="section">
+        <h3>Step 2: Test Results</h3>
+        <div id="results"></div>
+    </div>
+
+    <div class="section">
+        <h3>Step 3: Manual API Tests</h3>
+        <button onclick="testHealth()">Test Admin API Health</button>
+        <button onclick="testCORS()">Test CORS</button>
+        <button onclick="testMe()">Test /auth/me (after successful exchange)</button>
+        <div id="apiResults"></div>
+    </div>
+
+    <script>
+        const ADMIN_API = 'https://api.abilitix.com.au';
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `section ${type}`;
+            div.innerHTML = `<pre>${message}</pre>`;
+            results.appendChild(div);
+        }
+
+        function logAPI(message, type = 'info') {
+            const results = document.getElementById('apiResults');
+            const div = document.createElement('div');
+            div.className = `section ${type}`;
+            div.innerHTML = `<pre>${message}</pre>`;
+            results.appendChild(div);
+        }
+
+        async function testTokenExchange() {
+            const token = document.getElementById('tokenInput').value.trim();
+            if (!token) {
+                log('Please enter a token first', 'error');
+                return;
+            }
+
+            log(`Testing token exchange with token: ${token.substring(0, 20)}...`, 'info');
+
+            try {
+                // Test 1: Exchange token
+                log('Step 1: Calling /auth/exchange...', 'info');
+                const exchangeResponse = await fetch(`${ADMIN_API}/auth/exchange`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token })
+                });
+
+                log(`Exchange Response Status: ${exchangeResponse.status}`, exchangeResponse.ok ? 'success' : 'error');
+                log(`Exchange Response Headers: ${JSON.stringify([...exchangeResponse.headers.entries()], null, 2)}`, 'info');
+
+                if (!exchangeResponse.ok) {
+                    const errorText = await exchangeResponse.text();
+                    log(`Exchange Error: ${errorText}`, 'error');
+                    return;
+                }
+
+                const exchangeData = await exchangeResponse.json();
+                log(`Exchange Success: ${JSON.stringify(exchangeData, null, 2)}`, 'success');
+
+                // Test 2: Check if we're logged in
+                log('Step 2: Calling /auth/me...', 'info');
+                const meResponse = await fetch(`${ADMIN_API}/auth/me`, {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+
+                log(`Me Response Status: ${meResponse.status}`, meResponse.ok ? 'success' : 'error');
+                log(`Me Response Headers: ${JSON.stringify([...meResponse.headers.entries()], null, 2)}`, 'info');
+
+                if (meResponse.ok) {
+                    const meData = await meResponse.json();
+                    log(`Me Success: ${JSON.stringify(meData, null, 2)}`, 'success');
+                    log('✅ Token exchange successful! You should be logged in.', 'success');
+                } else {
+                    const errorText = await meResponse.text();
+                    log(`Me Error: ${errorText}`, 'error');
+                    log('❌ Token exchange worked but /auth/me failed', 'error');
+                }
+
+            } catch (error) {
+                log(`Network Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testHealth() {
+            try {
+                const response = await fetch(`${ADMIN_API}/health`);
+                const text = await response.text();
+                logAPI(`Health Check: ${response.status} - ${text}`, response.ok ? 'success' : 'error');
+            } catch (error) {
+                logAPI(`Health Check Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCORS() {
+            try {
+                const response = await fetch(`${ADMIN_API}/health`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': 'https://app.abilitix.com.au',
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                logAPI(`CORS Preflight: ${response.status}`, response.ok ? 'success' : 'error');
+                logAPI(`CORS Headers: ${JSON.stringify([...response.headers.entries()], null, 2)}`, 'info');
+            } catch (error) {
+                logAPI(`CORS Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMe() {
+            try {
+                const response = await fetch(`${ADMIN_API}/auth/me`, {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+                const text = await response.text();
+                logAPI(`/auth/me: ${response.status} - ${text}`, response.ok ? 'success' : 'error');
+            } catch (error) {
+                logAPI(`/auth/me Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-populate token from URL if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const tokenFromUrl = urlParams.get('token');
+        if (tokenFromUrl) {
+            document.getElementById('tokenInput').value = tokenFromUrl;
+        }
+    </script>
+</body>
+</html>

@@ -37,7 +37,7 @@ export async function GET(
       id: userData.tenant_id,
       slug: userData.tenant_slug,
       name: userData.tenant_name,
-      type: userData.tenant_type || 'pilot'
+      type: 'pilot' // Always show as pilot mode for now
     }, {
       status: 200,
       headers: { 'Cache-Control': 'no-store' }

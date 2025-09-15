@@ -6,11 +6,6 @@ import { useTenant } from "./TenantContext";
 
 const cards = [
   {
-    href: "/signup",
-    title: "Onboarding",
-    desc: "Create a tenant and get a one-time widget key",
-  },
-  {
     href: "/admin/rag",
     title: "RAG Testing",
     desc: "Stream answers; see first token and total time",

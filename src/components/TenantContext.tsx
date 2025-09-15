@@ -59,17 +59,17 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
               const tenantData = await tenantResponse.json();
               setTenant({
                 id: userData.tenant_id,
-                slug: tenantData.slug || 'unknown',
-                name: tenantData.name || 'Unknown Tenant',
-                type: tenantData.type || 'pilot'
+                slug: tenantData.slug || userData.tenant_id,
+                name: tenantData.name || `Tenant ${userData.tenant_id}`,
+                type: 'pilot' // Always show as pilot mode for now
               });
             } else {
               // Fallback if tenant API fails
               setTenant({
                 id: userData.tenant_id,
-                slug: 'unknown',
-                name: 'Unknown Tenant',
-                type: 'pilot'
+                slug: userData.tenant_id,
+                name: `Tenant ${userData.tenant_id}`,
+                type: 'pilot' // Always show as pilot mode for now
               });
             }
           } catch (tenantErr) {
@@ -77,9 +77,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             // Fallback if tenant API fails
             setTenant({
               id: userData.tenant_id,
-              slug: 'unknown',
-              name: 'Unknown Tenant',
-              type: 'pilot'
+              slug: userData.tenant_id,
+              name: `Tenant ${userData.tenant_id}`,
+              type: 'pilot' // Always show as pilot mode for now
             });
           }
         } else {

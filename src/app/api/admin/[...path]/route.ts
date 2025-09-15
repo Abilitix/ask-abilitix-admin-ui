@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const ADMIN_API = process.env.ADMIN_API;
-
-if (!ADMIN_API) {
-  throw new Error('Missing required environment variable: ADMIN_API');
-}
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -44,6 +38,15 @@ async function handleRequest(
   method: string
 ) {
   try {
+    const ADMIN_API = process.env.ADMIN_API;
+    
+    if (!ADMIN_API) {
+      return NextResponse.json(
+        { error: 'ADMIN_API not configured' },
+        { status: 500 }
+      );
+    }
+
     const path = `/${pathSegments.join('/')}`;
     const url = new URL(request.url);
     const searchParams = url.searchParams.toString();

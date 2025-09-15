@@ -23,13 +23,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Use the working /ask endpoint with POST method
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Only add tenant slug header if it exists
+    if (process.env.NEXT_PUBLIC_TENANT_SLUG) {
+      headers['X-Tenant-Slug'] = process.env.NEXT_PUBLIC_TENANT_SLUG;
+    }
+    
+    // Only add widget key header if it exists
+    if (process.env.ADMIN_TOKEN) {
+      headers['X-Widget-Key'] = process.env.ADMIN_TOKEN;
+    }
+    
     const askResponse = await fetch(`${process.env.NEXT_PUBLIC_ASK_BASE}/ask`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Tenant-Slug': process.env.NEXT_PUBLIC_TENANT_SLUG,
-        'X-Widget-Key': process.env.ADMIN_TOKEN || ''
-      },
+      headers,
       body: JSON.stringify({
         question: query,
         session_id: 'ui-rag-test',

@@ -131,13 +131,24 @@ export function RagPageClient() {
       setAskResult(undefined);
       
       console.log('Making request to /api/ask/stream');
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Only add tenant slug header if it exists
+      if (process.env.NEXT_PUBLIC_TENANT_SLUG) {
+        headers['x-tenant-slug'] = process.env.NEXT_PUBLIC_TENANT_SLUG;
+      }
+      
+      // Only add widget key header if it exists
+      if (process.env.ADMIN_TOKEN) {
+        headers['x-widget-key'] = process.env.ADMIN_TOKEN;
+      }
+      
       const response = await fetch('/api/ask/stream', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-slug': process.env.NEXT_PUBLIC_TENANT_SLUG,
-          'x-widget-key': process.env.ADMIN_TOKEN || '' // Using ADMIN_TOKEN as widget key for now
-        },
+        headers,
         body: JSON.stringify({
           question: q,
           session_id: 'ui-rag-stream-test'

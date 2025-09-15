@@ -3,8 +3,8 @@ import { adminFetch } from '@/lib/api/admin';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  const data = await adminFetch(`/admin/tenants`);
+export async function GET(request: NextRequest) {
+  const data = await adminFetch(`/admin/tenants`, {}, request);
   return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });
 }
 

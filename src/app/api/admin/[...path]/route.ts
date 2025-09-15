@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const ADMIN_BASE = process.env.ADMIN_BASE;
+const ADMIN_API = process.env.ADMIN_API;
 
-if (!ADMIN_BASE) {
-  throw new Error('Missing required environment variable: ADMIN_BASE');
+if (!ADMIN_API) {
+  throw new Error('Missing required environment variable: ADMIN_API');
 }
 
 export async function GET(
@@ -49,7 +49,7 @@ async function handleRequest(
     const searchParams = url.searchParams.toString();
     const fullPath = `${path}${searchParams ? `?${searchParams}` : ''}`;
     
-    const targetUrl = `${ADMIN_BASE}${fullPath}`;
+    const targetUrl = `${ADMIN_API}${fullPath}`;
     
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

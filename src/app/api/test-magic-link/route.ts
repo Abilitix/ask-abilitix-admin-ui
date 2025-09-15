@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Test Admin API verification directly
-    const adminApiUrl = `${process.env.ADMIN_BASE}/public/verify?token=${encodeURIComponent(token)}&next=https://app.abilitix.com.au/admin`;
+    const adminApiUrl = `${process.env.ADMIN_API}/public/verify?token=${encodeURIComponent(token)}&next=https://app.abilitix.com.au/admin`;
     
     console.log('Testing magic link verification:', {
       token: token.substring(0, 10) + '...',

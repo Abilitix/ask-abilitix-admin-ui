@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       query: query,
       answerLength: askData.answer?.length || 0,
       citationsCount: askData.citations?.length || 0,
-      citations: askData.citations?.map(c => ({ doc_id: c.doc_id, score: c.score })) || []
+      citations: askData.citations?.map((c: any) => ({ doc_id: c.doc_id, score: c.score })) || []
     });
     
     // Get document names from Admin API for better user experience

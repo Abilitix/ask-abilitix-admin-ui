@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       question: question,
       answerLength: askData.answer?.length || 0,
       citationsCount: askData.citations?.length || 0,
-      citations: askData.citations?.map(c => ({ doc_id: c.doc_id, score: c.score })) || []
+      citations: askData.citations?.map((c: any) => ({ doc_id: c.doc_id, score: c.score })) || []
     });
 
     // Return response based on streaming preference

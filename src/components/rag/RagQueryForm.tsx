@@ -11,7 +11,7 @@ type Props = {
   defaultQuery?: string;
   defaultTopK?: number; // default 8
   onRun: (q: string, k: number) => void;
-  onAsk?: (q: string) => void; // optional callback for Try /ask
+  onAsk?: (q: string) => void; // optional callback for Test Chat
 };
 
 export function RagQueryForm({ defaultQuery = '', defaultTopK = 8, onRun, onAsk }: Props) {
@@ -57,7 +57,7 @@ export function RagQueryForm({ defaultQuery = '', defaultTopK = 8, onRun, onAsk 
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Search className="h-5 w-5" />
-          <span>RAG Query</span>
+          <span>Chat Interface</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -98,12 +98,12 @@ export function RagQueryForm({ defaultQuery = '', defaultTopK = 8, onRun, onAsk 
             {ragLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Running RAG...
+                Searching...
               </>
             ) : (
               <>
                 <Search className="mr-2 h-4 w-4" />
-                Run RAG
+                Test Search
               </>
             )}
           </Button>
@@ -118,12 +118,12 @@ export function RagQueryForm({ defaultQuery = '', defaultTopK = 8, onRun, onAsk 
               {askLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Asking...
+                  Testing...
                 </>
               ) : (
                 <>
                   <Play className="mr-2 h-4 w-4" />
-                  Try /ask
+                  Test Chat
                 </>
               )}
             </Button>

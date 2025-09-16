@@ -14,32 +14,38 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const tenantId = process.env.TENANT_ID;
-    if (!tenantId) {
+    // Get tenant context from user session (same as unified endpoint)
+    const ADMIN_API = process.env.ADMIN_API;
+    if (!ADMIN_API) {
       return NextResponse.json(
-        { error: 'TENANT_ID not configured' },
+        { error: 'Admin API not configured' },
         { status: 500 }
       );
     }
 
-    // Use the working /ask endpoint with POST method
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    
-    // Only add tenant slug header if it exists
-    if (process.env.NEXT_PUBLIC_TENANT_SLUG) {
-      headers['X-Tenant-Slug'] = process.env.NEXT_PUBLIC_TENANT_SLUG;
+    // Get user session to determine tenant context
+    const authResponse = await fetch(`${ADMIN_API}/auth/me`, {
+      headers: {
+        'Cookie': request.headers.get('cookie') || ''
+      }
+    });
+
+    if (!authResponse.ok) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
     }
+
+    const userData = await authResponse.json();
     
-    // Only add widget key header if it exists
-    if (process.env.ADMIN_TOKEN) {
-      headers['X-Widget-Key'] = process.env.ADMIN_TOKEN;
-    }
-    
+    // Call Ask API with tenant context from session
     const askResponse = await fetch(`${process.env.NEXT_PUBLIC_ASK_BASE}/ask`, {
       method: 'POST',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Tenant-Id': userData.tenant_id, // Use tenant ID from session
+      },
       body: JSON.stringify({
         question: query,
         session_id: 'ui-rag-test',
@@ -56,10 +62,9 @@ export async function GET(request: NextRequest) {
     // Get document names from Admin API for better user experience
     let documentNames: Record<string, string> = {};
     try {
-      const docsResponse = await fetch(`${process.env.ADMIN_API}/admin/docs?limit=100`, {
+      const docsResponse = await fetch(`${ADMIN_API}/admin/docs?limit=100`, {
         headers: {
-          'Authorization': `Bearer ${process.env.ADMIN_TOKEN}`,
-          'X-Tenant-Id': tenantId
+          'Cookie': request.headers.get('cookie') || '' // Use session auth instead of token
         }
       });
       

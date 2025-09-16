@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { HelpCircle, Settings, Users, Key, TestTube } from 'lucide-react';
 
 type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; };
@@ -196,7 +197,8 @@ export default function SettingsPage() {
   if (!data) return <div className="p-6">Loading...</div>;
 
   return (
-    <div className="p-6 max-w-4xl">
+    <TooltipProvider>
+      <div className="p-6 max-w-4xl">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
@@ -204,7 +206,7 @@ export default function SettingsPage() {
           <h1 className="text-3xl font-bold">Chatbot Settings</h1>
         </div>
         <p className="text-sm text-gray-600">
-          Tenant: <Badge variant="outline">{data?.tenant_slug || 'Loading...'}</Badge>
+          Tenant: <Badge variant="outline">{data?.tenant_slug || data?.tenant_name || 'Loading...'}</Badge>
         </p>
       </div>
       
@@ -232,7 +234,14 @@ export default function SettingsPage() {
               <Label htmlFor="answer-quality" className="text-base font-medium">
                 Answer Quality Threshold
               </Label>
-              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Controls how picky the system is about answer quality. Higher values mean more precise answers but might result in 'I don't know' responses more often.</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div className="flex items-center gap-4">
               <Select
@@ -269,7 +278,14 @@ export default function SettingsPage() {
               <Label htmlFor="answer-detail" className="text-base font-medium">
                 Answer Detail Level
               </Label>
-              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>How much detail to include in responses. Higher values provide more comprehensive answers but may take longer to generate.</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div className="flex items-center gap-4">
               <Select
@@ -306,7 +322,14 @@ export default function SettingsPage() {
               <Label htmlFor="understanding-focus" className="text-base font-medium">
                 Understanding Focus
               </Label>
-              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Balance between exact word matching and understanding meaning. Higher values help with questions that use different wording than your documents.</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div className="flex items-center gap-4">
               <Select
@@ -343,7 +366,14 @@ export default function SettingsPage() {
               <Label htmlFor="typo-tolerance" className="text-base font-medium">
                 Typo Tolerance
               </Label>
-              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>How forgiving the system is with spelling mistakes and word variations. Higher values help users who make typos.</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div className="flex items-center gap-4">
               <Select
@@ -381,7 +411,14 @@ export default function SettingsPage() {
                 <Label htmlFor="widget-security" className="text-base font-medium">
                   Widget Security
                 </Label>
-                <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Whether the public chatbot requires a password to use. Enable for security, disable for easy access.</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
               <div className="flex items-center gap-4">
                 <Select
@@ -550,6 +587,7 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

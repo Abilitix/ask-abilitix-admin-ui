@@ -4,6 +4,8 @@ import { hasPermission, type UserRole } from './roles';
 
 export interface User {
   tenant_id: string;
+  tenant_slug: string;        // ← NEW FIELD
+  tenant_name: string;        // ← NEW FIELD
   user_id: string;
   email: string;
   role: 'owner' | 'admin' | 'curator' | 'viewer';

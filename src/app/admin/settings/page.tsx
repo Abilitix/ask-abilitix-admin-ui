@@ -237,7 +237,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4">
               <Select
                 value={getPresetKey('answerQuality', form.DOC_MIN_SCORE ?? 0.15)}
-                onValueChange={(value) => setPreset('answerQuality', value)}
+                onChange={(e) => setPreset('answerQuality', e.target.value)}
                 className="w-48"
               >
                 <option value="low">Low (0.1)</option>
@@ -274,7 +274,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4">
               <Select
                 value={getPresetKey('answerDetail', form.RAG_TOPK ?? 6)}
-                onValueChange={(value) => setPreset('answerDetail', value)}
+                onChange={(e) => setPreset('answerDetail', e.target.value)}
                 className="w-48"
               >
                 <option value="concise">Concise (3)</option>
@@ -311,7 +311,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4">
               <Select
                 value={getPresetKey('understandingFocus', form.DOC_VEC_W ?? 0.6)}
-                onValueChange={(value) => setPreset('understandingFocus', value)}
+                onChange={(e) => setPreset('understandingFocus', e.target.value)}
                 className="w-48"
               >
                 <option value="keywordMatching">Keyword Matching (0.3)</option>
@@ -348,7 +348,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4">
               <Select
                 value={getPresetKey('typoTolerance', form.DOC_TRGM_W ?? 0.4)}
-                onValueChange={(value) => setPreset('typoTolerance', value)}
+                onChange={(e) => setPreset('typoTolerance', e.target.value)}
                 className="w-48"
               >
                 <option value="strict">Strict (0.2)</option>
@@ -386,7 +386,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-4">
                 <Select
                   value={getPresetKey('widgetSecurity', form.REQUIRE_WIDGET_KEY ?? 0)}
-                  onValueChange={(value) => setPreset('widgetSecurity', value)}
+                  onChange={(e) => setPreset('widgetSecurity', e.target.value)}
                   className="w-48"
                 >
                   <option value="openAccess">Open Access</option>
@@ -397,7 +397,7 @@ export default function SettingsPage() {
                     <Label className="text-sm text-gray-500">REQUIRE_WIDGET_KEY:</Label>
                     <Select
                       value={form.REQUIRE_WIDGET_KEY ?? 0}
-                      onValueChange={(value) => set('REQUIRE_WIDGET_KEY', parseInt(value))}
+                      onChange={(e) => set('REQUIRE_WIDGET_KEY', parseInt(e.target.value))}
                       className="w-24"
                     >
                       <option value="0">Disabled</option>
@@ -517,7 +517,7 @@ export default function SettingsPage() {
               />
               <Select
                 value={inviteRole}
-                onValueChange={(value) => setInviteRole(value as 'admin' | 'viewer')}
+                onChange={(e) => setInviteRole(e.target.value as 'admin' | 'viewer')}
                 className="w-32"
               >
                 <option value="admin">Admin</option>

@@ -46,13 +46,18 @@ export async function POST(request: NextRequest) {
 
     console.log('Inviting user:', { email, role, tenantId: userData.tenant_id });
 
+    // Try session auth first, fallback to admin token if needed
     const response = await fetch(`${ADMIN_API}/admin/users/invite`, {
       method: 'POST',
       headers: {
         'Cookie': request.headers.get('cookie') || '', // Use session auth
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, role }),
+      body: JSON.stringify({ 
+        email, 
+        role,
+        tenant_id: userData.tenant_id // Include tenant_id in body
+      }),
       cache: 'no-store',
     });
 

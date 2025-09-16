@@ -232,7 +232,7 @@ export default function SettingsPage() {
               <Label htmlFor="answer-quality" className="text-base font-medium">
                 Answer Quality Threshold
               </Label>
-              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" title="Controls how picky the system is about answer quality. Higher values mean more precise answers but might result in 'I don't know' responses more often." />
+              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
             </div>
             <div className="flex items-center gap-4">
               <Select
@@ -269,7 +269,7 @@ export default function SettingsPage() {
               <Label htmlFor="answer-detail" className="text-base font-medium">
                 Answer Detail Level
               </Label>
-              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" title="How much detail to include in responses. Higher values provide more comprehensive answers but may take longer to generate." />
+              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
             </div>
             <div className="flex items-center gap-4">
               <Select
@@ -306,7 +306,7 @@ export default function SettingsPage() {
               <Label htmlFor="understanding-focus" className="text-base font-medium">
                 Understanding Focus
               </Label>
-              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" title="Balance between exact word matching and understanding meaning. Higher values help with questions that use different wording than your documents." />
+              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
             </div>
             <div className="flex items-center gap-4">
               <Select
@@ -343,7 +343,7 @@ export default function SettingsPage() {
               <Label htmlFor="typo-tolerance" className="text-base font-medium">
                 Typo Tolerance
               </Label>
-              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" title="How forgiving the system is with spelling mistakes and word variations. Higher values help users who make typos." />
+              <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
             </div>
             <div className="flex items-center gap-4">
               <Select
@@ -381,7 +381,7 @@ export default function SettingsPage() {
                 <Label htmlFor="widget-security" className="text-base font-medium">
                   Widget Security
                 </Label>
-                <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" title="Whether the public chatbot requires a password to use. Enable for security, disable for easy access." />
+                <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
               </div>
               <div className="flex items-center gap-4">
                 <Select

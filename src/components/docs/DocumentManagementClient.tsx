@@ -51,11 +51,21 @@ export function DocumentManagementClient() {
 
       const data = await response.json();
       
+      console.log('Document API Response:', {
+        status: response.status,
+        data: data,
+        docsCount: data.docs?.length || 0,
+        documentsCount: data.documents?.length || 0
+      });
+      
       if (data.error) {
         throw new Error(data.details || data.error);
       }
 
-      setDocuments(data.documents || []);
+      // Handle both 'docs' and 'documents' response formats
+      const documents = data.docs || data.documents || [];
+      console.log('Setting documents:', documents.length, 'items');
+      setDocuments(documents);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load documents';
       toast.error(`Error: ${errorMessage}`);

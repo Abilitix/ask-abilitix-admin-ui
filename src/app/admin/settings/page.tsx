@@ -58,15 +58,17 @@ export default function SettingsPage() {
   function getPresetKey(category: keyof typeof PRESETS, value: number): string {
     const categoryPresets = PRESETS[category];
     for (const [key, preset] of Object.entries(categoryPresets)) {
-      if (preset.value === value) return key;
+      if ((preset as any).value === value) return key;
     }
     return 'custom';
   }
 
   function getPresetValue(category: keyof typeof PRESETS, key: string): number {
     const categoryPresets = PRESETS[category];
-    const preset = categoryPresets[key as keyof typeof categoryPresets];
-    return preset?.value ?? 0;
+    if (key in categoryPresets) {
+      return (categoryPresets as any)[key].value;
+    }
+    return 0;
   }
 
   async function load() {

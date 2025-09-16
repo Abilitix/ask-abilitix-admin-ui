@@ -32,9 +32,8 @@ export async function askGet<T>(path: string): Promise<T> {
 export async function askPost(
   body: { question: string; session_id: string }
 ): Promise<AskResponse> {
-  const url = `${ASK_BASE}/ask`;
-  
-  const response = await fetch(url, {
+  // Use the unified endpoint with tenant context instead of direct Ask API
+  const response = await fetch('/api/ask/stream?stream=false', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

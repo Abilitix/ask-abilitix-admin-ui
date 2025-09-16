@@ -17,21 +17,86 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // For now, return a simple streaming response to test if POST works
-  const stream = new ReadableStream({
-    start(controller) {
-      controller.enqueue(new TextEncoder().encode('data: {"message": "Streaming test working"}\n\n'));
-      controller.close();
-    }
-  });
+  try {
+    const body = await req.json();
+    const { question, session_id } = body;
+    const { searchParams } = new URL(req.url);
+    const stream = searchParams.get('stream') !== 'false'; // Default to streaming unless explicitly disabled
 
-  return new NextResponse(stream, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-store",
-      "Connection": "keep-alive",
-    },
-  });
+    if (!question) {
+      return new NextResponse('Missing question', { status: 400 });
+    }
+
+    // Get tenant context from user session
+    const ADMIN_API = process.env.ADMIN_API;
+    if (!ADMIN_API) {
+      return new NextResponse('Admin API not configured', { status: 500 });
+    }
+
+    // Get user session to determine tenant context
+    const authResponse = await fetch(`${ADMIN_API}/auth/me`, {
+      headers: {
+        'Cookie': req.headers.get('cookie') || ''
+      }
+    });
+
+    if (!authResponse.ok) {
+      return new NextResponse('Authentication required', { status: 401 });
+    }
+
+    const userData = await authResponse.json();
+    
+    // Call Ask API with tenant context from session
+    const askResponse = await fetch(`${process.env.NEXT_PUBLIC_ASK_BASE}/ask`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Tenant-Id': userData.tenant_id, // Use tenant ID from session
+      },
+      body: JSON.stringify({
+        question,
+        session_id: session_id || 'ui-rag-stream',
+      }),
+    });
+
+    if (!askResponse.ok) {
+      throw new Error(`Ask API failed: ${askResponse.status}`);
+    }
+
+    const askData = await askResponse.json();
+
+    // Return response based on streaming preference
+    if (stream) {
+      // Return as streaming data
+      const streamResponse = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(askData)}\n\n`));
+          controller.close();
+        }
+      });
+
+      return new NextResponse(streamResponse, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-store",
+          "Connection": "keep-alive",
+        },
+      });
+    } else {
+      // Return as regular JSON response
+      return new NextResponse(JSON.stringify(askData), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
+  } catch (error) {
+    console.error('Ask stream error:', error);
+    return new NextResponse('Internal server error', { status: 500 });
+  }
 }
 

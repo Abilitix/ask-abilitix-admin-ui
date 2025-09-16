@@ -48,40 +48,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         const userData = await response.json();
         
         if (userData.tenant_id) {
-          // Try to get tenant details from the tenant API
-          try {
-            const tenantResponse = await fetch(`${api}/tenant/tenant-${userData.tenant_id.slice(0, 8)}`, {
-              credentials: 'include',
-              cache: 'no-store'
-            });
-            
-            if (tenantResponse.ok) {
-              const tenantData = await tenantResponse.json();
-              setTenant({
-                id: userData.tenant_id,
-                slug: tenantData.slug,
-                name: tenantData.name,
-                type: 'pilot' // Always show as pilot mode for now
-              });
-            } else {
-              // Fallback if tenant API fails
-              setTenant({
-                id: userData.tenant_id,
-                slug: `tenant-${userData.tenant_id.slice(0, 8)}`,
-                name: `Tenant ${userData.tenant_id.slice(0, 8)}`,
-                type: 'pilot' // Always show as pilot mode for now
-              });
-            }
-          } catch (tenantErr) {
-            console.error('Tenant details fetch error:', tenantErr);
-            // Fallback if tenant API fails
-            setTenant({
-              id: userData.tenant_id,
-              slug: `tenant-${userData.tenant_id.slice(0, 8)}`,
-              name: `Tenant ${userData.tenant_id.slice(0, 8)}`,
-              type: 'pilot' // Always show as pilot mode for now
-            });
-          }
+          // Skip tenant API call for now - use fallback directly
+          // The Admin API doesn't recognize the tenant slug format yet
+          setTenant({
+            id: userData.tenant_id,
+            slug: `tenant-${userData.tenant_id.slice(0, 8)}`,
+            name: `Tenant ${userData.tenant_id.slice(0, 8)}`,
+            type: 'pilot' // Always show as pilot mode for now
+          });
         } else {
           throw new Error('No tenant information in user session');
         }

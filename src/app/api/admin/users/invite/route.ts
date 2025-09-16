@@ -3,40 +3,53 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     const ADMIN_API = process.env.ADMIN_API;
-    const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
-    const TENANT_ID = process.env.TENANT_ID;
     
-    if (!ADMIN_API || !ADMIN_TOKEN || !TENANT_ID) {
-      return new Response(JSON.stringify({ error: 'Missing required environment variables' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    if (!ADMIN_API) {
+      return NextResponse.json(
+        { error: 'Admin API not configured' },
+        { status: 500 }
+      );
     }
+
+    // Get tenant context from user session
+    const authResponse = await fetch(`${ADMIN_API}/auth/me`, {
+      headers: {
+        'Cookie': request.headers.get('cookie') || ''
+      }
+    });
+
+    if (!authResponse.ok) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const userData = await authResponse.json();
     
     const body = await request.json();
     const { email, role } = body;
     
     if (!email || !role) {
-      return new Response(JSON.stringify({ error: 'Email and role are required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return NextResponse.json(
+        { error: 'Email and role are required' },
+        { status: 400 }
+      );
     }
     
     if (!['admin', 'viewer'].includes(role)) {
-      return new Response(JSON.stringify({ error: 'Role must be admin or viewer' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return NextResponse.json(
+        { error: 'Role must be admin or viewer' },
+        { status: 400 }
+      );
     }
 
-    console.log('Inviting user:', { email, role });
+    console.log('Inviting user:', { email, role, tenantId: userData.tenant_id });
 
     const response = await fetch(`${ADMIN_API}/admin/users/invite`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${ADMIN_TOKEN}`,
-        'X-Tenant-Id': TENANT_ID,
+        'Cookie': request.headers.get('cookie') || '', // Use session auth
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ email, role }),

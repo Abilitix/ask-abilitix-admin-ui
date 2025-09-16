@@ -12,9 +12,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const data = await adminPost(`/admin/inbox/${body.id}/approve`, body);
+    // Debug logging for approval issues
+    console.log('Inbox Approval Debug:', {
+      inboxId: body.id,
+      cookieHeader: request.headers.get('cookie')?.substring(0, 50) + '...',
+      userAgent: request.headers.get('user-agent')?.substring(0, 50) + '...'
+    });
+
+    const data = await adminPost(`/admin/inbox/${body.id}/approve`, body, request);
     return NextResponse.json(data);
   } catch (err: unknown) {
+    console.error('Inbox Approval Error:', err);
     return NextResponse.json(
       { error: 'admin_proxy_error', details: err instanceof Error ? err.message : String(err) },
       { status: 502 }

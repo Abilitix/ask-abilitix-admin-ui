@@ -12,9 +12,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const data = await adminPost(`/admin/inbox/${body.id}/reject`, body);
+    // Debug logging for rejection issues
+    console.log('Inbox Rejection Debug:', {
+      inboxId: body.id,
+      cookieHeader: request.headers.get('cookie')?.substring(0, 50) + '...',
+      userAgent: request.headers.get('user-agent')?.substring(0, 50) + '...'
+    });
+
+    const data = await adminPost(`/admin/inbox/${body.id}/reject`, body, request);
     return NextResponse.json(data);
   } catch (err: unknown) {
+    console.error('Inbox Rejection Error:', err);
     return NextResponse.json(
       { error: 'admin_proxy_error', details: err instanceof Error ? err.message : String(err) },
       { status: 502 }

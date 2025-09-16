@@ -136,10 +136,7 @@ export function RagPageClient() {
         'Content-Type': 'application/json',
       };
       
-      // Only add widget key header if it exists
-      if (process.env.ADMIN_TOKEN) {
-        headers['x-widget-key'] = process.env.ADMIN_TOKEN;
-      }
+      // Note: ADMIN_TOKEN removed for Phase 2 - using session-based auth only
       
       const response = await fetch('/api/ask/stream', {
         method: 'POST',

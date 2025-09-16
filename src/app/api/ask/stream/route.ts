@@ -64,6 +64,15 @@ export async function POST(req: NextRequest) {
     }
 
     const askData = await askResponse.json();
+    
+    // Debug logging to check tenant isolation
+    console.log('Ask API Response Debug:', {
+      tenantId: userData.tenant_id,
+      question: question,
+      answerLength: askData.answer?.length || 0,
+      citationsCount: askData.citations?.length || 0,
+      citations: askData.citations?.map(c => ({ doc_id: c.doc_id, score: c.score })) || []
+    });
 
     // Return response based on streaming preference
     if (stream) {

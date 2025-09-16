@@ -22,15 +22,31 @@ function getCookiesFromRequest(request?: Request): string {
 }
 
 export async function adminGet<T>(path: string, request?: Request): Promise<T> {
-  const response = await fetch(`${ADMIN_API}${path}`, {
+  const cookieHeader = getCookiesFromRequest(request);
+  const url = `${ADMIN_API}${path}`;
+  
+  console.log('AdminGet Debug:', {
+    url: url,
+    cookieLength: cookieHeader.length,
+    path: path
+  });
+
+  const response = await fetch(url, {
     method: 'GET',
     headers: {
       ...defaultHeaders,
-      'Cookie': getCookiesFromRequest(request),
+      'Cookie': cookieHeader,
     },
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Admin API GET Error Details:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: url,
+      responseBody: errorText
+    });
     throw new Error(`Admin API GET failed: ${response.status} ${response.statusText}`);
   }
 
@@ -38,16 +54,31 @@ export async function adminGet<T>(path: string, request?: Request): Promise<T> {
 }
 
 export async function adminPost<T>(path: string, body: unknown, request?: Request): Promise<T> {
+  const cookieHeader = getCookiesFromRequest(request);
+  
+  console.log('AdminPost Debug:', {
+    url: `${ADMIN_API}${path}`,
+    cookieLength: cookieHeader.length,
+    bodyKeys: body && typeof body === 'object' ? Object.keys(body) : 'not object'
+  });
+
   const response = await fetch(`${ADMIN_API}${path}`, {
     method: 'POST',
     headers: {
       ...defaultHeaders,
-      'Cookie': getCookiesFromRequest(request),
+      'Cookie': cookieHeader,
     },
     body: JSON.stringify(body),
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Admin API Error Details:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: `${ADMIN_API}${path}`,
+      responseBody: errorText
+    });
     throw new Error(`Admin API POST failed: ${response.status} ${response.statusText}`);
   }
 

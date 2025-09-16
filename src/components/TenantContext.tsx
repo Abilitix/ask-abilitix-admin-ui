@@ -50,7 +50,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         if (userData.tenant_id) {
           // Try to get tenant details from the tenant API
           try {
-            const tenantResponse = await fetch(`${api}/tenant/${userData.tenant_id}`, {
+            const tenantResponse = await fetch(`${api}/tenant/tenant-${userData.tenant_id.slice(0, 8)}`, {
               credentials: 'include',
               cache: 'no-store'
             });

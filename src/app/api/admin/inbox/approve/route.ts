@@ -15,9 +15,14 @@ export async function POST(request: NextRequest) {
     // Debug logging for approval issues
     console.log('Inbox Approval Debug:', {
       inboxId: body.id,
+      requestBody: body,
       cookieHeader: request.headers.get('cookie')?.substring(0, 50) + '...',
       userAgent: request.headers.get('user-agent')?.substring(0, 50) + '...'
     });
+
+    // Try to get more info about the Admin API call
+    const ADMIN_API = process.env.ADMIN_API;
+    console.log('Calling Admin API:', `${ADMIN_API}/admin/inbox/${body.id}/approve`);
 
     const data = await adminPost(`/admin/inbox/${body.id}/approve`, body, request);
     return NextResponse.json(data);

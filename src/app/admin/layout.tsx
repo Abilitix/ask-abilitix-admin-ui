@@ -10,5 +10,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const user = await getAuthUser();   // server-only
   if (!user) redirect("/signin");
   
-  return children;
+  return (
+    <>
+      <TopNav 
+        userEmail={user.email}
+        tenantName={user.tenant_name}
+        tenantSlug={user.tenant_slug}
+        userRole={user.role}
+      />
+      {children}
+    </>
+  );
 }

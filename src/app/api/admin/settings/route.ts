@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminGet, adminPut } from '@/lib/api/admin';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get tenant context from user session
     const ADMIN_API = process.env.ADMIN_API;
     if (!ADMIN_API) {
       return NextResponse.json(
@@ -15,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user session to determine tenant context
-    const authResponse = await fetch(`${ADMIN_API}/auth/me`, {
+    const authResponse = await fetch(`${request.nextUrl.origin}/api/auth/me`, {
       headers: {
         'Cookie': request.headers.get('cookie') || ''
       }
@@ -30,13 +28,26 @@ export async function GET(request: NextRequest) {
 
     const userData = await authResponse.json();
     
-    // Get settings for the user's tenant
-    const data = await adminGet(`/admin/tenants/${userData.tenant_id}/settings`, request);
+    // Call Admin API directly with correct endpoint
+    const response = await fetch(`${ADMIN_API}/admin/tenants/${userData.tenant_id}/settings`, {
+      method: 'GET',
+      headers: {
+        'Cookie': request.headers.get('cookie') || '',
+        'Content-Type': 'application/json'
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Admin API error: ${response.status}`);
+    }
+
+    const data = await response.json();
     
     return NextResponse.json({ 
       ...(data && typeof data === 'object' ? data : {}), 
       tenant_id: userData.tenant_id, 
-      tenant_slug: `tenant-${userData.tenant_id.slice(0, 8)}` // Generate readable slug
+      tenant_slug: `tenant-${userData.tenant_id.slice(0, 8)}`
     }, { headers: { 'Cache-Control': 'no-store' } });
 
   } catch (error) {
@@ -50,7 +61,6 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    // Get tenant context from user session
     const ADMIN_API = process.env.ADMIN_API;
     if (!ADMIN_API) {
       return NextResponse.json(
@@ -60,7 +70,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get user session to determine tenant context
-    const authResponse = await fetch(`${ADMIN_API}/auth/me`, {
+    const authResponse = await fetch(`${request.nextUrl.origin}/api/auth/me`, {
       headers: {
         'Cookie': request.headers.get('cookie') || ''
       }
@@ -76,8 +86,22 @@ export async function PUT(request: NextRequest) {
     const userData = await authResponse.json();
     const body = await request.json();
     
-    // Update settings for the user's tenant
-    const data = await adminPut(`/admin/tenants/${userData.tenant_id}/settings`, body, request);
+    // Call Admin API directly with correct endpoint
+    const response = await fetch(`${ADMIN_API}/admin/tenants/${userData.tenant_id}/settings`, {
+      method: 'PUT',
+      headers: {
+        'Cookie': request.headers.get('cookie') || '',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Admin API error: ${response.status}`);
+    }
+
+    const data = await response.json();
     
     return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });
 

@@ -39,14 +39,14 @@ function SignInForm() {
       }
 
       // Check if we're logged in
-      const meResponse = await fetch(`${api}/auth/me`, {
+      const meResponse = await fetch('/api/auth/me', {
         method: 'GET',
         credentials: 'include',
       });
 
       if (meResponse.ok) {
         // Successfully logged in, redirect to dashboard
-        window.location.replace('/admin');
+        window.location.replace('/');
       } else {
         setErr('Magic link verification failed. Please try again.');
       }

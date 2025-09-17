@@ -6,9 +6,9 @@ import TopNav from './TopNav';
 export default function ConditionalTopNav() {
   const pathname = usePathname();
   
-  // Hide TopNav on auth pages and admin pages (admin layout handles it)
+  // Hide TopNav on auth pages
   const hideOnPaths = ['/signin', '/signup', '/demo/signup'];
-  const shouldHide = hideOnPaths.includes(pathname) || pathname.startsWith('/admin');
+  const shouldHide = hideOnPaths.includes(pathname);
   
   if (shouldHide) {
     return null;

@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
     // Get tenant settings to check for ui_v2_enabled flag
     const response = await adminGet('/admin/tenants/settings', request);
     
-    if (!response.ok) {
+    if (!response || !response.ok) {
       // If settings endpoint fails, default to false
       return NextResponse.json({ ui_v2_enabled: false });
     }

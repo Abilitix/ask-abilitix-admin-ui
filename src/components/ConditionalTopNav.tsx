@@ -2,16 +2,8 @@
 
 import { usePathname } from 'next/navigation';
 import TopNav from './TopNav';
-import { type UserRole } from '@/lib/roles';
 
-interface ConditionalTopNavProps {
-  userEmail?: string;
-  tenantName?: string;
-  tenantSlug?: string;
-  userRole?: UserRole;
-}
-
-export default function ConditionalTopNav({ userEmail, tenantName, tenantSlug, userRole }: ConditionalTopNavProps) {
+export default function ConditionalTopNav() {
   const pathname = usePathname();
   
   // Hide TopNav only on auth pages
@@ -22,11 +14,6 @@ export default function ConditionalTopNav({ userEmail, tenantName, tenantSlug, u
     return null;
   }
   
-  return <TopNav 
-    userEmail={userEmail}
-    tenantName={tenantName}
-    tenantSlug={tenantSlug}
-    userRole={userRole}
-  />;
+  return <TopNav />;
 }
 

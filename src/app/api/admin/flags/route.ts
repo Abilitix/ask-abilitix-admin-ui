@@ -4,7 +4,7 @@ import { adminGet } from '@/lib/api/admin';
 export async function GET(request: NextRequest) {
   try {
     // Get tenant settings to check for ui_v2_enabled flag
-    const settings = await adminGet('/admin/tenants/settings', request);
+    const settings = await adminGet('/admin/tenants/settings', request) as any;
     
     // Check if ui_v2_enabled is set in tenant settings
     // Default to false if not present

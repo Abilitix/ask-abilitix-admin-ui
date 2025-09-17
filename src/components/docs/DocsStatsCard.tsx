@@ -48,7 +48,7 @@ export function DocsStatsCard({ refreshSignal, onLoaded }: DocsStatsCardProps) {
     } finally {
       setLoading(false);
     }
-  }, [onLoaded]);
+  }, []); // Remove onLoaded dependency to prevent infinite re-renders
 
   useEffect(() => {
     fetchStats();

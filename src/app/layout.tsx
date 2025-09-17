@@ -24,11 +24,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         )}
       </head>
       <body className="min-h-screen bg-slate-50 text-slate-900">
-        <TenantProvider 
-          userEmail={user?.email}
-          tenantName={user?.tenant_name}
-          tenantSlug={user?.tenant_slug}
-        >
+        <TenantProvider>
           <ConditionalTopNav 
             userEmail={user?.email}
             tenantName={user?.tenant_name}

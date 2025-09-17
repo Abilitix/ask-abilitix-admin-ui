@@ -35,8 +35,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         setError(null);
 
         // Get tenant information from authenticated user session
-        const api = process.env.NEXT_PUBLIC_ADMIN_API!;
-        const response = await fetch(`${api}/auth/me`, {
+        const response = await fetch('/api/auth/me', {
           credentials: 'include',
           cache: 'no-store'
         });

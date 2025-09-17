@@ -38,18 +38,8 @@ function SignInForm() {
         throw new Error('Token exchange failed');
       }
 
-      // Check if we're logged in
-      const meResponse = await fetch(`${api}/auth/me`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (meResponse.ok) {
-        // Successfully logged in, redirect to dashboard
-        window.location.replace('/admin');
-      } else {
-        setErr('Magic link verification failed. Please try again.');
-      }
+      // Successfully logged in, redirect to dashboard
+      window.location.replace('/admin');
     } catch (error) {
       console.error('Magic link error:', error);
       setErr('Magic link verification failed. Please try again.');

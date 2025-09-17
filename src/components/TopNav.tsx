@@ -4,23 +4,22 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useTenant } from "./TenantContext";
 import { getVisibleNavItems, type UserRole } from "@/lib/roles";
 
-export default function TopNav() {
+interface TopNavProps {
+  userEmail?: string;
+  tenantName?: string;
+  tenantSlug?: string;
+  userRole?: UserRole;
+}
+
+export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = 'viewer' }: TopNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const { tenant, loading, error } = useTenant();
-
-  // No client-side auth calls - user role should come from server
-  useEffect(() => {
-    setUserRole('viewer'); // Default to viewer for now
-  }, []);
 
   // Get visible navigation items based on user role
-  const visibleNavItems = userRole ? getVisibleNavItems(userRole) : [];
+  const visibleNavItems = getVisibleNavItems(userRole);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -85,15 +84,11 @@ export default function TopNav() {
             );
           })}
           <li className="ml-2 pl-3 border-l text-xs text-slate-500" id="tenantBadge">
-            {loading ? (
-              'Loading...'
-            ) : error ? (
-              'Demo Mode'
-            ) : tenant ? (
+            {tenantSlug ? (
               <>
-                Tenant: {tenant.slug}
+                Tenant: {tenantSlug}
                 <span className="ml-1 px-1 py-0.5 rounded text-xs bg-slate-100">
-                  {tenant.type}
+                  pilot
                 </span>
               </>
             ) : (

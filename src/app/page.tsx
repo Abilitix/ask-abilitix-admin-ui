@@ -3,6 +3,7 @@ import DashboardClient from '@/components/DashboardClient';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // Helper function to get flags from server
 async function getFlags() {

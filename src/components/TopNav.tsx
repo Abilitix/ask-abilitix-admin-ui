@@ -90,6 +90,7 @@ export default function TopNav() {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  prefetch={false}
                   className={`rounded-md hover:bg-slate-100 ${
                     active ? "bg-slate-200 font-medium" : ""
                   }`}

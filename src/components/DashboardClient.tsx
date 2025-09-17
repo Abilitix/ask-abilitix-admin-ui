@@ -64,6 +64,7 @@ export default function DashboardClient({ user, ui_v2_enabled = false }: Dashboa
           {ui_v2_enabled && (
             <Link 
               href="/admin/v2" 
+              prefetch={false}
               className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
             >
               Try New Dashboard (Beta)
@@ -78,6 +79,7 @@ export default function DashboardClient({ user, ui_v2_enabled = false }: Dashboa
           <Link
             key={c.href}
             href={c.href}
+            prefetch={false}
             className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300"
           >
             <div className="mb-1 font-medium text-slate-900">{c.title}</div>

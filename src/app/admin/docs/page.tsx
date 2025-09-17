@@ -5,6 +5,7 @@ import { ReembedButton } from '@/components/docs/ReembedButton';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function AdminDocsPage() {
   const user = await requireAuth();

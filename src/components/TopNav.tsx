@@ -14,25 +14,9 @@ export default function TopNav() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const { tenant, loading, error } = useTenant();
 
-  // Fetch user role on component mount
+  // No client-side auth calls - user role should come from server
   useEffect(() => {
-    const fetchUserRole = async () => {
-      try {
-        const response = await fetch('/api/auth/me', {
-          credentials: 'include',
-          cache: 'no-store'
-        });
-        if (response.ok) {
-          const userData = await response.json();
-          setUserRole(userData.role || 'viewer'); // Default to viewer if no role
-        }
-      } catch (error) {
-        console.error('Failed to fetch user role:', error);
-        setUserRole('viewer'); // Default to viewer on error
-      }
-    };
-    
-    fetchUserRole();
+    setUserRole('viewer'); // Default to viewer for now
   }, []);
 
   // Get visible navigation items based on user role

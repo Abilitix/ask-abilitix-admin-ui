@@ -38,10 +38,16 @@ export async function GET(request: NextRequest) {
 
     if (response.ok) {
       const userData = await response.json();
-      return NextResponse.json(userData, { status: 200 });
+      const res = NextResponse.json(userData, { status: 200 });
+      res.headers.set("Cache-Control", "no-store");
+      res.headers.set("Vary", "Cookie");
+      return res;
     }
     
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const res = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    res.headers.set("Cache-Control", "no-store");
+    res.headers.set("Vary", "Cookie");
+    return res;
     
   } catch (error) {
     console.error('Auth me error:', error);

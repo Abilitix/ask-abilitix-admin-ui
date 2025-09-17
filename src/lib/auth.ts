@@ -12,27 +12,19 @@ export interface User {
   expires_at: string;
 }
 
-export async function getAuthUser(): Promise<User | null> {
+export async function getAuthUser(h?: Headers): Promise<User | null> {
   try {
-    const cookieStore = await cookies();
-    const cookieHeader = cookieStore.toString();
-    
-    if (!cookieHeader) {
-      return null;
-    }
+    const adminApi = process.env.ADMIN_API!;
+    const cookie = h?.get("cookie") ?? (await import("next/headers")).cookies().toString();
 
-    const response = await fetch(`${process.env.ADMIN_API}/auth/me`, {
-      method: 'GET',
-      headers: {
-        'Cookie': cookieHeader,
-        'Accept': 'application/json',
-      },
+    const r = await fetch(`${adminApi}/auth/me`, {
+      headers: cookie ? { Cookie: cookie } : {},
+      cache: "no-store",
+      redirect: "manual",
     });
-
-    if (response.ok) {
-      return await response.json();
-    }
-
+    
+    if (r.status === 200) return r.json();
+    if (r.status === 401) return null;   // don't throw → prevents random 500→signin
     return null;
   } catch (error) {
     console.error('Auth check error:', error);

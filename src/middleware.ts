@@ -1,21 +1,34 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
 
-export const config = { matcher: ['/admin/:path*'] };
+const PUBLIC_PATHS = [
+  '/', '/signin', '/signup',
+  '/api/public', '/favicon.ico', '/robots.txt',
+  '/_next', '/assets'
+];
 
-const ADMIN_API = process.env.ADMIN_API || 'https://api.abilitix.com.au';
+export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
 
-export async function middleware(req: NextRequest) {
-  const cookieHeader = req.headers.get('cookie') ?? '';
-  const resp = await fetch(`${ADMIN_API}/auth/me`, {
-    headers: { cookie: cookieHeader },
-    cache: 'no-store',
-  });
+  // Skip all public routes early
+  if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+    return NextResponse.next();
+  }
 
-  // TEMP: add headers so we can see results in Network tab
-  const next = resp.ok ? NextResponse.next()
-                       : NextResponse.redirect(new URL('/signin', req.url));
-  next.headers.set('x-auth-check', String(resp.status));
-  next.headers.set('x-cookie-len', String(cookieHeader.length));
-  return next;
+  // For /admin/* and /debug/* only, do a cheap local cookie presence check.
+  if (pathname.startsWith('/admin') || pathname.startsWith('/debug')) {
+    const hasSess = !!req.cookies.get('aa_sess')?.value;
+    if (!hasSess) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/signin';
+      url.search = ''; // keep it clean
+      return NextResponse.redirect(url);
+    }
+  }
+
+  return NextResponse.next();
 }
+
+// only run on app pages
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|.*\\.(?:png|jpg|svg|ico|css|js)).*)'],
+};

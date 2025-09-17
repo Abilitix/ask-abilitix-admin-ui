@@ -118,17 +118,18 @@ export function InboxPageClient() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Inbox</h1>
+      <header className="space-y-1 border-b pb-4">
+        <h1 className="text-3xl font-bold tracking-tight text-[#1e3a8a]">Inbox</h1>
         <p className="text-sm text-muted-foreground">
-          Review and approve pending items. Embeddings are automatically generated when approving.
+          Review and approve pending items. Approving will also generate embeddings automatically.
         </p>
-      </div>
+      </header>
+      {/* SR-only live region for item count updates */}
+      <span className="sr-only" aria-live="polite">
+        {items.length} pending {items.length === 1 ? "item" : "items"}
+      </span>
 
-      <InboxStatsCard 
-        itemCount={items.length} 
-        refreshSignal={refreshSignal}
-      />
+      <InboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
 
       <InboxList
         items={items}

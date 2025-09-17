@@ -23,7 +23,7 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
 
-  console.log('InboxList rendered with items:', items.length, 'editingId:', editingId);
+  // Debug logs removed for production polish
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
@@ -65,14 +65,14 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Inbox className="h-5 w-5" />
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center space-x-2 text-[#1e3a8a]">
+            <Inbox className="h-5 w-5" aria-hidden />
             <span>Inbox Items</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center py-10" role="status" aria-live="polite">
             <div className="text-center">
               <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">Loading inbox items...</p>
@@ -86,16 +86,16 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
   if (error) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Inbox className="h-5 w-5" />
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center space-x-2 text-[#1e3a8a]">
+            <Inbox className="h-5 w-5" aria-hidden />
             <span>Inbox Items</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <div className="text-red-500 text-sm mb-2">Error: {error}</div>
-            <Button onClick={onRefresh} variant="outline" size="sm">
+          <div className="text-center py-8" role="alert">
+            <div className="text-red-600 text-sm mb-3 font-medium">Error: {error}</div>
+            <Button onClick={onRefresh} variant="outline" size="sm" aria-label="Retry loading inbox">
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
             </Button>
@@ -108,15 +108,15 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
   if (items.length === 0) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Inbox className="h-5 w-5" />
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center space-x-2 text-[#1e3a8a]">
+            <Inbox className="h-5 w-5" aria-hidden />
             <span>Inbox Items</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <Inbox className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <Inbox className="h-12 w-12 text-muted-foreground mx-auto mb-4" aria-hidden />
             <p className="text-muted-foreground">No pending items</p>
             <p className="text-sm text-muted-foreground mt-2">
               All items have been reviewed or there are no new submissions.
@@ -130,18 +130,25 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium flex items-center space-x-2">
-          <Inbox className="h-4 w-4" />
+        <CardTitle className="text-sm font-semibold flex items-center space-x-2 text-[#1e3a8a]">
+          <Inbox className="h-4 w-4" aria-hidden />
           <span>Inbox Items ({items.length})</span>
         </CardTitle>
-        <Button onClick={onRefresh} variant="ghost" size="icon" title="Refresh inbox">
+        <Button
+          onClick={onRefresh}
+          variant="ghost"
+          size="icon"
+          aria-label="Refresh inbox"
+          className="hover:bg-blue-50"
+        >
           <RefreshCw className="h-4 w-4" />
         </Button>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader>
+            <caption className="sr-only">Pending items awaiting review</caption>
+            <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
                 <TableHead className="w-[200px]">Question</TableHead>
                 <TableHead className="w-[300px]">Answer</TableHead>
@@ -156,7 +163,7 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
                   <TableCell className="w-[200px]">
                     <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger className="text-left">
+                        <TooltipTrigger className="text-left" aria-label="Show full question">
                           {truncateText(item.question, 80)}
                         </TooltipTrigger>
                         <TooltipContent className="max-w-md">
@@ -173,13 +180,14 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
                           onChange={(e) => setEditedAnswers(prev => ({ ...prev, [item.id]: e.target.value }))}
                           className="min-h-[100px] resize-y"
                           placeholder="Edit the answer..."
+                          aria-label="Edit answer"
                         />
                         <div className="flex space-x-2">
                           <Button
                             onClick={() => saveEditing(item.id)}
                             size="sm"
-                            className="!bg-blue-600 !hover:bg-blue-700 !text-white"
-                            style={{ backgroundColor: '#2563eb', borderColor: '#2563eb' }}
+                            className="!text-white !bg-[#1e3a8a] !hover:bg-[#1a347b] !border-[#1e3a8a]"
+                            aria-label="Save edited answer"
                           >
                             <Save className="h-3 w-3 mr-1" />
                             Save
@@ -188,6 +196,7 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
                             onClick={() => cancelEditing(item.id)}
                             size="sm"
                             variant="outline"
+                            aria-label="Cancel editing"
                           >
                             <RotateCcw className="h-3 w-3 mr-1" />
                             Cancel
@@ -205,11 +214,12 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
                             size="sm"
                             variant="outline"
                             className="text-xs"
+                            aria-label="Edit answer"
                           >
                             <Edit2 className="h-3 w-3 mr-1" />
                             Edit Answer
                           </Button>
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-xs border-[#84cc16] bg-[#ecfccb] text-[#1e3a8a]">
                             Click to edit
                           </Badge>
                         </div>
@@ -223,7 +233,7 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
                     {item.has_pii ? (
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger>
+                          <TooltipTrigger aria-label="PII detected details">
                             <Badge variant="destructive" className="flex items-center space-x-1">
                               <AlertTriangle className="h-3 w-3" />
                               <span>PII</span>
@@ -235,7 +245,9 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
                         </Tooltip>
                       </TooltipProvider>
                     ) : (
-                      <Badge variant="secondary">Clean</Badge>
+                      <Badge variant="secondary" className="border-[#84cc16] bg-[#ecfccb] text-[#1e3a8a]">
+                        Clean
+                      </Badge>
                     )}
                   </TableCell>
                   <TableCell className="w-[150px]">
@@ -243,10 +255,9 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
                       <Button
                         onClick={() => handleApprove(item.id)}
                         size="sm"
-                        className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
-                        style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+                        className="!bg-[#84cc16] !text-[#1e3a8a] !border-[#84cc16] hover:!bg-[#75b614]"
                         disabled={editingId === item.id}
-                        title="Approve and automatically generate embeddings"
+                        aria-label="Approve and automatically generate embeddings"
                       >
                         <Check className="h-4 w-4 mr-1" />
                         Approve
@@ -256,6 +267,7 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
                         size="sm"
                         variant="destructive"
                         disabled={editingId === item.id}
+                        aria-label="Reject item"
                       >
                         <X className="h-4 w-4 mr-1" />
                         Reject

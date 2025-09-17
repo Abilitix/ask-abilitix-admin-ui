@@ -23,7 +23,7 @@ const cards = [
   {
     href: "/admin/settings",
     title: "Settings",
-    desc: "Tune DOC_MIN_SCORE and RAG_TOPK",
+    desc: "Configure chatbot behavior and user management",
   },
 ];
 

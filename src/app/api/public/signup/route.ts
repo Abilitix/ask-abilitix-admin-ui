@@ -54,20 +54,22 @@ export async function POST(req: NextRequest) {
     if (r.ok) {
       const signupData = JSON.parse(responseText);
       
-      // Try to send welcome email (non-blocking)
-      try {
-        const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin?tenant=${signupData.tenant_slug}`;
-        await sendWelcomeEmail(
-          body.email,
-          body.company,
-          signupData.tenant_slug,
-          dashboardUrl
-        );
-        console.log('Welcome email sent successfully');
-      } catch (emailError) {
-        console.warn('Welcome email skipped:', emailError);
-        // Continue without failing the signup
-      }
+      // Admin UI email sending disabled - Admin API will send the welcome email
+      // try {
+      //   const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin?tenant=${signupData.tenant_slug}`;
+      //   await sendWelcomeEmail(
+      //     body.email,
+      //     body.company,
+      //     signupData.tenant_slug,
+      //     dashboardUrl
+      //   );
+      //   console.log('Welcome email sent successfully');
+      // } catch (emailError) {
+      //   console.warn('Welcome email skipped:', emailError);
+      //   // Continue without failing the signup
+      // }
+      
+      console.log('Admin UI email sending disabled - Admin API will send welcome email');
       
       // Return the original response with additional UI data
       const uiResponse = {

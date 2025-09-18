@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 
 function SignInForm() {
@@ -78,8 +79,18 @@ function SignInForm() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
-        {/* Header */}
+        {/* Header with Logo */}
         <div className="text-center mb-8">
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/abilitix-logo.png"
+              alt="Abilitix"
+              width={64}
+              height={64}
+              priority
+              className="rounded-lg"
+            />
+          </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
           <p className="text-gray-600">Sign in to your workspace</p>
         </div>

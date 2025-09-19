@@ -4,7 +4,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get('token');
-    const next = searchParams.get('next') || '/admin';
+    const next = searchParams.get('next') || '/';
 
     console.log('Magic link verification:', { token: token?.substring(0, 10) + '...', next });
 

@@ -29,7 +29,11 @@ export async function POST(req: NextRequest) {
     console.log('Admin service response body:', responseText);
     
     if (r.ok) {
-      return new Response(JSON.stringify({ ok: true }), {
+      // Parse Admin API response to get structured data
+      const adminApiResponse = JSON.parse(responseText);
+      
+      // Return the Admin API response as-is (it now has proper structure)
+      return new Response(JSON.stringify(adminApiResponse), {
         status: 200,
         headers: {
           "Content-Type": "application/json",

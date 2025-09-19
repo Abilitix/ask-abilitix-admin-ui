@@ -68,7 +68,18 @@ function SignInForm() {
         return; 
       }
       
-      setSent(true);
+      // Parse the response to check status
+      const responseData = await r.json();
+      
+      if (responseData.status === 'email_sent') {
+        setSent(true);  // Show success state
+      } else if (responseData.status === 'user_not_found') {
+        setErr(responseData.message);  // Show "No account found" message
+      } else if (responseData.status === 'error') {
+        setErr(responseData.message);  // Show error message
+      } else {
+        setErr('Unexpected response from server');
+      }
     } catch (error) {
       setErr('Network error. Please try again.');
     } finally {
@@ -120,7 +131,7 @@ function SignInForm() {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="Enter your email address"
+                  placeholder="Enter your registered email address"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                   required
                 />
@@ -131,8 +142,14 @@ function SignInForm() {
                 disabled={loading}
                 className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Sending link...' : 'Email me a sign-in link'}
+                {loading ? 'Sending link...' : 'Sign In'}
               </button>
+
+              {/* Helper Text */}
+              <div className="mt-4 text-sm text-gray-600 text-center">
+                <p>We'll email you a secure link to access your workspace</p>
+              </div>
+
 
               {/* Error Message */}
               {err && (
@@ -141,7 +158,17 @@ function SignInForm() {
                     <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
-                    <div className="text-sm text-red-700">{err}</div>
+                    <div className="text-sm text-red-700">
+                      {err}
+                      {err.includes('No account found') && (
+                        <div className="mt-2">
+                          <span className="text-gray-600">New to AbilitiX? </span>
+                          <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium underline">
+                            Create your workspace below
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -210,9 +237,9 @@ function SignInForm() {
         {/* Link to Signup */}
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
-            Don't have a workspace?{' '}
+            <span className="font-bold">New to AbilitiX?</span>{' '}
             <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium">
-              Create one
+              Create your workspace
             </Link>
           </p>
         </div>

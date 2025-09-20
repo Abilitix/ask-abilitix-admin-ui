@@ -2,16 +2,17 @@
 
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import NoPrefetchLink from "./NoPrefetchLink";
 import { getVisibleNavItems, type UserRole } from "@/lib/roles";
-import { useState } from "react";
 
 interface TopNavProps {
   userEmail?: string;
-  tenantSlug?: string;     // show slug only (no tenant id)
+  tenantSlug?: string; // slug only
   userRole?: UserRole;
 }
 
+// Only these 3 are visible on mobile; desktop shows all items
 const MOBILE_PRIMARY = new Set(["Dashboard", "Inbox", "Docs"]);
 
 export default function TopNav({
@@ -34,7 +35,7 @@ export default function TopNav({
         headers: { "Content-Type": "application/json" },
       });
     } catch {
-      // ignore network errors; we hard-redirect either way
+      // ignore; we hard-redirect either way
     } finally {
       window.location.assign("/signin");
     }
@@ -94,9 +95,11 @@ export default function TopNav({
             )}
 
             {/* Desktop: email | tenant slug */}
-            {(userEmail || tenantSlug) => (
+            {(userEmail || tenantSlug) && (
               <div className="hidden md:flex items-center text-xs text-slate-600 whitespace-nowrap max-w-[46ch]">
-                {userEmail && <span className="font-medium truncate">{userEmail}</span>}
+                {userEmail && (
+                  <span className="font-medium truncate">{userEmail}</span>
+                )}
                 {userEmail && tenantSlug && (
                   <span className="mx-2 text-slate-300">•</span>
                 )}
@@ -106,7 +109,8 @@ export default function TopNav({
                   </span>
                 )}
               </div>
-            )()}
+            )}
+
             {/* Sign out */}
             <button
               onClick={handleSignOut}
@@ -119,7 +123,7 @@ export default function TopNav({
         </nav>
       </header>
 
-      {/* Consistent gap under the bar */}
+      {/* Consistent gap below the bar */}
       <div className="h-4 md:h-5" />
     </>
   );

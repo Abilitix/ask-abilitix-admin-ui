@@ -27,7 +27,7 @@ export default function SignupPage() {
         console.log('409 response received:', r);
         const data = await r.json();
         console.log('409 response data:', data);
-        setErr(data.message || 'Account already exists. Please sign in instead.');
+        setErr(data.message || 'An account with this email address already exists. Please sign in instead.');
         return;
       }
       

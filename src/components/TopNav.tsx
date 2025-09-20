@@ -82,13 +82,15 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
               </li>
             );
           })}
+          
+          {/* User info - hide email on mobile, show tenant */}
           <li className="ml-2 pl-3 border-l text-xs text-slate-500" id="tenantBadge">
             {userEmail && (
-              <span className="mr-2 font-medium text-slate-700">{userEmail}</span>
+              <span className="hidden md:inline mr-2 font-medium text-slate-700">{userEmail}</span>
             )}
             {tenantSlug ? (
               <>
-                Tenant: {tenantSlug}
+                <span className="hidden md:inline">Tenant: </span>{tenantSlug}
                 <span className="ml-1 px-1 py-0.5 rounded text-xs bg-slate-100">
                   pilot
                 </span>
@@ -97,7 +99,9 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
               'Demo Mode'
             )}
           </li>
-          <li className="ml-2 pl-3 border-l">
+          
+          {/* Sign out - move to bottom on mobile */}
+          <li className="ml-2 pl-3 border-l hidden md:block">
             <button
               onClick={handleSignOut}
               disabled={isSigningOut}
@@ -107,6 +111,17 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
             </button>
           </li>
         </ul>
+        
+        {/* Mobile sign out - appears at bottom */}
+        <div className="md:hidden mt-2 pt-2 border-t border-slate-200">
+          <button
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="text-xs text-slate-500 hover:text-slate-700 disabled:opacity-50"
+          >
+            {isSigningOut ? 'Signing out...' : 'Sign out'}
+          </button>
+        </div>
       </nav>
     </header>
   );

@@ -40,17 +40,17 @@ export default function DashboardClient({ user }: DashboardClientProps) {
   const showPilotLink = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === '1';
 
   return (
-    <div className="space-y-12 md:space-y-16">
+    <div className="space-y-16 md:space-y-20">
       {/* Feature cards */}
-      <section className="grid grid-cols-1 gap-6 md:gap-8 lg:gap-10 md:grid-cols-2 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-8 md:gap-10 lg:gap-12 md:grid-cols-2 lg:grid-cols-3">
         {cards.map((c) => (
           <NoPrefetchLink
             key={c.href}
             href={c.href}
-            className="group rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300"
+            className="group rounded-2xl border border-slate-200 bg-white p-8 md:p-10 shadow-lg transition-all duration-200 hover:shadow-xl hover:border-slate-300 hover:scale-105"
           >
-            <div className="mb-2 font-medium text-slate-900">{c.title}</div>
-            <div className="text-sm text-slate-600 leading-relaxed">{c.desc}</div>
+            <div className="mb-4 text-lg font-semibold text-slate-900">{c.title}</div>
+            <div className="text-base text-slate-600 leading-relaxed">{c.desc}</div>
           </NoPrefetchLink>
         ))}
       </section>

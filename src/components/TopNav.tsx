@@ -8,12 +8,12 @@ import { getVisibleNavItems, type UserRole } from "@/lib/roles";
 
 interface TopNavProps {
   userEmail?: string;
-  tenantSlug?: string;  // show slug only
-  tenantName?: string;  // accepted for compat; not displayed
-  userRole?: UserRole;
+  tenantSlug?: string;     // show slug only (no tenant id)
+  tenantName?: string;     // accepted for compat; not displayed
+  userRole?: UserRole;     // ignored for desktop visibility
 }
 
-// desktop shows all links; mobile shows only these three
+// Desktop shows all items; mobile shows only these three
 const MOBILE_PRIMARY = new Set(["Dashboard", "Inbox", "Docs"]);
 
 export default function TopNav({
@@ -24,8 +24,9 @@ export default function TopNav({
   const pathname = usePathname();
   const [signingOut, setSigningOut] = useState(false);
 
-  // default to 'owner' so desktop always shows all items even if role is momentarily undefined
-  const items = getVisibleNavItems(userRole ?? "owner");
+  // Always take the full nav set (owner) so desktop shows everything.
+  // Role-based hiding can still live inside pages if needed.
+  const allItems = getVisibleNavItems("owner");
 
   const handleSignOut = async () => {
     try {
@@ -37,7 +38,7 @@ export default function TopNav({
         headers: { "Content-Type": "application/json" },
       });
     } catch {
-      // ignore
+      /* ignore */
     } finally {
       window.location.assign("/signin");
     }
@@ -53,7 +54,7 @@ export default function TopNav({
             px-4 py-2 md:py-3 min-h-12 md:min-h-14
           "
         >
-          {/* Brand (left) */}
+          {/* Left: brand */}
           <NoPrefetchLink href="/" className="flex items-center gap-2 md:gap-3">
             <Image
               src="/abilitix-logo.png"
@@ -66,25 +67,29 @@ export default function TopNav({
             <span className="font-semibold tracking-tight">Admin Portal</span>
           </NoPrefetchLink>
 
-          {/* Center nav — keeps its own width so the right side doesn’t jump */}
-          <ul className="col-start-2 col-end-3 flex flex-wrap items-center justify-center gap-2 md:gap-3 text-sm">
-            {items.map((item) => {
+          {/* Center: nav (no wrap → no reflow; scroll if too many) */}
+          <ul
+            className="
+              col-start-2 col-end-3
+              flex flex-nowrap items-center justify-center
+              gap-2 md:gap-3 text-sm
+              overflow-x-auto
+              [scrollbar-width:none] [&::-webkit-scrollbar]:hidden
+            "
+          >
+            {allItems.map((item) => {
               const active = pathname === item.href;
               const hideOnMobile = !MOBILE_PRIMARY.has(item.label);
               return (
-                <li
-                  key={item.href}
-                  className={hideOnMobile ? "hidden md:inline-flex" : ""}
-                >
+                <li key={item.href} className={hideOnMobile ? "hidden md:inline-flex" : ""}>
                   <NoPrefetchLink
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={[
-                      "inline-flex items-center rounded-lg border px-3 py-1.5 transition-colors",
-                      // equal border widths → no layout shift on hover
-                      active
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50",
+                      "inline-flex items-center rounded-lg border px-3 py-1.5",
+                      "bg-white text-slate-700 border-slate-300",
+                      "transition-none focus:outline-none", // remove hover animation to stop flicker
+                      active ? "bg-blue-600 text-white border-blue-600" : "",
                     ].join(" ")}
                   >
                     {item.label}
@@ -94,17 +99,18 @@ export default function TopNav({
             })}
           </ul>
 
-          {/* Right (email + slug + sign out) */}
+          {/* Right: info + sign out */}
           <div className="col-start-3 col-end-4 flex items-center justify-end gap-2 md:gap-4">
-            {/* Mobile: slug pill */}
+            {/* Mobile: show only slug pill */}
             {tenantSlug && (
               <span className="md:hidden inline-flex items-center rounded-full bg-slate-100 text-slate-600 text-xs px-2 py-0.5">
                 {tenantSlug}
               </span>
             )}
-            {/* Desktop: email | tenant: slug */}
+
+            {/* Desktop: steady-width info to avoid shifting */}
             {(userEmail || tenantSlug) && (
-              <div className="hidden md:flex items-center text-xs text-slate-600 whitespace-nowrap max-w-[46ch]">
+              <div className="hidden md:flex items-center text-xs text-slate-600 whitespace-nowrap max-w-[50ch] min-w-[28ch] justify-end">
                 {userEmail && <span className="font-medium truncate">{userEmail}</span>}
                 {userEmail && tenantSlug && <span className="mx-2 text-slate-300">•</span>}
                 {tenantSlug && (
@@ -114,6 +120,7 @@ export default function TopNav({
                 )}
               </div>
             )}
+
             <button
               onClick={handleSignOut}
               disabled={signingOut}
@@ -125,7 +132,7 @@ export default function TopNav({
         </nav>
       </header>
 
-      {/* Consistent gap below the bar */}
+      {/* Stable gap below the bar */}
       <div className="h-4 md:h-5" />
     </>
   );

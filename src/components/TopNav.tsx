@@ -21,8 +21,10 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
 
   // Get visible navigation items based on user role and device type
   const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   useEffect(() => {
+    setMounted(true);
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768); // md breakpoint
     };
@@ -32,7 +34,8 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
-  const visibleNavItems = getVisibleNavItems(userRole, isMobile);
+  // Default to PC (show all buttons) until mounted, then use actual device detection
+  const visibleNavItems = getVisibleNavItems(userRole, mounted ? isMobile : false);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -57,7 +60,7 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
-      <nav className="mx-auto flex flex-col md:flex-row h-auto md:h-14 max-w-6xl items-start md:items-center justify-between px-4 py-2 md:py-0 mb-2">
+      <nav className="mx-auto flex flex-col md:flex-row h-auto md:h-14 max-w-6xl items-start md:items-center justify-between px-4 py-2 md:py-0 mb-4 md:mb-2">
         <NoPrefetchLink href="/" className="flex items-center gap-3">
           <Image
             src="/abilitix-logo.png"
@@ -75,6 +78,7 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
         {/* Visual separator between logo and navigation - hidden on mobile */}
         <div className="hidden md:block h-8 w-px bg-slate-400 mx-6"></div>
         
+        {/* Navigation buttons - left side */}
         <ul className="flex flex-wrap items-center text-sm mt-2 md:mt-0" style={{ gap: '0.5rem' }}>
           {visibleNavItems.map((item) => {
             const active = pathname === item.href;
@@ -95,35 +99,34 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
               </li>
             );
           })}
-          
-          {/* User info - hide email on mobile, show tenant */}
-          <li className="ml-2 pl-3 border-l text-xs text-slate-500" id="tenantBadge">
+        </ul>
+        
+        {/* User info and sign out - right side */}
+        <div className="flex items-center gap-3 text-xs text-slate-500">
+          {/* User info */}
+          <div className="hidden md:flex items-center gap-2">
             {userEmail && (
-              <span className="hidden md:inline mr-2 font-medium text-slate-700">{userEmail}</span>
+              <span className="font-medium text-slate-700">{userEmail}</span>
             )}
-            {tenantSlug ? (
+            {tenantSlug && (
               <>
-                <span className="hidden md:inline">Tenant: </span>{tenantSlug}
-                <span className="ml-1 px-1 py-0.5 rounded text-xs bg-slate-100 hidden md:inline">
+                <span>Tenant: {tenantSlug}</span>
+                <span className="px-1 py-0.5 rounded text-xs bg-slate-100">
                   pilot
                 </span>
               </>
-            ) : (
-              'Demo Mode'
             )}
-          </li>
+          </div>
           
-          {/* Sign out - visible on both mobile and desktop */}
-          <li className="ml-auto pl-3 border-l">
-            <button
-              onClick={handleSignOut}
-              disabled={isSigningOut}
-              className="text-xs text-slate-500 hover:text-slate-700 disabled:opacity-50"
-            >
-              {isSigningOut ? 'Signing out...' : 'Sign out'}
-            </button>
-          </li>
-        </ul>
+          {/* Sign out */}
+          <button
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="text-xs text-slate-500 hover:text-slate-700 disabled:opacity-50"
+          >
+            {isSigningOut ? 'Signing out...' : 'Sign out'}
+          </button>
+        </div>
         
       </nav>
     </header>

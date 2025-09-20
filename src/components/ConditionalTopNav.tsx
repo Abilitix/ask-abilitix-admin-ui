@@ -22,8 +22,14 @@ export default function ConditionalTopNav() {
     
     fetch('/api/auth/me')
       .then(res => res.ok ? res.json() : null)
-      .then(data => setUser(data))
-      .catch(() => setUser(null));
+      .then(data => {
+        console.log('User data fetched:', data);
+        setUser(data);
+      })
+      .catch((error) => {
+        console.error('Error fetching user data:', error);
+        setUser(null);
+      });
   }, [SUSPEND_CLIENT_AUTH, isPublic]);
   
   // Safe to return after hooks

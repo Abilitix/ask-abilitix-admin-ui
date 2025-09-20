@@ -19,6 +19,9 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
+  // Debug logging
+  console.log('TopNav props:', { userEmail, tenantName, tenantSlug, userRole });
+
   // Get visible navigation items based on user role and device type
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -102,20 +105,22 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
         </ul>
         
         {/* User info and sign out - right side */}
-        <div className="flex items-center gap-3 text-xs text-slate-500">
+        <div className="flex items-center justify-end gap-3 text-xs text-slate-500">
           {/* User info - PC only */}
-          <div className="hidden md:flex items-center gap-2">
-            {userEmail && (
-              <span className="font-medium text-slate-700">{userEmail}</span>
-            )}
-            {tenantSlug && (
-              <>
-                <span>Tenant: {tenantSlug}</span>
-                <span className="px-1 py-0.5 rounded text-xs bg-slate-100">
-                  pilot
-                </span>
-              </>
-            )}
+          <div className="hidden md:block">
+            <div className="flex items-center gap-2">
+              {userEmail && (
+                <span className="font-medium text-slate-700">{userEmail}</span>
+              )}
+              {tenantSlug && (
+                <>
+                  <span>Tenant: {tenantSlug}</span>
+                  <span className="px-1 py-0.5 rounded text-xs bg-slate-100">
+                    pilot
+                  </span>
+                </>
+              )}
+            </div>
           </div>
           
           {/* Sign out - both mobile and desktop */}

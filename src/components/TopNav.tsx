@@ -45,25 +45,25 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
-      <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <NoPrefetchLink href="/" className="flex items-center gap-2">
+      <nav className="mx-auto flex flex-col md:flex-row h-auto md:h-14 max-w-6xl items-start md:items-center justify-between px-4 py-2 md:py-0">
+        <NoPrefetchLink href="/" className="flex items-center gap-3">
           <Image
             src="/abilitix-logo.png"
             alt="AbilitiX"
-            width={28}
-            height={28}
+            width={32}
+            height={32}
             priority
             className="rounded"
           />
-          <span className="font-semibold tracking-tight">
-            Abiliti<span className="text-xs">X</span> Admin
+          <span className="font-bold tracking-tight text-lg">
+            Abiliti<span className="text-sm">X</span> Admin
           </span>
         </NoPrefetchLink>
         
-        {/* Visual separator between logo and navigation */}
-        <div className="h-6 w-px bg-slate-300 mx-4"></div>
+        {/* Visual separator between logo and navigation - hidden on mobile */}
+        <div className="hidden md:block h-8 w-px bg-slate-400 mx-6"></div>
         
-        <ul className="flex items-center text-sm text-slate-600" style={{ gap: '1.25rem' }}>
+        <ul className="flex flex-wrap items-center text-sm mt-2 md:mt-0" style={{ gap: '0.5rem' }}>
           {visibleNavItems.map((item) => {
             const active = pathname === item.href;
             const isMobileHidden = !item.mobileVisible;
@@ -71,10 +71,11 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
               <li key={item.href} className={isMobileHidden ? "hidden md:inline-flex" : ""}>
                 <NoPrefetchLink
                   href={item.href}
-                  className={`rounded-md hover:bg-slate-100 ${
-                    active ? "bg-slate-200 font-medium" : ""
+                  className={`px-4 py-2 rounded-lg border transition-colors duration-200 ${
+                    active 
+                      ? "bg-blue-500 text-white border-blue-500 shadow-md" 
+                      : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
                   }`}
-                  style={{ padding: '0.5rem 1rem' }}
                   aria-current={active ? "page" : undefined}
                 >
                   {item.label}
@@ -113,11 +114,11 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
         </ul>
         
         {/* Mobile sign out - appears at bottom */}
-        <div className="md:hidden mt-2 pt-2 border-t border-slate-200">
+        <div className="md:hidden w-full mt-3 pt-3 border-t border-slate-200 flex justify-center">
           <button
             onClick={handleSignOut}
             disabled={isSigningOut}
-            className="text-xs text-slate-500 hover:text-slate-700 disabled:opacity-50"
+            className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 disabled:opacity-50 transition-colors"
           >
             {isSigningOut ? 'Signing out...' : 'Sign out'}
           </button>

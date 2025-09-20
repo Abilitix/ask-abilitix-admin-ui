@@ -57,7 +57,7 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
-      <nav className="mx-auto flex flex-col md:flex-row h-auto md:h-14 max-w-6xl items-start md:items-center justify-between px-4 py-2 md:py-0">
+      <nav className="mx-auto flex flex-col md:flex-row h-auto md:h-14 max-w-6xl items-start md:items-center justify-between px-4 py-2 md:py-0 mb-2">
         <NoPrefetchLink href="/" className="flex items-center gap-3">
           <Image
             src="/abilitix-logo.png"
@@ -104,7 +104,7 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
             {tenantSlug ? (
               <>
                 <span className="hidden md:inline">Tenant: </span>{tenantSlug}
-                <span className="ml-1 px-1 py-0.5 rounded text-xs bg-slate-100">
+                <span className="ml-1 px-1 py-0.5 rounded text-xs bg-slate-100 hidden md:inline">
                   pilot
                 </span>
               </>
@@ -113,8 +113,8 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
             )}
           </li>
           
-          {/* Sign out - move to bottom on mobile */}
-          <li className="ml-auto pl-3 border-l hidden md:block">
+          {/* Sign out - visible on both mobile and desktop */}
+          <li className="ml-auto pl-3 border-l">
             <button
               onClick={handleSignOut}
               disabled={isSigningOut}
@@ -125,16 +125,6 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
           </li>
         </ul>
         
-        {/* Mobile sign out - appears at bottom */}
-        <div className="md:hidden w-full mt-3 pt-3 border-t border-slate-200 flex justify-end">
-          <button
-            onClick={handleSignOut}
-            disabled={isSigningOut}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 disabled:opacity-50 transition-colors"
-          >
-            {isSigningOut ? 'Signing out...' : 'Sign out'}
-          </button>
-        </div>
       </nav>
     </header>
   );

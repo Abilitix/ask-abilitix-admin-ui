@@ -85,6 +85,9 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
             );
           })}
           <li className="ml-2 pl-3 border-l text-xs text-slate-500" id="tenantBadge">
+            {userEmail && (
+              <span className="mr-2 font-medium text-slate-700">{userEmail}</span>
+            )}
             {tenantSlug ? (
               <>
                 Tenant: {tenantSlug}

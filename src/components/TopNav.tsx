@@ -78,7 +78,6 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
         {/* Visual separator between logo and navigation - hidden on mobile */}
         <div className="hidden md:block h-8 w-px bg-slate-400 mx-6"></div>
         
-        {/* Navigation buttons - left side */}
         <ul className="flex flex-wrap items-center text-sm mt-2 md:mt-0" style={{ gap: '0.5rem' }}>
           {visibleNavItems.map((item) => {
             const active = pathname === item.href;
@@ -99,34 +98,35 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
               </li>
             );
           })}
-        </ul>
-        
-        {/* User info and sign out - right side */}
-        <div className="flex items-center gap-3 text-xs text-slate-500">
-          {/* User info */}
-          <div className="hidden md:flex items-center gap-2">
+          
+          {/* User info - hide email on mobile, show tenant */}
+          <li className="ml-2 pl-3 border-l text-xs text-slate-500" id="tenantBadge">
             {userEmail && (
-              <span className="font-medium text-slate-700">{userEmail}</span>
+              <span className="hidden md:inline mr-2 font-medium text-slate-700">{userEmail}</span>
             )}
-            {tenantSlug && (
+            {tenantSlug ? (
               <>
-                <span>Tenant: {tenantSlug}</span>
-                <span className="px-1 py-0.5 rounded text-xs bg-slate-100">
+                <span className="hidden md:inline">Tenant: </span>{tenantSlug}
+                <span className="ml-1 px-1 py-0.5 rounded text-xs bg-slate-100 hidden md:inline">
                   pilot
                 </span>
               </>
+            ) : (
+              'Demo Mode'
             )}
-          </div>
+          </li>
           
-          {/* Sign out */}
-          <button
-            onClick={handleSignOut}
-            disabled={isSigningOut}
-            className="text-xs text-slate-500 hover:text-slate-700 disabled:opacity-50"
-          >
-            {isSigningOut ? 'Signing out...' : 'Sign out'}
-          </button>
-        </div>
+          {/* Sign out - visible on both mobile and desktop */}
+          <li className="ml-auto pl-3 border-l">
+            <button
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="text-xs text-slate-500 hover:text-slate-700 disabled:opacity-50"
+            >
+              {isSigningOut ? 'Signing out...' : 'Sign out'}
+            </button>
+          </li>
+        </ul>
         
       </nav>
     </header>

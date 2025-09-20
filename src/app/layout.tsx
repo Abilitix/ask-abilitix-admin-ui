@@ -4,6 +4,7 @@ import Script from "next/script";
 import ConditionalTopNav from "@/components/ConditionalTopNav";
 import { TenantProvider } from "@/components/TenantContext";
 import { getAuthUser } from "@/lib/auth";
+import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = { title: "AbilitiX Admin" };
 
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="mx-auto max-w-6xl px-4 py-8">
             {children}
           </main>
+          <SiteFooter />
         </TenantProvider>
       </body>
     </html>

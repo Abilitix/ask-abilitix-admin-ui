@@ -9,7 +9,7 @@ export default function PilotPage() {
       {/* Back to Dashboard link */}
       <div className="mb-6">
         <NoPrefetchLink
-          href="/admin"
+          href="/"
           className="inline-flex items-center text-sm text-slate-500 hover:text-slate-700 hover:underline"
         >
           ← Back to Dashboard

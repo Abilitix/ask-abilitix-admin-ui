@@ -52,13 +52,13 @@ export default function PilotPage() {
       <section className="rounded-2xl bg-white p-6 shadow-sm">
         <h2 className="font-medium">Get Started</h2>
         <div className="mt-4 flex flex-wrap gap-3">
-          <a href="/admin/docs" prefetch="false" className="inline-flex items-center rounded-lg border px-3 py-2 text-sm hover:shadow">
+          <a href="/admin/docs" className="inline-flex items-center rounded-lg border px-3 py-2 text-sm hover:shadow">
             Upload docs
           </a>
-          <a href="/admin/settings?tab=users" prefetch="false" className="inline-flex items-center rounded-lg border px-3 py-2 text-sm hover:shadow">
+          <a href="/admin/settings?tab=users" className="inline-flex items-center rounded-lg border px-3 py-2 text-sm hover:shadow">
             Invite teammates
           </a>
-          <a href="/admin/inbox" prefetch="false" className="inline-flex items-center rounded-lg border px-3 py-2 text-sm hover:shadow">
+          <a href="/admin/inbox" className="inline-flex items-center rounded-lg border px-3 py-2 text-sm hover:shadow">
             Test answers
           </a>
           <a href="mailto:support@abilitix.com.au?subject=Pilot%20feedback" className="inline-flex items-center rounded-lg border px-3 py-2 text-sm hover:shadow">

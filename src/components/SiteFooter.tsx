@@ -5,9 +5,9 @@ export default function SiteFooter() {
         <div className="text-center text-sm text-slate-600">
           <p>© 2025 Abilitix. All rights reserved.</p>
           <p className="mt-2">
-            <a href="/privacy" className="hover:text-slate-800 underline">Privacy Policy</a>
+            <a href="https://abilitix.com.au/abilitix-privacy-policy/" className="hover:text-slate-800 underline">Privacy Policy</a>
             <span className="mx-2">•</span>
-            <a href="/terms" className="hover:text-slate-800 underline">Terms of Service</a>
+            <a href="https://abilitix.com.au/abilitix-pilot-terms-of-use/" className="hover:text-slate-800 underline">Terms of Service</a>
           </p>
         </div>
       </div>

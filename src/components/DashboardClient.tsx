@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useTenant } from "./TenantContext";
+import NoPrefetchLink from "./NoPrefetchLink";
 
 const cards = [
   {
@@ -42,14 +43,14 @@ export default function DashboardClient({ user }: DashboardClientProps) {
       {/* Feature cards */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {cards.map((c) => (
-          <Link
+          <NoPrefetchLink
             key={c.href}
             href={c.href}
             className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300"
           >
             <div className="mb-1 font-medium text-slate-900">{c.title}</div>
             <div className="text-sm text-slate-600">{c.desc}</div>
-          </Link>
+          </NoPrefetchLink>
         ))}
       </section>
     </div>

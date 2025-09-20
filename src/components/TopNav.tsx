@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { getVisibleNavItems, type UserRole } from "@/lib/roles";
+import NoPrefetchLink from "./NoPrefetchLink";
 
 interface TopNavProps {
   userEmail?: string;
@@ -52,7 +53,7 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
       <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
+        <NoPrefetchLink href="/" className="flex items-center gap-2">
           <Image
             src="/abilitix-logo.png"
             alt="AbilitiX"
@@ -64,13 +65,13 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
           <span className="font-semibold tracking-tight">
             Abiliti<span className="text-xs">X</span> Admin
           </span>
-        </Link>
+        </NoPrefetchLink>
         <ul className="flex items-center text-sm text-slate-700" style={{ gap: '1.25rem' }}>
           {visibleNavItems.map((item) => {
             const active = pathname === item.href;
             return (
               <li key={item.href}>
-                <Link
+                <NoPrefetchLink
                   href={item.href}
                   className={`rounded-md hover:bg-slate-100 ${
                     active ? "bg-slate-200 font-medium" : ""
@@ -79,7 +80,7 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
                   aria-current={active ? "page" : undefined}
                 >
                   {item.label}
-                </Link>
+                </NoPrefetchLink>
               </li>
             );
           })}

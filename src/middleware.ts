@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PUBLIC = ["/","/signin","/signup","/favicon.ico","/robots.txt","/_next","/assets"];
-
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   
-  // Skip API routes
-  if (pathname.startsWith("/api/")) return NextResponse.next();
-  
-  // Skip public routes
-  if (PUBLIC.some(p => pathname === p || pathname.startsWith(p + "/"))) return NextResponse.next();
+  // Skip static assets and API routes early
+  if (pathname.startsWith('/_next') || 
+      pathname.startsWith('/api') || 
+      pathname === '/favicon.ico' ||
+      pathname === '/robots.txt') {
+    return NextResponse.next();
+  }
 
   // For /admin/* only, do a cheap local cookie presence check
   if (pathname.startsWith("/admin")) {
@@ -18,11 +18,10 @@ export function middleware(req: NextRequest) {
       const url = req.nextUrl.clone();
       url.pathname = "/signin";
       url.search = "";
-      const res = NextResponse.redirect(url);
-      res.headers.set("Cache-Control", "no-store");
-      res.headers.set("Vary", "Cookie");
-      return res;
+      return NextResponse.redirect(url);
     }
+    
+    // Set no-store headers for admin routes
     const res = NextResponse.next();
     res.headers.set("Cache-Control", "no-store");
     res.headers.set("Vary", "Cookie");
@@ -32,7 +31,7 @@ export function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-// only run on app pages
+// Scope strictly to admin routes only
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|.*\\.(?:png|jpg|svg|ico|css|js)).*)'],
+  matcher: ['/admin/:path*'],
 };

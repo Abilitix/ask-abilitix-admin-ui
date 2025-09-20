@@ -15,7 +15,7 @@ export interface User {
 export async function getAuthUser(h?: Headers): Promise<User | null> {
   try {
     const adminApi = process.env.ADMIN_API!;
-    const cookie = h?.get("cookie") ?? (await import("next/headers")).cookies().toString();
+    const cookie = h?.get("cookie") ?? (await (await import("next/headers")).cookies()).toString();
 
     const r = await fetch(`${adminApi}/auth/me`, {
       headers: cookie ? { Cookie: cookie } : {},

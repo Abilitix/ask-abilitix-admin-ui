@@ -9,23 +9,27 @@ export default function ConditionalTopNav() {
   const pathname = usePathname();
   const [user, setUser] = useState<{email?: string, tenant_name?: string, tenant_slug?: string, role?: UserRole} | null>(null);
   
-  // Hide TopNav only on auth pages
-  const hideOnPaths = ['/signin', '/signup', '/demo/signup'];
-  const shouldHide = hideOnPaths.includes(pathname);
+  // Kill-switch: suspend client auth if needed
+  const SUSPEND_CLIENT_AUTH = process.env.NEXT_PUBLIC_SUSPEND_CLIENT_AUTH === '1';
+  if (SUSPEND_CLIENT_AUTH) {
+    return null;
+  }
+  
+  // Quarantine public pages - no auth calls on auth routes
+  const AUTH_ROUTES = ['/signin', '/signup', '/verify', '/verify/workspace-picker'];
+  const isAuthRoute = AUTH_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
+  
+  if (isAuthRoute) {
+    return null;
+  }
   
   // Fetch user data on client side
   useEffect(() => {
-    if (!shouldHide) {
-      fetch('/api/auth/me')
-        .then(res => res.ok ? res.json() : null)
-        .then(data => setUser(data))
-        .catch(() => setUser(null));
-    }
-  }, [shouldHide]);
-  
-  if (shouldHide) {
-    return null;
-  }
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setUser(data))
+      .catch(() => setUser(null));
+  }, []);
   
   return <TopNav 
     userEmail={user?.email}

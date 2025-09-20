@@ -37,6 +37,7 @@ interface DashboardClientProps {
 
 export default function DashboardClient({ user }: DashboardClientProps) {
   const { tenant, loading } = useTenant();
+  const showPilotLink = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === '1';
 
   return (
     <div className="space-y-8">
@@ -53,6 +54,18 @@ export default function DashboardClient({ user }: DashboardClientProps) {
           </NoPrefetchLink>
         ))}
       </section>
+
+      {/* Pilot objectives footer link */}
+      {showPilotLink && (
+        <footer className="mt-8 border-t border-slate-200 pt-6">
+          <NoPrefetchLink
+            href="/pilot"
+            className="inline-flex items-center text-xs text-slate-500 hover:text-slate-700 hover:underline"
+          >
+            🎯 Pilot objectives
+          </NoPrefetchLink>
+        </footer>
+      )}
     </div>
   );
 }

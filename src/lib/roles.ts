@@ -108,6 +108,7 @@ export function getVisibleNavItems(role: UserRole) {
     { href: "/admin/docs", label: "Docs", permission: "canAccessDocs" as keyof RolePermissions },
     { href: "/admin/settings", label: "Settings", permission: "canAccessSettings" as keyof RolePermissions },
     { href: "/admin/rag", label: "Test Chat", permission: "canAccessDebug" as keyof RolePermissions },
+    { href: "/pilot", label: "Pilot", permission: "canAccessDashboard" as keyof RolePermissions },
   ];
 
   return navItems.filter(item => permissions[item.permission]);

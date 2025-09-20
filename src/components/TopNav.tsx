@@ -8,16 +8,18 @@ import { getVisibleNavItems, type UserRole } from "@/lib/roles";
 
 interface TopNavProps {
   userEmail?: string;
-  tenantSlug?: string; // slug only
+  tenantSlug?: string;   // show slug only
+  tenantName?: string;   // accepted for backward compat; not displayed
   userRole?: UserRole;
 }
 
-// Only these 3 are visible on mobile; desktop shows all items
+// Only these are visible on mobile; desktop shows all items
 const MOBILE_PRIMARY = new Set(["Dashboard", "Inbox", "Docs"]);
 
 export default function TopNav({
   userEmail,
   tenantSlug,
+  // tenantName (unused but accepted to keep compat)
   userRole = "viewer",
 }: TopNavProps) {
   const pathname = usePathname();
@@ -35,7 +37,7 @@ export default function TopNav({
         headers: { "Content-Type": "application/json" },
       });
     } catch {
-      // ignore; we hard-redirect either way
+      // ignore — hard redirect regardless
     } finally {
       window.location.assign("/signin");
     }
@@ -45,8 +47,11 @@ export default function TopNav({
     <>
       <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
         <nav className="mx-auto flex h-auto md:h-14 max-w-6xl items-center justify-between gap-3 px-4 py-2 md:py-3">
-          {/* Brand */}
-          <NoPrefetchLink href="/" className="flex items-center gap-2 md:gap-3">
+          {/* Left: brand */}
+          <NoPrefetchLink
+            href="/"
+            className="flex items-center gap-2 md:gap-3 shrink-0"
+          >
             <Image
               src="/abilitix-logo.png"
               alt="AbilitiX"
@@ -58,8 +63,8 @@ export default function TopNav({
             <span className="font-semibold tracking-tight">Admin Portal</span>
           </NoPrefetchLink>
 
-          {/* Nav */}
-          <ul className="flex flex-wrap items-center gap-2 md:gap-3 text-sm">
+          {/* Center: nav (grows), keeps Sign out from shifting */}
+          <ul className="flex flex-1 flex-wrap items-center justify-center md:justify-start gap-2 md:gap-3 text-sm">
             {items.map((item) => {
               const active = pathname === item.href;
               const hideOnMobile = !MOBILE_PRIMARY.has(item.label);
@@ -73,6 +78,7 @@ export default function TopNav({
                     aria-current={active ? "page" : undefined}
                     className={[
                       "inline-flex items-center rounded-lg border px-3 py-1.5 transition-colors",
+                      // equal border widths to avoid layout shift
                       active
                         ? "bg-blue-600 text-white border-blue-600"
                         : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50",
@@ -85,16 +91,16 @@ export default function TopNav({
             })}
           </ul>
 
-          {/* Right side */}
-          <div className="flex items-center gap-2 md:gap-4">
-            {/* Mobile: slug pill */}
+          {/* Right: identity + sign out; never shrinks to avoid flicker */}
+          <div className="flex items-center gap-2 md:gap-4 shrink-0">
+            {/* Mobile: show slug pill */}
             {tenantSlug && (
               <span className="md:hidden inline-flex items-center rounded-full bg-slate-100 text-slate-600 text-xs px-2 py-0.5">
                 {tenantSlug}
               </span>
             )}
 
-            {/* Desktop: email | tenant slug */}
+            {/* Desktop: email | tenant: slug */}
             {(userEmail || tenantSlug) && (
               <div className="hidden md:flex items-center text-xs text-slate-600 whitespace-nowrap max-w-[46ch]">
                 {userEmail && (
@@ -111,7 +117,6 @@ export default function TopNav({
               </div>
             )}
 
-            {/* Sign out */}
             <button
               onClick={handleSignOut}
               disabled={signingOut}

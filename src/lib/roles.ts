@@ -100,7 +100,7 @@ export function hasPermission(role: UserRole, permission: keyof RolePermissions)
   return ROLE_PERMISSIONS[role]?.[permission] ?? false;
 }
 
-export function getVisibleNavItems(role: UserRole) {
+export function getVisibleNavItems(role: UserRole, isMobile: boolean = false) {
   const permissions = ROLE_PERMISSIONS[role];
   const navItems = [
     { href: "/", label: "Dashboard", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: true },
@@ -111,5 +111,14 @@ export function getVisibleNavItems(role: UserRole) {
     { href: "/pilot", label: "Pilot", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: false },
   ];
 
-  return navItems.filter(item => permissions[item.permission]);
+  return navItems.filter(item => {
+    // Check permission first
+    if (!permissions[item.permission]) return false;
+    
+    // For mobile, only show mobileVisible items
+    if (isMobile) return item.mobileVisible;
+    
+    // For PC, show all items with permission
+    return true;
+  });
 }

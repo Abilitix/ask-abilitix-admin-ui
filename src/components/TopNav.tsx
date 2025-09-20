@@ -19,8 +19,20 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  // Get visible navigation items based on user role
-  const visibleNavItems = getVisibleNavItems(userRole);
+  // Get visible navigation items based on user role and device type
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  const visibleNavItems = getVisibleNavItems(userRole, isMobile);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -102,7 +114,7 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
           </li>
           
           {/* Sign out - move to bottom on mobile */}
-          <li className="ml-2 pl-3 border-l hidden md:block">
+          <li className="ml-auto pl-3 border-l hidden md:block">
             <button
               onClick={handleSignOut}
               disabled={isSigningOut}
@@ -114,7 +126,7 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
         </ul>
         
         {/* Mobile sign out - appears at bottom */}
-        <div className="md:hidden w-full mt-3 pt-3 border-t border-slate-200 flex justify-center">
+        <div className="md:hidden w-full mt-3 pt-3 border-t border-slate-200 flex justify-end">
           <button
             onClick={handleSignOut}
             disabled={isSigningOut}

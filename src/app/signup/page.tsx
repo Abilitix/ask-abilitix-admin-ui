@@ -23,6 +23,12 @@ export default function SignupPage() {
         body: JSON.stringify({ company, email }),
       });
       
+      if (r.status === 409) {
+        const data = await r.json();
+        setErr(data.message); // "An account with this email address already exists. Please sign in instead."
+        return;
+      }
+      
       if (!r.ok) { 
         const errorData = await r.json();
         setErr(errorData.error || 'Signup failed'); 

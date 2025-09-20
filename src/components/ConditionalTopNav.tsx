@@ -11,25 +11,25 @@ export default function ConditionalTopNav() {
   
   // Kill-switch: suspend client auth if needed
   const SUSPEND_CLIENT_AUTH = process.env.NEXT_PUBLIC_SUSPEND_CLIENT_AUTH === '1';
-  if (SUSPEND_CLIENT_AUTH) {
-    return null;
-  }
   
   // Quarantine public pages - no auth calls on auth routes
   const AUTH_ROUTES = ['/signin', '/signup', '/verify', '/verify/workspace-picker'];
-  const isAuthRoute = AUTH_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
-  
-  if (isAuthRoute) {
-    return null;
-  }
+  const isPublic = AUTH_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
   
   // Fetch user data on client side
   useEffect(() => {
+    if (SUSPEND_CLIENT_AUTH || isPublic) return;
+    
     fetch('/api/auth/me')
       .then(res => res.ok ? res.json() : null)
       .then(data => setUser(data))
       .catch(() => setUser(null));
-  }, []);
+  }, [SUSPEND_CLIENT_AUTH, isPublic]);
+  
+  // Safe to return after hooks
+  if (SUSPEND_CLIENT_AUTH || isPublic) {
+    return null;
+  }
   
   return <TopNav 
     userEmail={user?.email}

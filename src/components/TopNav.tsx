@@ -34,19 +34,12 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
         },
       });
       
-      if (response.ok) {
-        // Redirect to signin page after successful logout
-        router.replace('/signin');
-      } else {
-        // Force redirect even if logout API fails
-        router.replace('/signin');
-      }
+      // Use hard navigation to avoid rendering half-authed state
+      window.location.assign('/signin');
     } catch (error) {
       console.error('Sign out error:', error);
-      // Force redirect on client side if server redirect fails
-      router.replace('/signin');
-    } finally {
-      setIsSigningOut(false);
+      // Force hard navigation even if logout API fails
+      window.location.assign('/signin');
     }
   };
 

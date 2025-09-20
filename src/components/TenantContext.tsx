@@ -30,22 +30,22 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   // Kill-switch: suspend client auth if needed
   const SUSPEND_CLIENT_AUTH = process.env.NEXT_PUBLIC_SUSPEND_CLIENT_AUTH === '1';
-  if (SUSPEND_CLIENT_AUTH) {
-    return <>{children}</>;
-  }
-
+  
   // Quarantine public pages - no auth calls on auth routes
   const AUTH_ROUTES = ['/signin', '/signup', '/verify', '/verify/workspace-picker'];
-  const isAuthRoute = AUTH_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
-  
-  if (isAuthRoute) {
-    return <>{children}</>;
-  }
+  const isPublic = AUTH_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
 
   // No client-side auth calls - data should come from server
   useEffect(() => {
+    if (SUSPEND_CLIENT_AUTH || isPublic) return;
+    
     setLoading(false);
-  }, []);
+  }, [SUSPEND_CLIENT_AUTH, isPublic]);
+
+  // Safe to return after hooks
+  if (SUSPEND_CLIENT_AUTH || isPublic) {
+    return <>{children}</>;
+  }
 
   return (
     <TenantContext.Provider value={{ tenant, loading, error }}>

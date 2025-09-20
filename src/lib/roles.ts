@@ -103,12 +103,12 @@ export function hasPermission(role: UserRole, permission: keyof RolePermissions)
 export function getVisibleNavItems(role: UserRole) {
   const permissions = ROLE_PERMISSIONS[role];
   const navItems = [
-    { href: "/", label: "Dashboard", permission: "canAccessDashboard" as keyof RolePermissions },
-    { href: "/admin/inbox", label: "Inbox", permission: "canAccessInbox" as keyof RolePermissions },
-    { href: "/admin/docs", label: "Docs", permission: "canAccessDocs" as keyof RolePermissions },
-    { href: "/admin/settings", label: "Settings", permission: "canAccessSettings" as keyof RolePermissions },
-    { href: "/admin/rag", label: "Test Chat", permission: "canAccessDebug" as keyof RolePermissions },
-    { href: "/pilot", label: "Pilot", permission: "canAccessDashboard" as keyof RolePermissions },
+    { href: "/", label: "Dashboard", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: true },
+    { href: "/admin/inbox", label: "Inbox", permission: "canAccessInbox" as keyof RolePermissions, mobileVisible: true },
+    { href: "/admin/docs", label: "Docs", permission: "canAccessDocs" as keyof RolePermissions, mobileVisible: true },
+    { href: "/admin/settings", label: "Settings", permission: "canAccessSettings" as keyof RolePermissions, mobileVisible: false },
+    { href: "/admin/rag", label: "Test Chat", permission: "canAccessDebug" as keyof RolePermissions, mobileVisible: false },
+    { href: "/pilot", label: "Pilot", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: false },
   ];
 
   return navItems.filter(item => permissions[item.permission]);

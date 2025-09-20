@@ -59,11 +59,16 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
             Abiliti<span className="text-xs">X</span> Admin
           </span>
         </NoPrefetchLink>
-        <ul className="flex items-center text-sm text-slate-700" style={{ gap: '1.25rem' }}>
+        
+        {/* Visual separator between logo and navigation */}
+        <div className="h-6 w-px bg-slate-300 mx-4"></div>
+        
+        <ul className="flex items-center text-sm text-slate-600" style={{ gap: '1.25rem' }}>
           {visibleNavItems.map((item) => {
             const active = pathname === item.href;
+            const isMobileHidden = !item.mobileVisible;
             return (
-              <li key={item.href}>
+              <li key={item.href} className={isMobileHidden ? "hidden md:inline-flex" : ""}>
                 <NoPrefetchLink
                   href={item.href}
                   className={`rounded-md hover:bg-slate-100 ${

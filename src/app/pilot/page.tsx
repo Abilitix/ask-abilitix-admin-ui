@@ -1,15 +1,28 @@
+import NoPrefetchLink from "@/components/NoPrefetchLink";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default function PilotPage() {
   return (
-    <div className="space-y-8">
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold">Pilot Objectives</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Use this page as your checklist during the pilot. Edit anytime.
-        </p>
-      </section>
+    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10">
+      {/* Back to Dashboard link */}
+      <div className="mb-6">
+        <NoPrefetchLink
+          href="/admin"
+          className="inline-flex items-center text-sm text-slate-500 hover:text-slate-700 hover:underline"
+        >
+          ← Back to Dashboard
+        </NoPrefetchLink>
+      </div>
+
+      <div className="space-y-8">
+        <section className="rounded-2xl bg-white p-6 shadow-sm">
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900">Pilot Objectives</h1>
+          <p className="mt-2 text-slate-600 leading-relaxed">
+            Use this page as your checklist during the pilot. Edit anytime.
+          </p>
+        </section>
 
       <section className="grid gap-6 md:grid-cols-2">
         <div className="rounded-2xl bg-white p-6 shadow-sm">
@@ -64,6 +77,7 @@ export default function PilotPage() {
           </a>
         </div>
       </section>
+      </div>
     </div>
   );
 }

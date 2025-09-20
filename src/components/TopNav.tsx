@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { getVisibleNavItems, type UserRole } from "@/lib/roles";
 import NoPrefetchLink from "./NoPrefetchLink";
@@ -11,59 +11,59 @@ interface TopNavProps {
   userEmail?: string;
   tenantName?: string;
   tenantSlug?: string;
+  tenantId?: string;            // ← add this
   userRole?: UserRole;
 }
 
-export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = 'viewer' }: TopNavProps) {
+const MOBILE_KEEP_LABELS = new Set(["Dashboard", "Inbox", "Docs"]);
+
+export default function TopNav({
+  userEmail,
+  tenantName,
+  tenantSlug,
+  tenantId,                      // ← will render on desktop
+  userRole = "viewer",
+}: TopNavProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [isSigningOut, setIsSigningOut] = useState(false);
-
-  // Debug logging
-  console.log('TopNav props:', { userEmail, tenantName, tenantSlug, userRole });
-
-  // Get visible navigation items based on user role and device type
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
-  
+
   useEffect(() => {
     setMounted(true);
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768); // md breakpoint
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    const apply = () => setIsMobile(window.innerWidth < 768); // md breakpoint
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
   }, []);
-  
-  // Default to PC (show all buttons) until mounted, then use actual device detection
-  const visibleNavItems = getVisibleNavItems(userRole, mounted ? isMobile : false);
+
+  // Always get the full list, then enforce our mobile policy locally.
+  const fullNav = getVisibleNavItems(userRole, false);
+  const navItems = mounted && isMobile
+    ? fullNav.filter((i) => MOBILE_KEEP_LABELS.has(i.label))
+    : fullNav;
 
   const handleSignOut = async () => {
-    setIsSigningOut(true);
     try {
+      // Prefer same-origin proxy if you have it; otherwise keep ADMIN_API.
       const api = process.env.NEXT_PUBLIC_ADMIN_API!;
-      const response = await fetch(`${api}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      await fetch(`${api}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
       });
-      
-      // Use hard navigation to avoid rendering half-authed state
-      window.location.assign('/signin');
-    } catch (error) {
-      console.error('Sign out error:', error);
-      // Force hard navigation even if logout API fails
-      window.location.assign('/signin');
+    } catch (_) {
+      // ignore
+    } finally {
+      // Hard navigate to avoid any half-authed state
+      window.location.assign("/signin");
     }
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
-      <nav className="mx-auto flex flex-col md:flex-row h-auto md:h-14 max-w-6xl items-start md:items-center justify-between px-4 py-2 md:py-0 mb-4 md:mb-2">
+    // Add mb-4 to create a clear gap below the sticky bar
+    <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur mb-4">
+      <nav className="mx-auto flex h-auto md:h-14 max-w-6xl items-start md:items-center justify-between px-4 py-2 md:py-0">
+        {/* Brand */}
         <NoPrefetchLink href="/" className="flex items-center gap-3">
           <Image
             src="/abilitix-logo.png"
@@ -77,25 +77,22 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
             Abiliti<span className="text-sm">X</span> Admin
           </span>
         </NoPrefetchLink>
-        
-        {/* Visual separator between logo and navigation - hidden on mobile */}
-        <div className="hidden md:block h-8 w-px bg-slate-400 mx-6"></div>
-        
-        {/* Navigation buttons - left side */}
-        <ul className="flex flex-wrap items-center text-sm mt-2 md:mt-0" style={{ gap: '0.5rem' }}>
-          {visibleNavItems.map((item) => {
+
+        {/* Nav links */}
+        <ul className="ml-0 md:ml-6 flex flex-wrap items-center text-sm mt-2 md:mt-0 gap-2">
+          {navItems.map((item) => {
             const active = pathname === item.href;
-            const isMobileHidden = !item.mobileVisible;
             return (
-              <li key={item.href} className={isMobileHidden ? "hidden md:inline-flex" : ""}>
+              <li key={item.href}>
                 <NoPrefetchLink
                   href={item.href}
-                  className={`px-4 py-2 rounded-lg border transition-colors duration-200 ${
-                    active 
-                      ? "bg-blue-500 text-white border-blue-500 shadow-md" 
-                      : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
-                  }`}
                   aria-current={active ? "page" : undefined}
+                  className={[
+                    "px-4 py-2 rounded-lg border transition-colors duration-200",
+                    active
+                      ? "bg-blue-500 text-white border-blue-500 shadow-md"
+                      : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400",
+                  ].join(" ")}
                 >
                   {item.label}
                 </NoPrefetchLink>
@@ -103,36 +100,34 @@ export default function TopNav({ userEmail, tenantName, tenantSlug, userRole = '
             );
           })}
         </ul>
-        
-        {/* User info and sign out - right side */}
-        <div className="flex items-center justify-end gap-3 text-xs text-slate-500">
-          {/* User info - PC only */}
-          <div className="hidden md:block">
-            <div className="flex items-center gap-2">
-              {userEmail && (
-                <span className="font-medium text-slate-700">{userEmail}</span>
-              )}
-              {tenantSlug && (
-                <>
-                  <span>Tenant: {tenantSlug}</span>
-                  <span className="px-1 py-0.5 rounded text-xs bg-slate-100">
-                    pilot
-                  </span>
-                </>
-              )}
-            </div>
+
+        {/* Right side: user + tenant (desktop only) + sign out */}
+        <div className="flex items-center justify-end gap-3 text-xs text-slate-600">
+          {/* Desktop-only identity block */}
+          <div className="hidden md:flex items-center gap-2">
+            {userEmail && <span className="font-medium text-slate-700">{userEmail}</span>}
+            {(tenantSlug || tenantId) && <span className="text-slate-400">•</span>}
+            {tenantSlug && (
+              <span className="truncate">
+                <span className="text-slate-500">Tenant:</span>{" "}
+                <span className="font-medium">{tenantSlug}</span>
+              </span>
+            )}
+            {tenantId && (
+              <span className="truncate font-mono text-[11px] text-slate-500">
+                id:{tenantId}
+              </span>
+            )}
           </div>
-          
-          {/* Sign out - both mobile and desktop */}
+
+          {/* Sign out (both mobile + desktop) */}
           <button
             onClick={handleSignOut}
-            disabled={isSigningOut}
-            className="text-xs text-slate-500 hover:text-slate-700 disabled:opacity-50"
+            className="text-xs text-slate-500 hover:text-slate-700"
           >
-            {isSigningOut ? 'Signing out...' : 'Sign out'}
+            Sign out
           </button>
         </div>
-        
       </nav>
     </header>
   );

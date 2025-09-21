@@ -12,191 +12,190 @@ type ChatMsg = {
 };
 
 type Props = {
-  /** SSE endpoint (your app: POST /api/ask/stream) */
+  /** If omitted, we try /api/ask/stream, then fall back to /api/rag/stream */
   streamUrl?: string;
-  /** Upload docs link placed at the very top */
   uploadHref?: string;
-  /** Called when a question is sent so parent can do a RAG search in parallel */
+  defaultTopK?: number;
   onQuestionAsked?: (q: string) => void;
 };
 
-const nowHHMM = () => {
+const hhmm = () => {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
+/** Convert your `citations` shape to UI sources */
+function citationsToSources(citations: any[] | undefined): Source[] | undefined {
+  if (!Array.isArray(citations)) return undefined;
+  return citations.map((c, i) => ({
+    label:
+      typeof c?.doc_id === "string"
+        ? `Source ${i + 1} (${c.doc_id.slice(0, 8)})`
+        : `Source ${i + 1}`,
+  }));
+}
+
 export default function DenserChat({
-  streamUrl = "/api/ask/stream",
+  streamUrl,
   uploadHref = "/admin/docs",
+  defaultTopK = 8,
   onQuestionAsked,
 }: Props) {
   const [messages, setMessages] = React.useState<ChatMsg[]>([]);
   const [input, setInput] = React.useState("");
-  const [isStreaming, setIsStreaming] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const scrollerRef = React.useRef<HTMLDivElement | null>(null);
 
-  // Keep the scroll pinned to bottom as new tokens arrive
-  const listRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages, isStreaming]);
+    scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight });
+  }, [messages, busy]);
 
-  async function handleSend() {
+  async function postWithFallback(q: string, topk: number) {
+    const body = {
+      // Send both keys so either server variant works
+      question: q,
+      q,
+      topk,
+      stream: true,
+      session_id: "rag-new-ui",
+    };
+
+    const tryOne = async (url: string) => {
+      const u = url.includes("?") ? `${url}&stream=true` : `${url}?stream=true`;
+      return fetch(u, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+        },
+        body: JSON.stringify(body),
+      });
+    };
+
+    if (streamUrl) return tryOne(streamUrl);
+
+    // Your canonical endpoint:
+    let res = await tryOne("/api/ask/stream");
+    if (res.status === 404 || res.status === 405) {
+      // Fallback to the older path if present
+      res = await tryOne("/api/rag/stream");
+    }
+    return res;
+  }
+
+  async function send() {
     const q = input.trim();
-    if (!q || isStreaming) return;
+    if (!q || busy) return;
 
-    // Allow parent to perform RAG search in parallel
     onQuestionAsked?.(q);
 
-    const userMsg: ChatMsg = {
-      id: `u_${Date.now()}`,
-      role: "user",
-      content: q,
-      time: nowHHMM(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
-
+    const u: ChatMsg = { id: `u_${Date.now()}`, role: "user", content: q, time: hhmm() };
+    const aid = `a_${Date.now()}`;
+    setMessages((m) => [...m, u, { id: aid, role: "assistant", content: "", time: hhmm() }]);
     setInput("");
-
-    // Create a placeholder assistant message we will stream into
-    const aId = `a_${Date.now()}`;
-    const assistantMsg: ChatMsg = {
-      id: aId,
-      role: "assistant",
-      content: "",
-      time: nowHHMM(),
-    };
-    setMessages((prev) => [...prev, assistantMsg]);
-    setIsStreaming(true);
+    setBusy(true);
 
     try {
-      const res = await fetch(streamUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: q,
-          session_id: "rag-new-ui",
-        }),
-      });
-      if (!res.body) throw new Error("No response body");
+      const res = await postWithFallback(q, defaultTopK);
+      if (!res.ok || !res.body) throw new Error(`stream ${res.status}`);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
 
-      let currentEvent: string | null = null;
-      let acc = ""; // accumulated assistant text
-      let finalSources: Source[] | undefined;
+      // SSE state (aligned to your payload)
+      let acc = "";
+      let finalCitations: any[] | undefined;
+      let currentEvent = ""; // "", "content", "done"
+      let buffer = "";
+      let dataLines: string[] = [];
+
+      const flushEvent = () => {
+        // join data lines and parse
+        const raw = dataLines.join("\n").trim();
+        if (!raw) {
+          currentEvent = "";
+          dataLines = [];
+          return;
+        }
+        try {
+          const json = JSON.parse(raw);
+
+          // 1) initial match info (no 'event:')
+          if (!currentEvent && json?.source === "docs.rag" && json?.match) {
+            // You can store/display json.match if desired
+          }
+
+          // 2) streaming content
+          if (currentEvent === "content" && typeof json?.delta === "string") {
+            acc += json.delta;
+            setMessages((prev) =>
+              prev.map((m) => (m.id === aid ? { ...m, content: acc } : m))
+            );
+          }
+
+          // 3) final citations
+          if (currentEvent === "done" && Array.isArray(json?.citations)) {
+            finalCitations = json.citations;
+          }
+        } catch {
+          // ignore bad JSON; your endpoint always sends JSON
+        }
+        currentEvent = "";
+        dataLines = [];
+      };
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
+        buffer += decoder.decode(value, { stream: true });
 
-        // Robust SSE parse: handle "event:" and "data:" lines.
-        // Server may emit:
-        //   event: content
-        //   data: {"delta":"..."}
-        // or:
-        //   data: {"content":"..."} / {"text":"..."}
-        // and a final:
-        //   event: done
-        //   data: {"citations":[...]}
-        const lines = chunk.split(/\r?\n/);
-        for (const line of lines) {
-          const l = line.trim();
-          if (!l) continue;
+        // Process as SSE: split by lines, events separated by blank line
+        let idx: number;
+        while ((idx = buffer.indexOf("\n")) >= 0) {
+          const line = buffer.slice(0, idx).replace(/\r$/, "");
+          buffer = buffer.slice(idx + 1);
 
-          if (l.startsWith("event:")) {
-            currentEvent = l.slice(6).trim();
-            continue;
-          }
-          if (l.startsWith("data:")) {
-            const payload = l.slice(5).trim();
-            if (payload === "[DONE]") {
-              currentEvent = "done";
-              continue;
-            }
-            try {
-              const json = JSON.parse(payload);
-
-              // Token handling: accept delta | content | text
-              const delta: string =
-                (typeof json.delta === "string" && json.delta) ||
-                (typeof json.content === "string" && json.content) ||
-                (typeof json.text === "string" && json.text) ||
-                "";
-
-              if (delta) {
-                acc += delta;
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === aId ? { ...m, content: acc } : m
-                  )
-                );
-              }
-
-              // Citations may show at the end or intermittently
-              if (Array.isArray(json.citations)) {
-                // Normalize citations into {label,url?,snippet?}
-                finalSources = json.citations.map((c: any, i: number) => {
-                  const label =
-                    c?.title ||
-                    c?.label ||
-                    c?.name ||
-                    c?.url ||
-                    `Source ${i + 1}`;
-                  return {
-                    label: String(label),
-                    url: typeof c?.url === "string" ? c.url : undefined,
-                    snippet:
-                      typeof c?.snippet === "string" ? c.snippet : undefined,
-                  } as Source;
-                });
-              }
-            } catch {
-              // ignore malformed json
-            }
+          if (line.startsWith("event:")) {
+            currentEvent = line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            dataLines.push(line.slice(5).trim());
+          } else if (line.trim() === "") {
+            // end of one event
+            flushEvent();
+          } else {
+            // ignore other fields (id:, retry:, etc.)
           }
         }
       }
+      // flush any trailing event
+      if (dataLines.length) flushEvent();
 
-      // Close out the assistant message with final sources (if any)
+      // attach citations to the last assistant message
+      const sources = citationsToSources(finalCitations);
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === aId ? { ...m, sources: finalSources } : m
-        )
+        prev.map((m) => (m.id === aid ? { ...m, sources } : m))
       );
-    } catch (err) {
-      // Surface a small error bubble
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === `a_${assistantMsg.id}` ? m : m
-        )
-      );
+    } catch (e) {
+      console.error(e);
       setMessages((prev) => [
         ...prev,
         {
           id: `err_${Date.now()}`,
           role: "assistant",
-          content:
-            "Sorry—there was a problem streaming the answer. Please try again.",
+          content: "Sorry—there was a problem streaming the answer.",
         },
       ]);
-      console.error("stream error:", err);
     } finally {
-      setIsStreaming(false);
+      setBusy(false);
     }
   }
 
   return (
     <div className="rounded-xl border bg-white">
-      {/* Top actions bar */}
-      <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-        <div className="text-sm font-medium text-slate-800">
-          Chat with your documents
-        </div>
+      {/* header */}
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="text-sm font-medium text-slate-800">Chat with your documents</div>
         <a
           href={uploadHref}
           className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50"
@@ -205,57 +204,39 @@ export default function DenserChat({
         </a>
       </div>
 
-      {/* Transcript */}
-      <div
-        ref={listRef}
-        className="max-h-[60vh] overflow-y-auto px-4 py-4 pb-24"
-      >
+      {/* transcript */}
+      <div ref={scrollerRef} className="max-h-[60vh] overflow-y-auto px-4 py-4 pb-24">
         {messages.length === 0 ? (
-          <div className="text-sm text-slate-500">
-            Ask a question to begin.
-          </div>
+          <div className="text-sm text-slate-500">Ask a question to begin.</div>
         ) : (
           <div className="space-y-3">
             {messages.map((m) => (
               <div
                 key={m.id}
-                className={[
-                  "flex",
-                  m.role === "user" ? "justify-end" : "justify-start",
-                ].join(" ")}
+                className={["flex", m.role === "user" ? "justify-end" : "justify-start"].join(" ")}
               >
                 <div
                   className={[
                     "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
-                    m.role === "user"
-                      ? "bg-blue-600 text-white"
-                      : "bg-slate-100 text-slate-900",
+                    m.role === "user" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-900",
                   ].join(" ")}
                 >
                   <div className="whitespace-pre-wrap">{m.content}</div>
+
                   {m.sources && m.sources.length > 0 && (
                     <div className="mt-2 space-y-1">
-                      <div className="text-[11px] font-semibold opacity-70">
-                        Sources
-                      </div>
+                      <div className="text-[11px] font-semibold opacity-70">Sources</div>
                       <ul className="space-y-1">
                         {m.sources.map((s, i) => (
                           <li key={i} className="text-[11px]">
                             {s.url ? (
-                              <a
-                                href={s.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="underline"
-                              >
+                              <a href={s.url} target="_blank" rel="noreferrer" className="underline">
                                 {s.label}
                               </a>
                             ) : (
                               <span>{s.label}</span>
                             )}
-                            {s.snippet ? (
-                              <span className="opacity-70"> — {s.snippet}</span>
-                            ) : null}
+                            {s.snippet ? <span className="opacity-70"> — {s.snippet}</span> : null}
                           </li>
                         ))}
                       </ul>
@@ -264,29 +245,25 @@ export default function DenserChat({
                 </div>
               </div>
             ))}
-            {isStreaming && (
-              <div className="text-[11px] text-slate-500">…streaming</div>
-            )}
+            {busy && <div className="text-[11px] text-slate-500">…streaming</div>}
           </div>
         )}
       </div>
 
-      {/* Composer — sticky; avoids footer collisions */}
+      {/* composer */}
       <div className="sticky bottom-0 left-0 right-0 border-t bg-white px-3 py-3">
         <div className="flex items-center gap-2">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSend();
-            }}
+            onKeyDown={(e) => e.key === "Enter" && send()}
             placeholder="Type your question…"
             className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isStreaming}
+            disabled={busy}
           />
           <button
-            onClick={handleSend}
-            disabled={!input.trim() || isStreaming}
+            onClick={send}
+            disabled={!input.trim() || busy}
             className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
           >
             Send

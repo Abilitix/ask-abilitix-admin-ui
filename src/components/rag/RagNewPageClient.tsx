@@ -1,72 +1,71 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import dynamic from "next/dynamic";
+import * as React from "react";
+import DenserChat from "@/components/rag/DenserChat";
 import { RagHitsTable, type Hit } from "@/components/rag/RagHitsTable";
-import { toast } from "sonner";
 
-const DenserChat = dynamic(() => import("@/components/rag/DenserChat"), { ssr: false });
+type Props = {
+  /** Optional key from page.tsx to force a clean mount on revisit */
+  instanceKey?: string;
+};
 
-export function RagNewPageClient() {
-  const [hits, setHits] = useState<Hit[]>([]);
-  const [topScore, setTopScore] = useState<number | undefined>();
-  const [ragBusy, setRagBusy] = useState(false);
+export function RagNewPageClient({ instanceKey }: Props) {
+  const [hits, setHits] = React.useState<Hit[]>([]);
+  const [topScore, setTopScore] = React.useState<number | undefined>();
+  const [loadingHits, setLoadingHits] = React.useState(false);
+  const TOPK = 8;
 
-  const runRagSearch = useCallback(async (q: string, topk: number) => {
+  // Clear results whenever this page remounts (or instanceKey changes)
+  React.useEffect(() => {
+    setHits([]);
+    setTopScore(undefined);
+    setLoadingHits(false);
+  }, [instanceKey]);
+
+  const runRagSearch = React.useCallback(async (q: string) => {
     try {
-      setRagBusy(true);
+      setLoadingHits(true);
       setHits([]);
       setTopScore(undefined);
 
-      const res = await fetch(`/api/smoke/rag?q=${encodeURIComponent(q)}&topk=${topk}`);
+      const res = await fetch(
+        `/api/smoke/rag?q=${encodeURIComponent(q)}&topk=${TOPK}`
+      );
       if (!res.ok) throw new Error(`RAG search failed: ${res.status}`);
-      const ragData = await res.json();
+      const data = await res.json();
 
       const transformed: Hit[] =
-        ragData.hits?.map((hit: any, idx: number) => ({
-          idx: idx + 1,
-          score: hit?.score || 0,
-          vec_sim: hit?.vec_sim || 0,
-          trgm_sim: hit?.trgm_sim || 0,
-          preview: hit?.preview || hit?.text || "No preview available",
+        data?.hits?.map((h: any, i: number) => ({
+          idx: i + 1,
+          score: Number(h?.score ?? 0),
+          vec_sim: Number(h?.vec_sim ?? 0),
+          trgm_sim: Number(h?.trgm_sim ?? 0),
+          preview: String(h?.preview ?? h?.text ?? "No preview available"),
         })) ?? [];
 
       setHits(transformed);
-      setTopScore(transformed[0]?.score);
-      if (transformed.length === 0) toast.message("No RAG results found");
-    } catch (e: any) {
-      toast.error(`RAG search error: ${e?.message || e}`);
+      setTopScore(transformed.length ? transformed[0].score : undefined);
+    } catch (err) {
+      console.error("RAG search error:", err);
     } finally {
-      setRagBusy(false);
+      setLoadingHits(false);
     }
   }, []);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div key={instanceKey ?? "rag-new"} className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">RAG Testing (New)</h1>
       </div>
 
-      {/* Desktop: side-by-side; Mobile: chat first */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Sources */}
-        <div className="order-2 md:order-1">
-          <RagHitsTable hits={hits} topScore={topScore} loading={ragBusy} />
-        </div>
+      <DenserChat
+        streamUrl="/api/ask/stream"
+        uploadHref="/admin/docs"
+        onQuestionAsked={runRagSearch}
+      />
 
-        {/* Chat */}
-        <div className="order-1 md:order-2">
-          <DenserChat
-            documentTitle="RAG Chat"
-            uploadHref="/admin/docs"
-            defaultTopK={8}
-            streaming={true}
-            /** ✅ point to your existing streaming route */
-            askUrl="/api/ask/stream"
-            onAsked={(q: string, k: number) => runRagSearch(q, k)}
-            feedbackUrl="/api/analytics/feedback"
-          />
-        </div>
+      <div className="mt-6">
+        <RagHitsTable hits={hits} topScore={topScore} loading={loadingHits} />
       </div>
     </div>
   );

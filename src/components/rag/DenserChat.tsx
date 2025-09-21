@@ -61,8 +61,8 @@ export default function DenserChat({
     };
 
     const tryOne = async (url: string) => {
-      const u = url.includes("?") ? `${url}&stream=true` : `${url}?stream=true`;
-      return fetch(u, {
+      // Don't add stream=true to URL if it's already in the body
+      return fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -178,14 +178,9 @@ export default function DenserChat({
       );
     } catch (e) {
       console.error(e);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `err_${Date.now()}`,
-          role: "assistant",
-          content: "Sorry—there was a problem streaming the answer.",
-        },
-      ]);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === aid ? { ...m, content: "Sorry—there was a problem streaming the answer." } : m))
+      );
     } finally {
       setBusy(false);
     }

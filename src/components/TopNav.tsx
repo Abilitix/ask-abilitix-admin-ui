@@ -2,18 +2,17 @@
 
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import NoPrefetchLink from "./NoPrefetchLink";
 import { getVisibleNavItems, type UserRole } from "@/lib/roles";
 
 interface TopNavProps {
   userEmail?: string;
-  tenantSlug?: string;     // show slug only
-  tenantName?: string;     // accepted for back-compat; not displayed
+  tenantSlug?: string; // show slug only
+  tenantName?: string; // back-compat; unused
   userRole?: UserRole;
 }
 
-// Mobile shows only these; desktop shows ALL items
+// Mobile shows only these; desktop shows ALL items (CSS controls visibility)
 const MOBILE_PRIMARY = new Set(["Dashboard", "Inbox", "Docs"]);
 
 export default function TopNav({
@@ -22,21 +21,9 @@ export default function TopNav({
   userRole = "viewer",
 }: TopNavProps) {
   const pathname = usePathname();
-  const [signingOut, setSigningOut] = useState(false);
+  const [signingOut, setSigningOut] = React.useState(false);
 
-  const [isMobile, setIsMobile] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const detect = () =>
-      setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
-    detect();
-    setMounted(true);
-    window.addEventListener("resize", detect);
-    return () => window.removeEventListener("resize", detect);
-  }, []);
-
-  // IMPORTANT: always request the full list from roles for desktop
-  // (we'll hide extra items on mobile here in TopNav)
+  // Always fetch full list for desktop; CSS will hide extras on mobile
   const items = getVisibleNavItems(userRole, /*isMobileInRoles*/ false);
 
   const handleSignOut = async () => {
@@ -57,10 +44,14 @@ export default function TopNav({
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
-        <nav className="mx-auto flex h-auto md:h-14 max-w-6xl items-center justify-between px-4 py-2 md:py-3">
+      <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur">
+        <nav
+          className="mx-auto flex h-auto max-w-6xl items-center justify-between px-4 py-2 md:h-14 md:py-3"
+          role="navigation"
+          aria-label="Main"
+        >
           {/* Left: brand */}
-          <NoPrefetchLink href="/" className="flex items-center gap-2 md:gap-3 shrink-0">
+          <NoPrefetchLink href="/" className="flex shrink-0 items-center gap-2 md:gap-3">
             <Image
               src="/abilitix-logo.png"
               alt="AbilitiX"
@@ -72,21 +63,24 @@ export default function TopNav({
             <span className="font-semibold tracking-tight">Admin Portal</span>
           </NoPrefetchLink>
 
-          {/* Middle: nav list */}
-          <ul className="min-w-0 flex flex-1 flex-wrap items-center justify-center md:justify-start gap-3 md:gap-4 text-sm">
+          {/* Middle: nav list (CSS-only responsiveness; no JS = no flicker) */}
+          <ul className="min-w-0 flex flex-1 items-center justify-center gap-3 overflow-x-auto whitespace-nowrap md:justify-start md:gap-4 text-sm">
             {items.map((item) => {
-              if (mounted && isMobile && !MOBILE_PRIMARY.has(item.label)) return null;
               const active = pathname === item.href;
+              const isPrimaryOnMobile = MOBILE_PRIMARY.has(item.label);
               return (
-                <li key={item.href}>
+                <li
+                  key={item.href}
+                  className={isPrimaryOnMobile ? "block" : "hidden md:block"}
+                >
                   <NoPrefetchLink
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={[
                       "inline-flex items-center rounded-lg border px-3 py-1.5 transition-colors",
                       active
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50",
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
                     ].join(" ")}
                   >
                     {item.label}
@@ -97,18 +91,18 @@ export default function TopNav({
           </ul>
 
           {/* Right: identity + sign-out */}
-          <div className="flex items-center gap-2 md:gap-4 shrink-0">
-            {/* Mobile: show slug pill */}
+          <div className="flex shrink-0 items-center gap-2 md:gap-4">
+            {/* Mobile: slug pill */}
             {tenantSlug && (
-              <span className="md:hidden inline-flex items-center rounded-full bg-slate-100 text-slate-600 text-xs px-2 py-0.5">
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 md:hidden">
                 {tenantSlug}
               </span>
             )}
 
             {/* Desktop: email | tenant: slug */}
             {(userEmail || tenantSlug) && (
-              <div className="hidden md:flex items-center text-xs text-slate-600 whitespace-nowrap max-w-[46ch]">
-                {userEmail && <span className="font-medium truncate">{userEmail}</span>}
+              <div className="hidden max-w-[46ch] items-center whitespace-nowrap text-xs text-slate-600 md:flex">
+                {userEmail && <span className="truncate font-medium">{userEmail}</span>}
                 {userEmail && tenantSlug && <span className="mx-2 text-slate-300">•</span>}
                 {tenantSlug && (
                   <span className="truncate">
@@ -129,7 +123,7 @@ export default function TopNav({
         </nav>
       </header>
 
-      {/* 1-line spacer between TopNav and first content */}
+      {/* spacer between TopNav and first content */}
       <div className="h-5 md:h-6" />
     </>
   );

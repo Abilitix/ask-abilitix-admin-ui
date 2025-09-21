@@ -39,8 +39,10 @@ type Props = {
   uploadHref?: string;
   defaultTopK?: number;
   streaming?: boolean;
-  askUrl?: string;               // default: /api/rag/stream
-  feedbackUrl?: string;          // e.g., /api/analytics/feedback
+  /** Server SSE endpoint. Your app exposes POST /api/ask/stream */
+  askUrl?: string;
+  /** Optional analytics endpoint */
+  feedbackUrl?: string;
   onAsked?: (q: string, k: number) => void;
   onFeedback?: (payload: FeedbackPayload) => void;
 };
@@ -64,7 +66,6 @@ function coerceSources(s: any): Source[] {
     snippet: typeof x?.snippet === "string" ? x.snippet : undefined,
   }));
 }
-
 function coerceMsg(msg: any, ix = 0): ChatMsg {
   if (!msg || typeof msg !== "object") {
     return { id: `auto_${Date.now()}_${ix}`, role: "assistant", text: "", time: undefined };
@@ -82,13 +83,8 @@ function coerceMsg(msg: any, ix = 0): ChatMsg {
   return { id, role, text, time, sources };
 }
 const coerceMsgs = (arr: any): ChatMsg[] => (Array.isArray(arr) ? arr.map((m, i) => coerceMsg(m, i)) : []);
-
 async function safeJson(res: Response): Promise<any> {
-  try {
-    return await res.json();
-  } catch {
-    return null;
-  }
+  try { return await res.json(); } catch { return null; }
 }
 
 export default function DenserChat(props: Props) {
@@ -98,7 +94,7 @@ export default function DenserChat(props: Props) {
     uploadHref = "/admin/docs",
     defaultTopK = 6,
     streaming = true,
-    askUrl = "/api/rag/stream",   // default path that returns content + citations
+    askUrl = "/api/ask/stream",      // ✅ correct default for your app
     feedbackUrl,
     onAsked,
     onFeedback,
@@ -112,9 +108,10 @@ export default function DenserChat(props: Props) {
   const listRef = React.useRef<HTMLDivElement | null>(null);
 
   // feedback submission state per message id
-  const [feedback, setFeedback] = React.useState<Record<string, "idle" | "submitting" | "done" | "error">>({});
+  const [feedback, setFeedback] =
+    React.useState<Record<string, "idle" | "submitting" | "done" | "error">>({});
 
-  // Auto-scroll
+  // Auto-scroll transcript
   React.useEffect(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight + 1000;
@@ -128,11 +125,7 @@ export default function DenserChat(props: Props) {
     const userMsg: ChatMsg = { id: `u_${Date.now()}`, role: "user", text, time: nowHHMM() };
     setMessages((m) => [...m, userMsg]);
 
-    try {
-      if (typeof onAsked === "function") onAsked(text, topK);
-    } catch {
-      /* no-op */
-    }
+    try { onAsked?.(text, topK); } catch {}
 
     setBusy(true);
     try {
@@ -152,14 +145,27 @@ export default function DenserChat(props: Props) {
     }
   }
 
+  // ---- call utils (with 405/404 fallback to /api/ask/stream) ----
+  async function postWithFallback(url: string, body: any) {
+    const req = (u: string) =>
+      fetch(u, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    let res = await req(url);
+    if ((res.status === 405 || res.status === 404) && url !== "/api/ask/stream") {
+      console.warn(`[DenserChat] ${res.status} on ${url} → falling back to /api/ask/stream`);
+      res = await req("/api/ask/stream");
+    }
+    return res;
+  }
+
+  // ---- Non-streaming (for completeness) ----
   async function runNonStreamingAsk(question: string) {
     const history = messages.slice(-8).map((m) => ({ role: m.role, content: m.text }));
-    const url = `${askUrl}?stream=false`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, history, topk: topK }),
-    });
+    const res = await postWithFallback(`${askUrl}?stream=false`, { question, history, topk: topK });
     const data = await safeJson(res);
 
     const answer =
@@ -170,21 +176,21 @@ export default function DenserChat(props: Props) {
         : typeof data === "string"
         ? data
         : "";
+
     const sources = coerceSources(data?.sources || data?.docs || data?.citations);
-    setMessages((m) => [...m, { id: `a_${Date.now()}`, role: "assistant", text: String(answer ?? ""), time: nowHHMM(), sources }]);
+    setMessages((m) => [
+      ...m,
+      { id: `a_${Date.now()}`, role: "assistant", text: String(answer ?? ""), time: nowHHMM(), sources },
+    ]);
   }
 
-  // ---------- STREAMING (SSE) ----------
+  // ---- Streaming (SSE) ----
   async function runStreamingAsk(question: string) {
     const tempId = `a_${Date.now()}`;
     setMessages((m) => [...m, { id: tempId, role: "assistant", text: "", time: nowHHMM(), sources: [] }]);
 
     const history = messages.slice(-8).map((m) => ({ role: m.role, content: m.text }));
-    const res = await fetch(askUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, history, topk: topK, session_id: "ui-rag-stream-test" }),
-    });
+    const res = await postWithFallback(askUrl, { question, history, topk: topK, session_id: "ui-rag-stream-test" });
     if (!res.ok || !res.body) throw new Error(`Streaming failed: ${res.status}`);
 
     const reader = res.body.getReader();
@@ -245,7 +251,7 @@ export default function DenserChat(props: Props) {
               }
             }
           } catch {
-            // ignore
+            // ignore partial JSON lines
           }
         }
       }
@@ -281,15 +287,21 @@ export default function DenserChat(props: Props) {
           body: JSON.stringify(payload),
         });
       }
-      if (onFeedback) onFeedback(payload);
+      onFeedback?.(payload);
       setFeedback((f) => ({ ...f, [msg.id]: "done" }));
     } catch {
       setFeedback((f) => ({ ...f, [msg.id]: "error" }));
     }
   }
 
+  /**
+   * LAYOUT FIX:
+   * - Wrapper is a column that grows to viewport height and scrolls the page.
+   * - Transcript uses flex-1 + overflow-y-auto.
+   * - Composer is position: sticky (not fixed) so it never collides with the site footer.
+   */
   return (
-    <div className="mx-auto max-w-screen-md px-3 pt-4 sm:pt-6 pb-[calc(160px+env(safe-area-inset-bottom))]">
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-screen-md flex-col px-3">
       {/* Upload CTA Bar */}
       <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border bg-muted/40 p-3">
         <div>
@@ -304,7 +316,7 @@ export default function DenserChat(props: Props) {
       </div>
 
       {/* Header */}
-      <Card className="sticky top-0 z-10 border-muted/60 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <Card className="z-10 border-muted/60">
         <CardContent className="flex items-center gap-3 p-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted/60">
             <FileText className="h-4 w-4" />
@@ -313,7 +325,6 @@ export default function DenserChat(props: Props) {
             <div className="truncate text-sm font-medium">{documentTitle}</div>
             <div className="text-xs text-muted-foreground">Conversational test</div>
           </div>
-
           <Button
             size="icon"
             variant="ghost"
@@ -345,11 +356,8 @@ export default function DenserChat(props: Props) {
         </div>
       )}
 
-      {/* Transcript */}
-      <div
-        ref={listRef}
-        className="mt-3 h-[calc(100dvh-320px)] overflow-y-auto rounded-xl border p-4 sm:h-[calc(100dvh-360px)]"
-      >
+      {/* Transcript (flex-1; scrolls) */}
+      <div ref={listRef} className="mt-3 flex-1 overflow-y-auto rounded-xl border p-4">
         <div className="space-y-3">
           {(Array.isArray(messages) ? messages : []).map((m) => (
             <MessageBubble
@@ -369,9 +377,9 @@ export default function DenserChat(props: Props) {
         </div>
       </div>
 
-      {/* Composer (fixed) */}
-      <div className="fixed inset-x-0 bottom-0 z-[70] border-t bg-background/95 px-3 pb-[max(16px,env(safe-area-inset-bottom))] pt-2 sm:px-4">
-        <div className="mx-auto flex w-full max-w-screen-md items-end gap-2">
+      {/* Composer (sticky; never overlaps footer) */}
+      <div className="sticky bottom-0 z-[5] mt-3 border-t bg-background/95 pb-3 pt-2">
+        <div className="flex w-full items-end gap-2">
           <Textarea
             value={input}
             onChange={(e) => setInput(e?.target?.value ?? "")}

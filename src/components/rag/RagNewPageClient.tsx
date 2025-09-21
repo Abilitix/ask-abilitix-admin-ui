@@ -42,15 +42,15 @@ export function RagNewPageClient() {
   }, []);
 
   return (
-    <div className="container mx-auto p-6 space-y-6 pb-40">
+    <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">RAG Testing (New)</h1>
       </div>
 
       {/* Desktop: side-by-side; Mobile: chat first */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Sources */}
-        <div className="order-2 md:order-1 pb-40">
+        <div className="order-2 md:order-1">
           <RagHitsTable hits={hits} topScore={topScore} loading={ragBusy} />
         </div>
 
@@ -61,7 +61,8 @@ export function RagNewPageClient() {
             uploadHref="/admin/docs"
             defaultTopK={8}
             streaming={true}
-            // stream endpoint is /api/rag/stream by default inside DenserChat
+            /** ✅ point to your existing streaming route */
+            askUrl="/api/ask/stream"
             onAsked={(q: string, k: number) => runRagSearch(q, k)}
             feedbackUrl="/api/analytics/feedback"
           />

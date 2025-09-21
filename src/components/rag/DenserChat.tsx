@@ -12,28 +12,40 @@ import {
   FileText,
   Upload,
   SlidersHorizontal,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 
-// ---------- Types ----------
 type Role = "user" | "assistant" | "system";
 type Source = { id: string; title: string; url?: string; snippet?: string };
 type ChatMsg = { id: string; role: Role; text: string; time?: string; sources?: Source[] };
+
+type FeedbackPayload = {
+  messageId: string;
+  question?: string;
+  answer?: string;
+  helpful: boolean;
+  sources?: Source[];
+  ts: string;
+};
 
 type Props = {
   documentTitle?: string;
   initialMessages?: ChatMsg[];
   uploadHref?: string;
   defaultTopK?: number;
-  streaming?: boolean; // true -> POST /api/ask/stream (SSE)
-  askUrl?: string; // optional override
-  onAsked?: (q: string, k: number) => void; // notify page to run /api/smoke/rag in parallel
+  streaming?: boolean;
+  askUrl?: string;               // default: /api/rag/stream
+  feedbackUrl?: string;          // e.g., /api/analytics/feedback
+  onAsked?: (q: string, k: number) => void;
+  onFeedback?: (payload: FeedbackPayload) => void;
 };
 
-// ---------- Helpers ----------
+// ---------- helpers ----------
 const VALID_ROLES = new Set<Role>(["user", "assistant", "system"]);
 const isValidRole = (role: unknown): role is Role =>
   typeof role === "string" && (VALID_ROLES as Set<string>).has(role);
@@ -86,8 +98,10 @@ export default function DenserChat(props: Props) {
     uploadHref = "/admin/docs",
     defaultTopK = 6,
     streaming = true,
-    askUrl,
+    askUrl = "/api/rag/stream",   // default path that returns content + citations
+    feedbackUrl,
     onAsked,
+    onFeedback,
   } = props || {};
 
   const [messages, setMessages] = React.useState<ChatMsg[]>(() => coerceMsgs(initialMessages));
@@ -96,6 +110,9 @@ export default function DenserChat(props: Props) {
   const [topK, setTopK] = React.useState<number>(defaultTopK);
   const [advOpen, setAdvOpen] = React.useState<boolean>(false);
   const listRef = React.useRef<HTMLDivElement | null>(null);
+
+  // feedback submission state per message id
+  const [feedback, setFeedback] = React.useState<Record<string, "idle" | "submitting" | "done" | "error">>({});
 
   // Auto-scroll
   React.useEffect(() => {
@@ -137,25 +154,13 @@ export default function DenserChat(props: Props) {
 
   async function runNonStreamingAsk(question: string) {
     const history = messages.slice(-8).map((m) => ({ role: m.role, content: m.text }));
-    const url = askUrl ?? "/api/ask/stream?stream=false";
+    const url = `${askUrl}?stream=false`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question, history, topk: topK }),
     });
     const data = await safeJson(res);
-
-    if (Array.isArray(data?.messages)) {
-      const msgs: ChatMsg[] = data.messages.map((m: any, i: number) => ({
-        id: String(m?.id ?? `srv_${Date.now()}_${i}`),
-        role: isValidRole(m?.role) ? (m.role as Role) : "assistant",
-        text: typeof m?.text === "string" ? m.text : typeof m?.content === "string" ? m.content : "",
-        time: nowHHMM(),
-        sources: coerceSources(data?.sources || data?.docs || data?.citations),
-      }));
-      setMessages(coerceMsgs(msgs));
-      return;
-    }
 
     const answer =
       typeof data?.answer === "string"
@@ -165,19 +170,17 @@ export default function DenserChat(props: Props) {
         : typeof data === "string"
         ? data
         : "";
-
     const sources = coerceSources(data?.sources || data?.docs || data?.citations);
     setMessages((m) => [...m, { id: `a_${Date.now()}`, role: "assistant", text: String(answer ?? ""), time: nowHHMM(), sources }]);
   }
 
-  // ---------- STREAMING: handles "event: content" + "event: done" ----------
+  // ---------- STREAMING (SSE) ----------
   async function runStreamingAsk(question: string) {
     const tempId = `a_${Date.now()}`;
     setMessages((m) => [...m, { id: tempId, role: "assistant", text: "", time: nowHHMM(), sources: [] }]);
 
     const history = messages.slice(-8).map((m) => ({ role: m.role, content: m.text }));
-    const url = askUrl ?? "/api/ask/stream";
-    const res = await fetch(url, {
+    const res = await fetch(askUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question, history, topk: topK, session_id: "ui-rag-stream-test" }),
@@ -193,7 +196,7 @@ export default function DenserChat(props: Props) {
     const extractChunkText = (json: any): string => {
       if (!json) return "";
       if (typeof json === "string") return json;
-      if (typeof json.delta === "string") return json.delta; // your API
+      if (typeof json.delta === "string") return json.delta;
       if (typeof json.token === "string") return json.token;
       if (typeof json.content === "string") return json.content;
       if (typeof json.text === "string") return json.text;
@@ -207,14 +210,14 @@ export default function DenserChat(props: Props) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
 
+      const chunk = decoder.decode(value, { stream: true });
       for (const rawLine of chunk.split("\n")) {
         const line = rawLine.trim();
         if (!line) continue;
 
         if (line.startsWith("event: ")) {
-          currentEvent = line.slice(7).trim(); // "content", "done", etc.
+          currentEvent = line.slice(7).trim();
           continue;
         }
 
@@ -225,7 +228,7 @@ export default function DenserChat(props: Props) {
           try {
             const json = JSON.parse(payload);
 
-            if (currentEvent === "content") {
+            if (currentEvent === "content" || !currentEvent) {
               const piece = extractChunkText(json);
               if (piece) {
                 assistantText += piece;
@@ -233,11 +236,16 @@ export default function DenserChat(props: Props) {
               }
             }
 
-            // citations can arrive on "done" or mid-stream; accept either
             const cites = json.citations || json.sources || json.docs;
             if (cites) finalSources = coerceSources(cites);
+
+            if (json.event === "done" || currentEvent === "done") {
+              if (finalSources.length) {
+                setMessages((m) => m.map((x) => (x.id === tempId ? { ...x, sources: finalSources } : x)));
+              }
+            }
           } catch {
-            // ignore malformed lines
+            // ignore
           }
         }
       }
@@ -248,9 +256,41 @@ export default function DenserChat(props: Props) {
     }
   }
 
+  // ---------- feedback ----------
+  async function sendFeedback(msg: ChatMsg, helpful: boolean) {
+    const status = feedback[msg.id] || "idle";
+    if (status === "submitting" || status === "done") return;
+
+    setFeedback((f) => ({ ...f, [msg.id]: "submitting" }));
+
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const payload: FeedbackPayload = {
+      messageId: msg.id,
+      question: lastUser?.text,
+      answer: msg.text,
+      helpful,
+      sources: msg.sources,
+      ts: new Date().toISOString(),
+    };
+
+    try {
+      if (feedbackUrl) {
+        await fetch(feedbackUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+      if (onFeedback) onFeedback(payload);
+      setFeedback((f) => ({ ...f, [msg.id]: "done" }));
+    } catch {
+      setFeedback((f) => ({ ...f, [msg.id]: "error" }));
+    }
+  }
+
   return (
-    <div className="mx-auto max-w-screen-md px-3 pt-4 sm:pt-6 pb-[calc(112px+env(safe-area-inset-bottom))]">
-      {/* Upload CTA Bar (Upload only) */}
+    <div className="mx-auto max-w-screen-md px-3 pt-4 sm:pt-6 pb-[calc(160px+env(safe-area-inset-bottom))]">
+      {/* Upload CTA Bar */}
       <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border bg-muted/40 p-3">
         <div>
           <div className="text-sm font-medium">Documents</div>
@@ -274,7 +314,6 @@ export default function DenserChat(props: Props) {
             <div className="text-xs text-muted-foreground">Conversational test</div>
           </div>
 
-          {/* Inline Advanced toggle */}
           <Button
             size="icon"
             variant="ghost"
@@ -309,11 +348,16 @@ export default function DenserChat(props: Props) {
       {/* Transcript */}
       <div
         ref={listRef}
-        className="mt-3 h-[calc(100dvh-248px)] overflow-y-auto rounded-xl border p-4 sm:h-[calc(100dvh-300px)]"
+        className="mt-3 h-[calc(100dvh-320px)] overflow-y-auto rounded-xl border p-4 sm:h-[calc(100dvh-360px)]"
       >
         <div className="space-y-3">
           {(Array.isArray(messages) ? messages : []).map((m) => (
-            <MessageBubble key={m?.id ?? Math.random().toString(36)} msg={coerceMsg(m)} />
+            <MessageBubble
+              key={m?.id ?? Math.random().toString(36)}
+              msg={coerceMsg(m)}
+              status={feedback[m.id] || "idle"}
+              onFeedback={sendFeedback}
+            />
           ))}
           {busy && (
             <div className="flex w-full justify-start">
@@ -326,14 +370,14 @@ export default function DenserChat(props: Props) {
       </div>
 
       {/* Composer (fixed) */}
-      <div className="fixed inset-x-0 bottom-0 z-[60] border-t bg-background/95 px-3 pb-[max(0px,env(safe-area-inset-bottom))] pt-2 sm:px-4">
+      <div className="fixed inset-x-0 bottom-0 z-[70] border-t bg-background/95 px-3 pb-[max(16px,env(safe-area-inset-bottom))] pt-2 sm:px-4">
         <div className="mx-auto flex w-full max-w-screen-md items-end gap-2">
           <Textarea
             value={input}
             onChange={(e) => setInput(e?.target?.value ?? "")}
             placeholder="Type your question here…"
             rows={1}
-            className="min-h-[44px] resize-none rounded-2xl pr-12"
+            className="min-h-[48px] resize-none rounded-2xl pr-12"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -341,7 +385,7 @@ export default function DenserChat(props: Props) {
               }
             }}
           />
-          <Button onClick={handleSend} disabled={!input.trim() || busy} className="h-11 rounded-2xl px-4">
+          <Button onClick={handleSend} disabled={!input.trim() || busy} className="h-12 rounded-2xl px-4">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
@@ -351,7 +395,15 @@ export default function DenserChat(props: Props) {
 }
 
 // ---------- Presentational ----------
-function MessageBubble({ msg }: { msg: ChatMsg }) {
+function MessageBubble({
+  msg,
+  status,
+  onFeedback,
+}: {
+  msg: ChatMsg;
+  status: "idle" | "submitting" | "done" | "error";
+  onFeedback?: (msg: ChatMsg, helpful: boolean) => void;
+}) {
   const m = coerceMsg(msg);
   const isUser = m.role === "user";
   return (
@@ -377,20 +429,38 @@ function MessageBubble({ msg }: { msg: ChatMsg }) {
         </div>
         {!isUser && (
           <div className="flex items-center gap-1 text-muted-foreground">
-            <BubbleAction icon={<ThumbsUp className="h-3.5 w-3.5" />} label="Helpful" />
-            <BubbleAction icon={<ThumbsDown className="h-3.5 w-3.5" />} label="Not helpful" />
+            <BubbleAction
+              icon={<ThumbsUp className="h-3.5 w-3.5" />}
+              label="Helpful"
+              disabled={status === "submitting" || status === "done"}
+              onClick={() => onFeedback?.(m, true)}
+            />
+            <BubbleAction
+              icon={<ThumbsDown className="h-3.5 w-3.5" />}
+              label="Not helpful"
+              disabled={status === "submitting" || status === "done"}
+              onClick={() => onFeedback?.(m, false)}
+            />
             <BubbleAction
               icon={<Copy className="h-3.5 w-3.5" />}
               label="Copy"
               onClick={() => {
                 try {
                   navigator?.clipboard?.writeText?.(String(m.text ?? ""));
-                } catch {
-                  /* no-op */
-                }
+                } catch {}
               }}
             />
             <BubbleAction icon={<MoreVertical className="h-3.5 w-3.5" />} label="More" />
+            {status === "done" && (
+              <span className="ml-2 inline-flex items-center gap-1 text-xs text-emerald-600">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Recorded
+              </span>
+            )}
+            {status === "error" && (
+              <span className="ml-2 inline-flex items-center gap-1 text-xs text-rose-600">
+                <AlertCircle className="h-3.5 w-3.5" /> Error
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -416,16 +486,19 @@ function SourceChip({ title, url }: { title: string; url?: string }) {
 function BubbleAction({
   icon,
   label,
+  disabled,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
+  disabled?: boolean;
   onClick?: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs hover:bg-muted/70"
+      disabled={disabled}
+      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs hover:bg-muted/70 disabled:opacity-50 disabled:cursor-not-allowed"
       aria-label={label || "action"}
       type="button"
     >

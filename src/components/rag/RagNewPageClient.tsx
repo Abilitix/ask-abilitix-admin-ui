@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import { RagHitsTable, type Hit } from "@/components/rag/RagHitsTable";
 import { toast } from "sonner";
 
-// Lazy import to avoid SSR issues
 const DenserChat = dynamic(() => import("@/components/rag/DenserChat"), { ssr: false });
 
 export function RagNewPageClient() {
@@ -43,26 +42,28 @@ export function RagNewPageClient() {
   }, []);
 
   return (
-    <div className="container mx-auto p-6 space-y-6 pb-28">
+    <div className="container mx-auto p-6 space-y-6 pb-40">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">RAG Testing (New)</h1>
       </div>
 
-      {/* Mobile stacks (chat first), desktop side-by-side */}
+      {/* Desktop: side-by-side; Mobile: chat first */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* LEFT (desktop) / SECOND (mobile): sources */}
-        <div className="order-2 md:order-1 pb-28">
+        {/* Sources */}
+        <div className="order-2 md:order-1 pb-40">
           <RagHitsTable hits={hits} topScore={topScore} loading={ragBusy} />
         </div>
 
-        {/* RIGHT (desktop) / FIRST (mobile): chat */}
+        {/* Chat */}
         <div className="order-1 md:order-2">
           <DenserChat
             documentTitle="RAG Chat"
             uploadHref="/admin/docs"
             defaultTopK={8}
             streaming={true}
+            // stream endpoint is /api/rag/stream by default inside DenserChat
             onAsked={(q: string, k: number) => runRagSearch(q, k)}
+            feedbackUrl="/api/analytics/feedback"
           />
         </div>
       </div>

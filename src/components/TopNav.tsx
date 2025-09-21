@@ -2,31 +2,42 @@
 
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import NoPrefetchLink from "./NoPrefetchLink";
 import { getVisibleNavItems, type UserRole } from "@/lib/roles";
 
 interface TopNavProps {
   userEmail?: string;
-  tenantSlug?: string;     // show slug only (no tenant id)
-  tenantName?: string;     // accepted for compat; not displayed
-  userRole?: UserRole;     // ignored for desktop visibility
+  tenantSlug?: string;     // show slug only
+  tenantName?: string;     // accepted for back-compat; not displayed
+  userRole?: UserRole;
 }
 
-// Desktop shows all items; mobile shows only these three
+// Mobile shows only these; desktop shows ALL items
 const MOBILE_PRIMARY = new Set(["Dashboard", "Inbox", "Docs"]);
 
 export default function TopNav({
   userEmail,
   tenantSlug,
-  userRole,
+  userRole = "viewer",
 }: TopNavProps) {
   const pathname = usePathname();
   const [signingOut, setSigningOut] = useState(false);
 
-  // Always take the full nav set (owner) so desktop shows everything.
-  // Role-based hiding can still live inside pages if needed.
-  const allItems = getVisibleNavItems("owner");
+  const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const detect = () =>
+      setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
+    detect();
+    setMounted(true);
+    window.addEventListener("resize", detect);
+    return () => window.removeEventListener("resize", detect);
+  }, []);
+
+  // IMPORTANT: always request the full list from roles for desktop
+  // (we'll hide extra items on mobile here in TopNav)
+  const items = getVisibleNavItems(userRole, /*isMobileInRoles*/ false);
 
   const handleSignOut = async () => {
     try {
@@ -38,7 +49,7 @@ export default function TopNav({
         headers: { "Content-Type": "application/json" },
       });
     } catch {
-      /* ignore */
+      // ignore — we hard redirect anyway
     } finally {
       window.location.assign("/signin");
     }
@@ -47,15 +58,9 @@ export default function TopNav({
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
-        <nav
-          className="
-            mx-auto max-w-6xl
-            grid grid-cols-3 items-center gap-3
-            px-4 py-2 md:py-3 min-h-12 md:min-h-14
-          "
-        >
+        <nav className="mx-auto flex h-auto md:h-14 max-w-6xl items-center justify-between px-4 py-2 md:py-3">
           {/* Left: brand */}
-          <NoPrefetchLink href="/" className="flex items-center gap-2 md:gap-3">
+          <NoPrefetchLink href="/" className="flex items-center gap-2 md:gap-3 shrink-0">
             <Image
               src="/abilitix-logo.png"
               alt="AbilitiX"
@@ -67,29 +72,21 @@ export default function TopNav({
             <span className="font-semibold tracking-tight">Admin Portal</span>
           </NoPrefetchLink>
 
-          {/* Center: nav (no wrap → no reflow; scroll if too many) */}
-          <ul
-            className="
-              col-start-2 col-end-3
-              flex flex-nowrap items-center justify-center
-              gap-2 md:gap-3 text-sm
-              overflow-x-auto
-              [scrollbar-width:none] [&::-webkit-scrollbar]:hidden
-            "
-          >
-            {allItems.map((item) => {
+          {/* Middle: nav list */}
+          <ul className="min-w-0 flex flex-1 flex-wrap items-center justify-center md:justify-start gap-3 md:gap-4 text-sm">
+            {items.map((item) => {
+              if (mounted && isMobile && !MOBILE_PRIMARY.has(item.label)) return null;
               const active = pathname === item.href;
-              const hideOnMobile = !MOBILE_PRIMARY.has(item.label);
               return (
-                <li key={item.href} className={hideOnMobile ? "hidden md:inline-flex" : ""}>
+                <li key={item.href}>
                   <NoPrefetchLink
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={[
-                      "inline-flex items-center rounded-lg border px-3 py-1.5",
-                      "bg-white text-slate-700 border-slate-300",
-                      "transition-none focus:outline-none", // remove hover animation to stop flicker
-                      active ? "bg-blue-600 text-white border-blue-600" : "",
+                      "inline-flex items-center rounded-lg border px-3 py-1.5 transition-colors",
+                      active
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50",
                     ].join(" ")}
                   >
                     {item.label}
@@ -99,18 +96,18 @@ export default function TopNav({
             })}
           </ul>
 
-          {/* Right: info + sign out */}
-          <div className="col-start-3 col-end-4 flex items-center justify-end gap-2 md:gap-4">
-            {/* Mobile: show only slug pill */}
+          {/* Right: identity + sign-out */}
+          <div className="flex items-center gap-2 md:gap-4 shrink-0">
+            {/* Mobile: show slug pill */}
             {tenantSlug && (
               <span className="md:hidden inline-flex items-center rounded-full bg-slate-100 text-slate-600 text-xs px-2 py-0.5">
                 {tenantSlug}
               </span>
             )}
 
-            {/* Desktop: steady-width info to avoid shifting */}
+            {/* Desktop: email | tenant: slug */}
             {(userEmail || tenantSlug) && (
-              <div className="hidden md:flex items-center text-xs text-slate-600 whitespace-nowrap max-w-[50ch] min-w-[28ch] justify-end">
+              <div className="hidden md:flex items-center text-xs text-slate-600 whitespace-nowrap max-w-[46ch]">
                 {userEmail && <span className="font-medium truncate">{userEmail}</span>}
                 {userEmail && tenantSlug && <span className="mx-2 text-slate-300">•</span>}
                 {tenantSlug && (
@@ -132,8 +129,8 @@ export default function TopNav({
         </nav>
       </header>
 
-      {/* Stable gap below the bar */}
-      <div className="h-4 md:h-5" />
+      {/* 1-line spacer between TopNav and first content */}
+      <div className="h-5 md:h-6" />
     </>
   );
 }

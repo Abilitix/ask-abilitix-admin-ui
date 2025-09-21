@@ -37,11 +37,8 @@ export function RagNewQueryForm({ defaultQuery = '', defaultTopK = 8, onTestChat
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <MessageCircle className="h-5 w-5" />
-          <span>Ask a Question</span>
+          <span>Chat Interface</span>
         </CardTitle>
-        <p className="text-sm text-gray-600">
-          Enter a question about your documents. The system will search for relevant information and provide an AI-generated answer.
-        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">

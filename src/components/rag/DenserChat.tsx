@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Send,
@@ -12,7 +11,6 @@ import {
   Loader2,
   FileText,
   Upload,
-  FolderOpen,
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 
-// ----- Types -----
+// ---------- Types ----------
 type Role = "user" | "assistant" | "system";
 type Source = { id: string; title: string; url?: string; snippet?: string };
 type ChatMsg = { id: string; role: Role; text: string; time?: string; sources?: Source[] };
@@ -29,11 +27,10 @@ type Props = {
   documentTitle?: string;
   initialMessages?: ChatMsg[];
   uploadHref?: string;
-  manageHref?: string;
   defaultTopK?: number;
-  streaming?: boolean;                        // true -> /api/ask/stream (SSE)
-  askUrl?: string;                            // optional override
-  onAsked?: (q: string, k: number) => void;   // notify page to run /api/smoke/rag in parallel
+  streaming?: boolean; // true -> POST /api/ask/stream (SSE)
+  askUrl?: string; // optional override
+  onAsked?: (q: string, k: number) => void; // notify page to run /api/smoke/rag in parallel
 };
 
 // ---------- Helpers ----------
@@ -84,25 +81,24 @@ async function safeJson(res: Response): Promise<any> {
 
 export default function DenserChat(props: Props) {
   const {
-    documentTitle = "Chat Session",
+    documentTitle = "RAG Chat",
     initialMessages = [{ id: "m1", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() }],
     uploadHref = "/admin/docs",
-    manageHref = "/admin/docs",
     defaultTopK = 6,
     streaming = true,
     askUrl,
     onAsked,
   } = props || {};
 
-  const [messages, setMessages] = useState<ChatMsg[]>(() => coerceMsgs(initialMessages));
-  const [input, setInput] = useState<string>("");
-  const [busy, setBusy] = useState<boolean>(false);
-  const [topK, setTopK] = useState<number>(defaultTopK);
-  const [advOpen, setAdvOpen] = useState<boolean>(false);
-  const listRef = useRef<HTMLDivElement | null>(null);
+  const [messages, setMessages] = React.useState<ChatMsg[]>(() => coerceMsgs(initialMessages));
+  const [input, setInput] = React.useState<string>("");
+  const [busy, setBusy] = React.useState<boolean>(false);
+  const [topK, setTopK] = React.useState<number>(defaultTopK);
+  const [advOpen, setAdvOpen] = React.useState<boolean>(false);
+  const listRef = React.useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll
-  useEffect(() => {
+  React.useEffect(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight + 1000;
   }, [messages, busy]);
@@ -115,7 +111,6 @@ export default function DenserChat(props: Props) {
     const userMsg: ChatMsg = { id: `u_${Date.now()}`, role: "user", text, time: nowHHMM() };
     setMessages((m) => [...m, userMsg]);
 
-    // Optional: parallel RAG search on the page
     try {
       if (typeof onAsked === "function") onAsked(text, topK);
     } catch {
@@ -172,10 +167,10 @@ export default function DenserChat(props: Props) {
         : "";
 
     const sources = coerceSources(data?.sources || data?.docs || data?.citations);
-
     setMessages((m) => [...m, { id: `a_${Date.now()}`, role: "assistant", text: String(answer ?? ""), time: nowHHMM(), sources }]);
   }
 
+  // ---------- STREAMING: handles "event: content" + "event: done" ----------
   async function runStreamingAsk(question: string) {
     const tempId = `a_${Date.now()}`;
     setMessages((m) => [...m, { id: tempId, role: "assistant", text: "", time: nowHHMM(), sources: [] }]);
@@ -193,26 +188,57 @@ export default function DenserChat(props: Props) {
     const decoder = new TextDecoder();
     let assistantText = "";
     let finalSources: Source[] = [];
+    let currentEvent = "content";
+
+    const extractChunkText = (json: any): string => {
+      if (!json) return "";
+      if (typeof json === "string") return json;
+      if (typeof json.delta === "string") return json.delta; // your API
+      if (typeof json.token === "string") return json.token;
+      if (typeof json.content === "string") return json.content;
+      if (typeof json.text === "string") return json.text;
+      const openAI = json?.choices?.[0]?.delta?.content;
+      if (typeof openAI === "string") return openAI;
+      const anthropic = json?.message?.content;
+      if (typeof anthropic === "string") return anthropic;
+      return "";
+    };
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value, { stream: true });
-      for (const line of chunk.split("\n")) {
-        if (!line.startsWith("data: ")) continue;
-        const data = line.slice(6).trim();
-        if (data === "[DONE]") break;
-        try {
-          const json = JSON.parse(data);
-          if (typeof json.delta === "string") {
-            assistantText += json.delta;
-            setMessages((m) => m.map((x) => (x.id === tempId ? { ...x, text: assistantText } : x)));
+
+      for (const rawLine of chunk.split("\n")) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        if (line.startsWith("event: ")) {
+          currentEvent = line.slice(7).trim(); // "content", "done", etc.
+          continue;
+        }
+
+        if (line.startsWith("data: ")) {
+          const payload = line.slice(6).trim();
+          if (payload === "[DONE]") break;
+
+          try {
+            const json = JSON.parse(payload);
+
+            if (currentEvent === "content") {
+              const piece = extractChunkText(json);
+              if (piece) {
+                assistantText += piece;
+                setMessages((m) => m.map((x) => (x.id === tempId ? { ...x, text: assistantText } : x)));
+              }
+            }
+
+            // citations can arrive on "done" or mid-stream; accept either
+            const cites = json.citations || json.sources || json.docs;
+            if (cites) finalSources = coerceSources(cites);
+          } catch {
+            // ignore malformed lines
           }
-          if (json.sources || json.docs || json.citations) {
-            finalSources = coerceSources(json.sources || json.docs || json.citations);
-          }
-        } catch {
-          /* ignore bad lines */
         }
       }
     }
@@ -223,25 +249,18 @@ export default function DenserChat(props: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-screen-md px-3 pb-[calc(64px+env(safe-area-inset-bottom))] pt-4 sm:pt-6">
-      {/* Upload CTA Bar */}
+    <div className="mx-auto max-w-screen-md px-3 pt-4 sm:pt-6 pb-[calc(112px+env(safe-area-inset-bottom))]">
+      {/* Upload CTA Bar (Upload only) */}
       <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border bg-muted/40 p-3">
         <div>
           <div className="text-sm font-medium">Documents</div>
-          <div className="text-xs text-muted-foreground">Upload or manage the sources used for answers.</div>
+          <div className="text-xs text-muted-foreground">Upload the sources used for answers.</div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button asChild>
-            <Link href={uploadHref} className="inline-flex items-center gap-1">
-              <Upload className="h-4 w-4" /> Upload docs
-            </Link>
-          </Button>
-          <Button asChild variant="secondary">
-            <Link href={manageHref} className="inline-flex items-center gap-1">
-              <FolderOpen className="h-4 w-4" /> Manage
-            </Link>
-          </Button>
-        </div>
+        <Button asChild>
+          <Link href={uploadHref} className="inline-flex items-center gap-1">
+            <Upload className="h-4 w-4" /> Upload docs
+          </Link>
+        </Button>
       </div>
 
       {/* Header */}
@@ -255,7 +274,7 @@ export default function DenserChat(props: Props) {
             <div className="text-xs text-muted-foreground">Conversational test</div>
           </div>
 
-          {/* Simple inline “Advanced” toggle (no Popover) */}
+          {/* Inline Advanced toggle */}
           <Button
             size="icon"
             variant="ghost"
@@ -269,7 +288,7 @@ export default function DenserChat(props: Props) {
         </CardContent>
       </Card>
 
-      {/* Inline Advanced Panel */}
+      {/* Advanced panel */}
       {advOpen && (
         <div className="mt-2 rounded-xl border bg-muted/30 p-3">
           <div className="space-y-2">
@@ -278,7 +297,9 @@ export default function DenserChat(props: Props) {
               inputMode="numeric"
               pattern="[0-9]*"
               value={topK}
-              onChange={(e) => setTopK(Math.max(1, Math.min(20, parseInt(e.target.value || "6") || 6)))}
+              onChange={(e) =>
+                setTopK(Math.max(1, Math.min(20, parseInt(e.target.value || "6") || 6)))
+              }
             />
             <div className="text-[11px] text-muted-foreground">How many docs to search (1–20).</div>
           </div>
@@ -286,7 +307,10 @@ export default function DenserChat(props: Props) {
       )}
 
       {/* Transcript */}
-      <div ref={listRef} className="mt-3 h-[calc(100dvh-240px)] overflow-y-auto rounded-xl border p-3 sm:h-[calc(100dvh-280px)]">
+      <div
+        ref={listRef}
+        className="mt-3 h-[calc(100dvh-248px)] overflow-y-auto rounded-xl border p-4 sm:h-[calc(100dvh-300px)]"
+      >
         <div className="space-y-3">
           {(Array.isArray(messages) ? messages : []).map((m) => (
             <MessageBubble key={m?.id ?? Math.random().toString(36)} msg={coerceMsg(m)} />
@@ -301,8 +325,8 @@ export default function DenserChat(props: Props) {
         </div>
       </div>
 
-      {/* Composer */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 px-3 pb-[max(0px,env(safe-area-inset-bottom))] pt-2 sm:px-4">
+      {/* Composer (fixed) */}
+      <div className="fixed inset-x-0 bottom-0 z-[60] border-t bg-background/95 px-3 pb-[max(0px,env(safe-area-inset-bottom))] pt-2 sm:px-4">
         <div className="mx-auto flex w-full max-w-screen-md items-end gap-2">
           <Textarea
             value={input}
@@ -326,7 +350,7 @@ export default function DenserChat(props: Props) {
   );
 }
 
-// ----- Presentational bits -----
+// ---------- Presentational ----------
 function MessageBubble({ msg }: { msg: ChatMsg }) {
   const m = coerceMsg(msg);
   const isUser = m.role === "user";

@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useCallback, useState } from 'react';
-import dynamic from 'next/dynamic';
-import { RagHitsTable, type Hit } from '@/components/rag/RagHitsTable';
-import { toast } from 'sonner';
+import { useCallback, useState } from "react";
+import dynamic from "next/dynamic";
+import { RagHitsTable, type Hit } from "@/components/rag/RagHitsTable";
+import { toast } from "sonner";
 
-// Lazy to avoid SSR hiccups with 'use client'
-const DenserChat = dynamic(() => import('@/components/rag/DenserChat'), { ssr: false });
+// Lazy import to avoid SSR issues
+const DenserChat = dynamic(() => import("@/components/rag/DenserChat"), { ssr: false });
 
 export function RagNewPageClient() {
   const [hits, setHits] = useState<Hit[]>([]);
@@ -29,12 +29,12 @@ export function RagNewPageClient() {
           score: hit?.score || 0,
           vec_sim: hit?.vec_sim || 0,
           trgm_sim: hit?.trgm_sim || 0,
-          preview: hit?.preview || hit?.text || 'No preview available',
+          preview: hit?.preview || hit?.text || "No preview available",
         })) ?? [];
 
       setHits(transformed);
       setTopScore(transformed[0]?.score);
-      if (transformed.length === 0) toast.message('No RAG results found');
+      if (transformed.length === 0) toast.message("No RAG results found");
     } catch (e: any) {
       toast.error(`RAG search error: ${e?.message || e}`);
     } finally {
@@ -43,26 +43,28 @@ export function RagNewPageClient() {
   }, []);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6 pb-28">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">RAG Testing (New)</h1>
       </div>
 
-      {/* Layout: hits on the left, chat on the right */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Search Results */}
-        <RagHitsTable hits={hits} topScore={topScore} loading={ragBusy} />
+      {/* Mobile stacks (chat first), desktop side-by-side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* LEFT (desktop) / SECOND (mobile): sources */}
+        <div className="order-2 md:order-1 pb-28">
+          <RagHitsTable hits={hits} topScore={topScore} loading={ragBusy} />
+        </div>
 
-        {/* Denser Chat */}
-        <DenserChat
-          documentTitle="RAG Chat"
-          uploadHref="/admin/docs"
-          manageHref="/admin/docs"
-          defaultTopK={8}
-          streaming={true}               // uses POST /api/ask/stream with SSE
-          // Called whenever user sends a message; runs RAG search in parallel
-          onAsked={(q: string, k: number) => runRagSearch(q, k)}
-        />
+        {/* RIGHT (desktop) / FIRST (mobile): chat */}
+        <div className="order-1 md:order-2">
+          <DenserChat
+            documentTitle="RAG Chat"
+            uploadHref="/admin/docs"
+            defaultTopK={8}
+            streaming={true}
+            onAsked={(q: string, k: number) => runRagSearch(q, k)}
+          />
+        </div>
       </div>
     </div>
   );

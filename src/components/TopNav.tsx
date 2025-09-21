@@ -1,8 +1,9 @@
 "use client";
 
+import * as React from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import NoPrefetchLink from "./NoPrefetchLink";
+import NoPrefetchLink from "./NoPrefetchLink"; // adjust if your path differs
 import { getVisibleNavItems, type UserRole } from "@/lib/roles";
 
 interface TopNavProps {
@@ -12,8 +13,15 @@ interface TopNavProps {
   userRole?: UserRole;
 }
 
-// Mobile shows only these; desktop shows ALL items (CSS controls visibility)
-const MOBILE_PRIMARY = new Set(["Dashboard", "Inbox", "Docs"]);
+// Mobile shows only these (by label or href); desktop shows ALL
+const MOBILE_PRIMARY_LABELS = new Set(["Dashboard", "Inbox", "Documents"]);
+const MOBILE_PRIMARY_HREFS = new Set(["/", "/admin", "/admin/inbox", "/admin/docs"]);
+
+const isPrimaryMobile = (item: { label: string; href: string }) =>
+  MOBILE_PRIMARY_LABELS.has(item.label) || MOBILE_PRIMARY_HREFS.has(item.href);
+
+const isDocs = (item: { label: string; href: string }) =>
+  item.href === "/admin/docs" || item.label.toLowerCase().startsWith("doc");
 
 export default function TopNav({
   userEmail,
@@ -23,7 +31,7 @@ export default function TopNav({
   const pathname = usePathname();
   const [signingOut, setSigningOut] = React.useState(false);
 
-  // Always fetch full list for desktop; CSS will hide extras on mobile
+  // Always fetch full list for desktop; CSS hides extras on mobile (no flicker)
   const items = getVisibleNavItems(userRole, /*isMobileInRoles*/ false);
 
   const handleSignOut = async () => {
@@ -63,15 +71,14 @@ export default function TopNav({
             <span className="font-semibold tracking-tight">Admin Portal</span>
           </NoPrefetchLink>
 
-          {/* Middle: nav list (CSS-only responsiveness; no JS = no flicker) */}
-          <ul className="min-w-0 flex flex-1 items-center justify-center gap-3 overflow-x-auto whitespace-nowrap md:justify-start md:gap-4 text-sm">
+          {/* Middle: nav list */}
+          <ul className="min-w-0 flex flex-1 items-center justify-center gap-3 overflow-x-auto whitespace-nowrap text-sm md:justify-start md:gap-4">
             {items.map((item) => {
               const active = pathname === item.href;
-              const isPrimaryOnMobile = MOBILE_PRIMARY.has(item.label);
               return (
                 <li
                   key={item.href}
-                  className={isPrimaryOnMobile ? "block" : "hidden md:block"}
+                  className={isPrimaryMobile(item) ? "block" : "hidden md:block"}
                 >
                   <NoPrefetchLink
                     href={item.href}
@@ -83,7 +90,9 @@ export default function TopNav({
                         : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
                     ].join(" ")}
                   >
-                    {item.label}
+                    {/* Short label on mobile, full on desktop */}
+                    <span className="md:hidden">{isDocs(item) ? "Docs" : item.label}</span>
+                    <span className="hidden md:inline">{item.label}</span>
                   </NoPrefetchLink>
                 </li>
               );

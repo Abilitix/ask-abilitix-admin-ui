@@ -1,11 +1,12 @@
-// src/app/admin/rag-new/page.tsx
+export const dynamic = "force-dynamic";
+
 import * as React from "react";
 import { RagNewPageClient } from "@/components/rag/RagNewPageClient";
 
-// Force dynamic rendering to avoid static caching
-export const dynamic = "force-dynamic";
-
 export default function AdminRagNewPage() {
+  // Unique per render/visit to force a clean client mount & state reset
+  const instanceKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
   return (
     <React.Suspense
       fallback={
@@ -19,7 +20,7 @@ export default function AdminRagNewPage() {
         </div>
       }
     >
-      <RagNewPageClient />
+      <RagNewPageClient instanceKey={instanceKey} />
     </React.Suspense>
   );
 }

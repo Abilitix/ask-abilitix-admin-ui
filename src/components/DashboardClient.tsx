@@ -6,85 +6,87 @@ type Card = {
   href: string;
   title: string;
   desc: string;
+  key: string; // stable key for conditionals
 };
 
-interface DashboardClientProps {
-  user?: {
-    email: string;
-    role: string;
-  };
-}
+const BASE_CARDS: Card[] = [
+  {
+    key: "rag-classic",
+    href: "/admin/rag",
+    title: "RAG Testing (Classic)",
+    desc: "Stream answers; see first token and total time",
+  },
+  {
+    key: "inbox",
+    href: "/admin/inbox",
+    title: "Inbox",
+    desc: "Approve/reject Q&A; copy citations",
+  },
+  {
+    key: "docs",
+    href: "/admin/docs",
+    title: "Documents",
+    desc: "Upload; archive/unarchive; supersede",
+  },
+  {
+    key: "settings",
+    href: "/admin/settings",
+    title: "Settings",
+    desc: "Tune DOC_MIN_SCORE and RAG_TOPK",
+  },
+];
 
-function Tile({ href, title, desc }: Card) {
-  return (
-    <NoPrefetchLink
-      href={href}
-      className="group rounded-2xl border border-slate-200 bg-white p-8 md:p-10 shadow-lg transition-all duration-200 hover:shadow-xl hover:border-slate-300 hover:scale-105"
-    >
-      <div className="mb-4 text-lg font-semibold text-slate-900">{title}</div>
-      <div className="text-base text-slate-600 leading-relaxed">{desc}</div>
-    </NoPrefetchLink>
-  );
-}
+const NEW_RAG_CARD: Card = {
+  key: "rag-new",
+  href: "/admin/rag-new",
+  title: "Test Chat (New)",
+  desc: "Streaming answers; inline sources",
+};
 
-export default function DashboardClient({ user }: DashboardClientProps) {
-  // keep prop for compatibility (avoid “unused var” complaints)
-  void user;
+export default function DashboardClient() {
+  const enableNew = process.env.NEXT_PUBLIC_ENABLE_RAG_NEW === "1";
+  const hideOld = process.env.NEXT_PUBLIC_HIDE_OLD_RAG === "1";
+  const showPilot = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";
 
-  const showPilotLink = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";
-  const enableRagNew = process.env.NEXT_PUBLIC_ENABLE_RAG_NEW !== "0"; // default ON
-
-  const cards: Card[] = [
-    ...(enableRagNew
-      ? [
-          {
-            href: "/admin/rag-new",
-            title: "RAG Testing (New)",
-            desc: "Denser-style chat; streaming; inline sources",
-          } as Card,
-        ]
-      : []),
-    {
-      href: "/admin/rag",
-      title: "RAG Testing",
-      desc: "Stream answers; see first token and total time",
-    },
-    {
-      href: "/admin/inbox",
-      title: "Inbox",
-      desc: "Approve/reject Q&A; copy citations",
-    },
-    {
-      href: "/admin/docs",
-      title: "Documents",
-      desc: "Upload; archive/unarchive; supersede",
-    },
-    {
-      href: "/admin/settings",
-      title: "Settings",
-      desc: "Tune DOC_MIN_SCORE and RAG_TOPK",
-    },
-  ];
+  // Build cards with simple, composable rules:
+  // 1) Start with base
+  // 2) Add new card first if enabled
+  // 3) Optionally remove classic if hideOld is set
+  let cards: Card[] = [...BASE_CARDS];
+  if (enableNew) {
+    cards = [NEW_RAG_CARD, ...cards];
+  }
+  if (hideOld) {
+    cards = cards.filter((c) => c.key !== "rag-classic");
+  }
 
   return (
-    <div className="mx-auto max-w-6xl px-4">
-      {/* Responsive grid wrapper */}
-      <section className="grid grid-cols-1 gap-8 md:gap-10 lg:gap-12 md:grid-cols-2 lg:grid-cols-3">
+    <div className="mx-auto max-w-6xl px-4 space-y-10">
+      <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {cards.map((c) => (
-          <Tile key={c.href} {...c} />
+          <NoPrefetchLink
+            key={c.key}
+            href={c.href}
+            prefetch={false}
+            className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+          >
+            <div className="text-base font-semibold text-slate-900">{c.title}</div>
+            <div className="mt-2 text-sm leading-relaxed text-slate-600">{c.desc}</div>
+          </NoPrefetchLink>
         ))}
       </section>
 
-      {/* Pilot objectives footer link (flagged) */}
-      {showPilotLink && (
-        <footer className="mt-8 border-t border-slate-200 pt-6">
+      {showPilot && (
+        <div className="mt-2">
           <NoPrefetchLink
             href="/pilot"
-            className="inline-flex items-center text-xs text-slate-500 hover:text-slate-700 hover:underline"
+            prefetch={false}
+            className="inline-flex items-center gap-2 text-sm text-slate-700 hover:underline"
           >
-            🎯 Pilot objectives
+            <span>🎯</span>
+            <span>Pilot objectives</span>
           </NoPrefetchLink>
-        </footer>
+        </div>
       )}
     </div>
   );

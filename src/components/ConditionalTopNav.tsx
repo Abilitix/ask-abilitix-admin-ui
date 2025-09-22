@@ -1,47 +1,62 @@
-'use client';
+"use client";
 
-import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import TopNav from './TopNav';
-import { type UserRole } from '@/lib/roles';
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import TopNav from "@/components/TopNav";
+import type { UserRole } from "@/lib/roles";
+
+type MeResponse = {
+  email?: string;
+  tenant_slug?: string;
+  role?: UserRole;
+  // tenant_name?: string; // intentionally unused by TopNav
+};
 
 export default function ConditionalTopNav() {
   const pathname = usePathname();
-  const [user, setUser] = useState<{email?: string, tenant_name?: string, tenant_slug?: string, role?: UserRole} | null>(null);
-  
+  const [user, setUser] = useState<MeResponse | null>(null);
+
   // Kill-switch: suspend client auth if needed
-  const SUSPEND_CLIENT_AUTH = process.env.NEXT_PUBLIC_SUSPEND_CLIENT_AUTH === '1';
-  
-  // Quarantine public pages - no auth calls on auth routes
-  const AUTH_ROUTES = ['/signin', '/signup', '/verify', '/verify/workspace-picker'];
-  const isPublic = AUTH_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
-  
-  // Fetch user data on client side
+  const SUSPEND_CLIENT_AUTH = process.env.NEXT_PUBLIC_SUSPEND_CLIENT_AUTH === "1";
+
+  // Public pages: do not render TopNav or fetch user
+  const AUTH_ROUTES = ["/signin", "/signup", "/verify", "/verify/workspace-picker"];
+  const isPublic = AUTH_ROUTES.some(
+    (r) => pathname === r || (pathname && pathname.startsWith(r + "/"))
+  );
+
   useEffect(() => {
     if (SUSPEND_CLIENT_AUTH || isPublic) return;
-    
-    fetch('/api/auth/me')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        console.log('User data fetched:', data);
-        setUser(data);
-      })
-      .catch((error) => {
-        console.error('Error fetching user data:', error);
-        setUser(null);
-      });
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        if (!res.ok) {
+          if (!cancelled) setUser(null);
+          return;
+        }
+        const data: MeResponse = await res.json();
+        if (!cancelled) setUser(data);
+      } catch {
+        if (!cancelled) setUser(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [SUSPEND_CLIENT_AUTH, isPublic]);
-  
-  // Safe to return after hooks
+
   if (SUSPEND_CLIENT_AUTH || isPublic) {
     return null;
   }
-  
-  return <TopNav 
-    userEmail={user?.email}
-    tenantName={user?.tenant_name}
-    tenantSlug={user?.tenant_slug}
-    userRole={user?.role}
-  />;
-}
 
+  return (
+    <TopNav
+      userEmail={user?.email}
+      tenantSlug={user?.tenant_slug}
+      userRole={user?.role}
+    />
+  );
+}

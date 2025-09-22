@@ -2,328 +2,346 @@
 
 import * as React from "react";
 
-/** Minimal source shape returned with the final SSE 'done' event */
+type ChatRole = "user" | "assistant" | "system";
+
 type Source = {
-  id?: string | number;
+  id?: string;
   title?: string;
   url?: string;
 };
 
-type Message = {
+type ChatMsg = {
   id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  ts: string; // HH:MM
+  role: ChatRole;
+  text: string;
+  time?: string;
   sources?: Source[];
 };
 
 type Props = {
-  /** SSE endpoint that streams content + final citations */
-  streamUrl: string;
-  /** Link to docs upload (shows a small CTA above chat) */
+  documentTitle?: string;
   uploadHref?: string;
-  /**
-   * Callback to populate the TopK table when a question is asked.
-   * We call this with the exact question text after the user sends it.
-   */
-  onQuestionAsked?: (q: string) => void;
-  /**
-   * Optional analytics endpoint (not used in this restore; added for future)
-   * If you want thumbs, wire it in later — keeping UI clean for now.
-   */
-  feedbackUrl?: string;
+  defaultTopK?: number;
+  askUrl?: string;                 // e.g. "/api/ask/stream"
+  onAsked?: (q: string, k: number) => void; // caller can run RAG table below
 };
-
-// ---------- Utilities ----------
-const VALID_ROLES = new Set<"user" | "assistant" | "system">([
-  "user",
-  "assistant",
-  "system",
-]);
 
 const nowHHMM = () => {
   const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(
-    d.getMinutes()
-  ).padStart(2, "0")}`;
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-const coerceSources = (raw: any): Source[] => {
+const normalizeSources = (raw: any): Source[] => {
   if (!raw) return [];
   if (Array.isArray(raw)) {
-    return raw.map((r) => {
-      if (r && typeof r === "object") {
-        return {
-          id: r.id ?? r.doc_id ?? r.slug ?? undefined,
-          title: r.title ?? r.name ?? r.filename ?? "Source",
-          url: r.url ?? r.href ?? undefined,
-        };
-      }
-      return { title: String(r ?? "Source") };
-    });
+    return raw.map((s) => ({
+      id: s?.id ?? s?.doc_id ?? undefined,
+      title: s?.title ?? s?.name ?? `Source`,
+      url: s?.url ?? s?.href ?? undefined,
+    }));
   }
-  // single object
-  if (typeof raw === "object") return [coerceSources([raw])[0]];
-  return [{ title: String(raw) }];
+  return [];
 };
 
-// ---------- Component ----------
 export default function DenserChat({
-  streamUrl,
+  documentTitle = "RAG Chat",
   uploadHref = "/admin/docs",
-  onQuestionAsked,
+  defaultTopK = 8,
+  askUrl = "/api/ask/stream",
+  onAsked,
 }: Props) {
-  const [messages, setMessages] = React.useState<Message[]>([
-    {
-      id: "hello",
-      role: "assistant",
-      content: "Hello, how can I help you today?",
-      ts: nowHHMM(),
-    },
-  ]);
+  const [topK, setTopK] = React.useState<number>(defaultTopK);
   const [input, setInput] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-  const scrollerRef = React.useRef<HTMLDivElement>(null);
+  const [sending, setSending] = React.useState(false);
 
-  // Scroll to bottom when messages change
-  React.useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages]);
+  // seed with a friendly opener
+  const [messages, setMessages] = React.useState<ChatMsg[]>([
+    { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
+  ]);
 
-  // Send on Enter (shift+enter = newline)
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      triggerSend();
+  const chatRef = React.useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = React.useCallback(() => {
+    // scroll the scrollable chat area
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
-  };
+  }, []);
 
-  const triggerSend = async () => {
-    const q = input.trim();
-    if (!q || busy) return;
+  React.useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
-    // Add user message
-    const user: Message = {
+  // ---------- STREAMING ----------
+  async function streamAsk(question: string) {
+    setSending(true);
+
+    // Push user message
+    const userMsg: ChatMsg = {
       id: crypto.randomUUID(),
       role: "user",
-      content: q,
-      ts: nowHHMM(),
+      text: question,
+      time: nowHHMM(),
     };
-    setMessages((prev) => [...prev, user]);
-    setInput("");
+    setMessages((prev) => [...prev, userMsg]);
 
-    // Call TopK updater (table) in parent
-    onQuestionAsked?.(q);
-
-    // Create an empty assistant message to stream into
+    // Create placeholder assistant message we’ll update live
     const assistantId = crypto.randomUUID();
-    const assistant: Message = {
-      id: assistantId,
-      role: "assistant",
-      content: "",
-      ts: nowHHMM(),
-      sources: [],
-    };
-    setMessages((prev) => [...prev, assistant]);
+    let assistantBuffer = "";
+    let citations: Source[] = [];
 
-    try {
-      setBusy(true);
-      await streamAnswer(assistantId, q);
-    } catch (err) {
-      console.error("Streaming failed:", err);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId
-            ? { ...m, content: "Sorry—there was an error." }
-            : m
-        )
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // Core SSE reader — handles both "event:" + "data:" style and data-only style
-  const streamAnswer = async (assistantId: string, question: string) => {
-    const resp = await fetch(streamUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "text/event-stream",
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: assistantId,
+        role: "assistant",
+        text: "",
+        time: nowHHMM(),
+        sources: [],
       },
-      // NOTE: if your API expects { question } or { query } instead of { q },
-      // change the payload key here:
-      body: JSON.stringify({ q: question, question, query: question }),
-    });
+    ]);
 
-    if (!resp.ok || !resp.body) {
-      throw new Error(`SSE HTTP ${resp.status}`);
-    }
+    const updateAssistant = (text: string, src?: Source[]) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === assistantId ? { ...m, text, sources: src ?? m.sources } : m))
+      );
+    };
 
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
-    let currentEvent: string | null = null;
-    let done = false;
-    let finalSources: Source[] = [];
+    // Helper: non-streaming fallback
+    const askNonStreaming = async () => {
+      const res = await fetch(`${askUrl}?stream=false`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, topk: topK, session_id: "rag-new" }),
+      });
+      if (!res.ok) throw new Error(`Ask (non-stream) failed: ${res.status}`);
+      const json = await res.json();
+      const answer = json?.answer ?? json?.content ?? "";
+      const srcs = normalizeSources(json?.citations ?? json?.sources);
+      assistantBuffer = String(answer ?? "");
+      citations = srcs;
+      updateAssistant(assistantBuffer, citations);
+    };
 
-    while (!done) {
-      const { value, done: streamDone } = await reader.read();
-      if (streamDone) break;
-      buffer += decoder.decode(value, { stream: true });
+    // Main SSE path
+    try {
+      const res = await fetch(askUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // Some backends prefer this; harmless otherwise:
+          Accept: "text/event-stream",
+        },
+        body: JSON.stringify({ question, topk: topK, session_id: "rag-new" }),
+      });
 
-      // Process line-by-line
-      const lines = buffer.split("\n");
-      // keep the last partial line in buffer
-      buffer = lines.pop() ?? "";
+      // If this endpoint is not streaming (405/404 etc.), fall back
+      if (!res.ok || !res.body) {
+        await askNonStreaming();
+        return;
+      }
 
-      for (const raw of lines) {
-        const line = raw.trim();
-        if (!line) {
-          // blank line separates SSE events — reset event type
-          currentEvent = null;
-          continue;
-        }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let partial = "";     // carry across chunks for line-splitting
+      let currentEvent = ""; // remember the last "event:" value
 
-        if (line.startsWith("event:")) {
-          currentEvent = line.slice(6).trim();
-          continue;
-        }
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-        if (!line.startsWith("data:")) {
-          continue;
-        }
+        partial += decoder.decode(value, { stream: true });
 
-        const dataStr = line.slice(5).trim();
-        if (!dataStr) continue;
+        // Split into lines; keep trailing partial if the chunk ends mid-line
+        const lines = partial.split(/\r?\n/);
+        partial = lines.pop() ?? ""; // remainder carried to next read
 
-        // Some servers send "[DONE]" to end — ignore, we end when stream closes
-        if (dataStr === "[DONE]") continue;
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line) continue;
 
-        try {
-          const json = JSON.parse(dataStr);
-
-          // If no event was set, assume content (older servers)
-          const evt = (currentEvent ?? "content").toLowerCase();
-
-          if (evt === "content" && json.delta) {
-            const delta: string = String(json.delta);
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId ? { ...m, content: m.content + delta } : m
-              )
-            );
+          if (line.startsWith("event:")) {
+            currentEvent = line.slice(6).trim();
+            continue;
           }
 
-          if ((evt === "done" || json.citations) && typeof json === "object") {
-            finalSources = coerceSources(json.citations);
+          if (line.startsWith("data:")) {
+            const dataStr = line.slice(5).trim();
+
+            // Many providers use a sentinel
+            if (dataStr === "[DONE]") {
+              // finalize
+              updateAssistant(assistantBuffer, citations);
+              continue;
+            }
+
+            // Robust parsing: try JSON; if not JSON, treat as plain text token
+            try {
+              const payload = JSON.parse(dataStr);
+
+              // Common shapes:
+              // { delta: "text" }   // streaming token
+              // { content: "..." }  // sometimes used
+              // { citations: [...] } // on "done"
+              // Or OpenAI’s choices[].delta.content, but we don’t expect that here
+
+              const token =
+                payload?.delta ??
+                payload?.content ??
+                (typeof payload === "string" ? payload : "");
+
+              if (token) {
+                assistantBuffer += String(token);
+                updateAssistant(assistantBuffer);
+              }
+
+              // Attach sources when provided (often on final "done" event)
+              if (payload?.citations || payload?.sources) {
+                citations = normalizeSources(payload.citations ?? payload.sources);
+                updateAssistant(assistantBuffer, citations);
+              }
+
+              // Some servers label content with event: content
+              if (currentEvent === "content" && typeof payload === "string") {
+                assistantBuffer += payload;
+                updateAssistant(assistantBuffer);
+              }
+            } catch {
+              // Not JSON — treat as literal text token
+              assistantBuffer += dataStr;
+              updateAssistant(assistantBuffer);
+            }
           }
-        } catch (e) {
-          // ignore bad chunks
         }
       }
-    }
 
-    // Attach final sources if present
-    if (finalSources.length) {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === assistantId ? { ...m, sources: finalSources } : m))
-      );
+      // Stream ended; ensure final text/sources are applied
+      updateAssistant(assistantBuffer, citations);
+    } catch (err) {
+      console.error("SSE error, falling back:", err);
+      // fallback path
+      try {
+        await askNonStreaming();
+      } catch (e) {
+        console.error("Non-stream ask failed:", e);
+        updateAssistant("Sorry—there was an error.");
+      }
+    } finally {
+      setSending(false);
     }
+  }
+
+  // ---------- Handlers ----------
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = input.trim();
+    if (!q || sending) return;
+    setInput("");
+    onAsked?.(q, topK);
+    await streamAsk(q);
   };
 
+  // ---------- UI ----------
   return (
-    <section className="rounded-2xl border bg-white shadow-sm">
-      {/* Header line with small CTA */}
+    <div className="rounded-xl border bg-white">
+      {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
-        <div className="text-sm font-semibold">RAG Chat</div>
+        <div className="font-semibold">{documentTitle}</div>
         <a
           href={uploadHref}
-          className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+          className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
         >
-          <span role="img" aria-label="upload">📤</span>
-          Upload docs
+          ⬆ Upload docs
         </a>
       </div>
 
-      {/* Scrollable conversation */}
-      <div
-        ref={scrollerRef}
-        className="max-h-[60vh] overflow-y-auto px-4 py-3"
-      >
-        <div className="space-y-6">
+      {/* Chat body (scrollable) */}
+      <div className="flex max-h-[65vh] flex-col">
+        <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-6">
           {messages.map((m) => {
             const isUser = m.role === "user";
-            const bubbleBase =
-              "inline-block rounded-2xl px-3 py-2 text-sm leading-relaxed max-w-[75%]";
-            const bubble = isUser
-              ? `${bubbleBase} bg-blue-600 text-white`
-              : `${bubbleBase} bg-slate-100 text-slate-900`;
-
             return (
-              <div
-                key={m.id}
-                className={isUser ? "flex justify-end" : "flex justify-start"}
-              >
-                <div>
-                  <div className={bubble}>
-                    <div className="whitespace-pre-wrap">{m.content}</div>
-                  </div>
-                  {/* Time + sources (assistant only) */}
-                  <div
-                    className={[
-                      "mt-2 flex items-center gap-2",
-                      isUser ? "justify-end" : "justify-start",
-                      "text-xs text-slate-500",
-                    ].join(" ")}
-                  >
-                    <span>{m.ts}</span>
-                    {!isUser && m.sources && m.sources.length > 0 && (
-                      <>
-                        {m.sources.map((s, i) => (
-                          <a
-                            key={`${m.id}-src-${i}`}
-                            href={s.url ?? "#"}
-                            target={s.url ? "_blank" : undefined}
-                            rel={s.url ? "noreferrer" : undefined}
-                            className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] text-slate-700 hover:bg-slate-50"
-                          >
-                            {s.title ? `Source ${i + 1}` : `Source ${i + 1}`}
-                          </a>
-                        ))}
-                      </>
-                    )}
-                  </div>
+              <div key={m.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={[
+                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap break-words",
+                    isUser
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 text-slate-900",
+                  ].join(" ")}
+                >
+                  <div>{m.text}</div>
+                  {m.sources && m.sources.length > 0 && !isUser && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {m.sources.map((s, i) => (
+                        <a
+                          key={`${m.id}-src-${i}`}
+                          href={s.url ?? "#"}
+                          target={s.url ? "_blank" : undefined}
+                          rel={s.url ? "noreferrer" : undefined}
+                          className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs text-slate-700 hover:bg-white"
+                          title={s.title ?? undefined}
+                        >
+                          {`Source ${i + 1}`}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  {m.time && (
+                    <div
+                      className={[
+                        "mt-1.5 text-[11px]",
+                        isUser ? "text-blue-100/80" : "text-slate-500",
+                      ].join(" ")}
+                    >
+                      {m.time}
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
 
-      {/* Composer */}
-      <div className="border-t p-3">
-        <div className="flex items-end gap-2">
-          <textarea
+        {/* Composer (stays inside the card, no footer collision) */}
+        <form
+          onSubmit={onSubmit}
+          className="sticky bottom-0 z-[1] flex items-end gap-2 border-t bg-white px-3 py-2"
+        >
+          <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
             placeholder="Type your question here…"
-            rows={1}
-            className="min-h-[40px] max-h-[140px] flex-1 resize-y rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+            disabled={sending}
           />
           <button
-            onClick={triggerSend}
-            disabled={busy || !input.trim()}
-            className="inline-flex select-none items-center gap-2 rounded-md border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            type="submit"
+            disabled={sending || input.trim().length === 0}
+            className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+            title="Send"
           >
-            <span role="img" aria-label="send">📤</span>
-            Send
+            {sending ? "Sending…" : "Send"}
           </button>
-        </div>
+
+          {/* Mini TopK control */}
+          <div className="ml-2 inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs">
+            <span>TopK</span>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={topK}
+              onChange={(e) =>
+                setTopK(Math.max(1, Math.min(20, parseInt(e.target.value || "8", 10))))
+              }
+              className="w-12 rounded border px-1 py-0.5 text-center"
+              disabled={sending}
+              title="Number of sources to search"
+            />
+          </div>
+        </form>
       </div>
-    </section>
+    </div>
   );
 }

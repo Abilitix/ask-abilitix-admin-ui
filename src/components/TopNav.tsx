@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-
-type UserRole = "owner" | "admin" | "editor" | "viewer" | undefined;
+import type { UserRole } from "@/lib/roles";
 
 type TopNavProps = {
   userEmail?: string;
   tenantSlug?: string;
-  userRole?: UserRole;
+  userRole?: UserRole; // <- canonical role type
 };
 
 type NavItem = { label: string; href: string };
@@ -28,15 +27,10 @@ function buildNavItems(): NavItem[] {
 
   if (showPilot) base.push({ label: "Pilot", href: "/pilot" });
 
-  // Dashboard always first option in the drawer
   return [{ label: "Dashboard", href: "/" }, ...base];
 }
 
-export default function TopNav({
-  userEmail,
-  tenantSlug,
-  userRole,
-}: TopNavProps) {
+export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps) {
   const [open, setOpen] = useState(false);
   const items = buildNavItems();
 

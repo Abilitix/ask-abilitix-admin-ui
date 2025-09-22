@@ -3,14 +3,27 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import TopNav from "@/components/TopNav";
-import { type UserRole } from "@/lib/roles";
+import type { UserRole } from "@/lib/roles";
 
 type UserMe = {
   email?: string;
   tenant_name?: string;
   tenant_slug?: string;
-  role?: UserRole;
+  role?: string; // API may return roles outside our union
 };
+
+function normalizeRole(r?: string): UserRole | undefined {
+  switch (r) {
+    case "owner":
+    case "admin":
+    case "curator":
+    case "viewer":
+    case "guest":
+      return r;
+    default:
+      return undefined; // hide unknown roles (e.g., "editor")
+  }
+}
 
 export default function ConditionalTopNav() {
   const pathname = usePathname();
@@ -44,7 +57,7 @@ export default function ConditionalTopNav() {
     <TopNav
       userEmail={me?.email}
       tenantSlug={me?.tenant_slug}
-      userRole={me?.role}
+      userRole={normalizeRole(me?.role)}
     />
   );
 }

@@ -85,6 +85,7 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
               </div>
             )}
 
+            {/* Menu button (three-dot icon) */}
             <button
               type="button"
               onClick={toggle}

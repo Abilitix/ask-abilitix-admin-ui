@@ -1,6 +1,11 @@
 "use client";
 
 import NoPrefetchLink from "@/components/NoPrefetchLink";
+import type { User } from "@/lib/auth"; // Adjust path if needed
+
+type DashboardClientProps = {
+  user: User;
+};
 
 type Card = {
   href: string;
@@ -43,7 +48,7 @@ const NEW_RAG_CARD: Card = {
   desc: "Streaming answers; inline sources",
 };
 
-export default function DashboardClient() {
+export default function DashboardClient({ user }: DashboardClientProps) {
   const enableNew = process.env.NEXT_PUBLIC_ENABLE_RAG_NEW === "1";
   const hideOld = process.env.NEXT_PUBLIC_HIDE_OLD_RAG === "1";
   const showPilot = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";

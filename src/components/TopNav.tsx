@@ -67,27 +67,31 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
           </Link>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center text-xs text-slate-600 whitespace-nowrap">
-              <span className="truncate">debug@abilitix.local</span>
-            </div>
+            {userEmail && (
+              <span className="truncate text-xs text-slate-600 whitespace-nowrap">
+                {userEmail}
+              </span>
+            )}
 
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label="Open menu"
-              className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                className="h-4 w-4"
-                fill="currentColor"
+            {userEmail && (
+              <button
+                type="button"
+                onClick={toggle}
+                aria-label="Open menu"
+                className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
               >
-                <circle cx="12" cy="5" r="1.5" />
-                <circle cx="12" cy="12" r="1.5" />
-                <circle cx="12" cy="19" r="1.5" />
-              </svg>
-            </button>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="currentColor"
+                >
+                  <circle cx="12" cy="5" r="1.5" />
+                  <circle cx="12" cy="12" r="1.5" />
+                  <circle cx="12" cy="19" r="1.5" />
+                </svg>
+              </button>
+            )}
           </div>
         </nav>
       </header>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import type { UserRole } from "@/lib/roles";
+import { type UserRole } from "@/lib/roles";
 
 type TopNavProps = {
   userEmail?: string;
@@ -28,7 +28,7 @@ function buildNavItems(): NavItem[] {
 
   if (showPilot) base.push({ label: "Pilot", href: "/pilot" });
 
-  // Dashboard always first in drawer
+  // Dashboard is first item inside the drawer
   return [{ label: "Dashboard", href: "/" }, ...base];
 }
 
@@ -41,22 +41,45 @@ export default function TopNav({
   const items = buildNavItems();
 
   const toggle = () => setOpen((v) => !v);
-  const close = () => setOpen(false);
+  const close = useCallback(() => setOpen(false), []);
+
+  // Lock page scroll when drawer is open
+  useEffect(() => {
+    const { body } = document;
+    const prev = body.style.overflow;
+    if (open) body.style.overflow = "hidden";
+    return () => {
+      body.style.overflow = prev;
+    };
+  }, [open]);
+
+  // Close on Esc
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, close]);
+
+  // Hard width (inline) prevents rogue global CSS from making it full width
+  const DRAWER_WIDTH = 320; // px
 
   return (
     <>
       {/* Header bar */}
       <header className="sticky top-0 z-30 w-full border-b bg-white">
         <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          {/* Left: brand with logo */}
+          {/* Left: brand */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <Image
               src="/abilitix-logo.png"
               alt="AbilitiX"
-              width={28}
-              height={28}
-              priority
+              width={24}
+              height={24}
               className="rounded"
+              priority
             />
             <span className="font-semibold tracking-tight">Admin Portal</span>
           </Link>
@@ -80,7 +103,9 @@ export default function TopNav({
             <button
               type="button"
               onClick={toggle}
-              aria-label="Open menu"
+              aria-haspopup="dialog"
+              aria-expanded={open}
+              aria-controls="app-drawer"
               className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
             >
               Menu
@@ -89,27 +114,33 @@ export default function TopNav({
         </nav>
       </header>
 
-      {/* Dim overlay (prevents overlapping readability issues) */}
+      {/* Overlay */}
       {open && (
-        <button
-          aria-label="Close menu overlay"
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+        <div
+          className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-[1px]"
           onClick={close}
+          aria-hidden="true"
         />
       )}
 
-      {/* Right-side drawer */}
+      {/* Right drawer */}
       <aside
+        id="app-drawer"
+        role="dialog"
+        aria-label="Navigation menu"
+        aria-modal="true"
         className={[
-          "fixed top-0 right-0 z-50 h-full w-80 max-w-[85vw] bg-white shadow-xl transition-transform duration-300",
-          "flex flex-col", // layout
+          "fixed top-0 right-0 z-[70]",
+          // lock vertical size to viewport and ensure own stacking/painting
+          "h-[100dvh] box-border bg-white shadow-xl",
+          // slide-in/out with GPU acceleration
+          "will-change-transform transform-gpu transition-transform duration-200 ease-out",
           open ? "translate-x-0" : "translate-x-full",
         ].join(" ")}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Navigation menu"
+        // Inline width wins against stray global rules
+        style={{ width: DRAWER_WIDTH, maxWidth: "88vw" }}
       >
-        {/* Drawer header */}
+        {/* Header inside drawer */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="font-medium">Menu</div>
           <button
@@ -122,7 +153,7 @@ export default function TopNav({
           </button>
         </div>
 
-        {/* Identity block (shown in drawer; includes role) */}
+        {/* Identity (mobile focus) */}
         {(userEmail || tenantSlug || userRole) && (
           <div className="border-b px-4 py-3 text-sm text-slate-700">
             {userEmail && <div className="truncate">{userEmail}</div>}
@@ -137,8 +168,8 @@ export default function TopNav({
           </div>
         )}
 
-        {/* Scrollable nav list */}
-        <nav className="px-2 py-2 overflow-y-auto max-h-[calc(100%-9rem)]">
+        {/* Nav items */}
+        <nav className="px-2 py-2">
           {items.map((it) => (
             <Link
               key={it.href}

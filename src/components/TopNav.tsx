@@ -37,12 +37,16 @@ function roleBadge(role: UserRole) {
   switch (role) {
     case "owner":
       return <span className={`${base} bg-green-100 text-green-700`}>Owner</span>;
-    case "pilot":
-      return <span className={`${base} bg-blue-100 text-blue-700`}>Pilot</span>;
     case "admin":
       return <span className={`${base} bg-yellow-100 text-yellow-700`}>Admin</span>;
+    case "curator":
+      return <span className={`${base} bg-blue-100 text-blue-700`}>Curator</span>;
+    case "viewer":
+      return <span className={`${base} bg-slate-100 text-slate-600`}>Viewer</span>;
+    case "guest":
+      return <span className={`${base} bg-slate-200 text-slate-500`}>Guest</span>;
     default:
-      return <span className={`${base} bg-slate-100 text-slate-600`}>{role}</span>;
+      return <span className={`${base} bg-red-100 text-red-700`}>Unknown</span>;
   }
 }
 

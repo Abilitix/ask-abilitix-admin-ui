@@ -39,7 +39,7 @@ const BASE_CARDS: Card[] = [
 const NEW_RAG_CARD: Card = {
   key: "rag-new",
   href: "/admin/rag-new",
-  title: "Test Chat (New)",
+  title: "Test Chat",
   desc: "Streaming answers; inline sources",
 };
 

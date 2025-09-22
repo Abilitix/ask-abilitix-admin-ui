@@ -1,62 +1,50 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import TopNav from "@/components/TopNav";
-import type { UserRole } from "@/lib/roles";
+import { type UserRole } from "@/lib/roles";
 
-type MeResponse = {
+type UserMe = {
   email?: string;
+  tenant_name?: string;
   tenant_slug?: string;
   role?: UserRole;
-  // tenant_name?: string; // intentionally unused by TopNav
 };
 
 export default function ConditionalTopNav() {
   const pathname = usePathname();
-  const [user, setUser] = useState<MeResponse | null>(null);
+  const isPublic =
+    pathname?.startsWith("/signin") ||
+    pathname?.startsWith("/signup") ||
+    pathname?.startsWith("/verify");
 
-  // Kill-switch: suspend client auth if needed
-  const SUSPEND_CLIENT_AUTH = process.env.NEXT_PUBLIC_SUSPEND_CLIENT_AUTH === "1";
-
-  // Public pages: do not render TopNav or fetch user
-  const AUTH_ROUTES = ["/signin", "/signup", "/verify", "/verify/workspace-picker"];
-  const isPublic = AUTH_ROUTES.some(
-    (r) => pathname === r || (pathname && pathname.startsWith(r + "/"))
-  );
+  const [me, setMe] = useState<UserMe | null>(null);
 
   useEffect(() => {
-    if (SUSPEND_CLIENT_AUTH || isPublic) return;
-
-    let cancelled = false;
+    if (isPublic) return;
+    let alive = true;
     (async () => {
       try {
-        const res = await fetch("/api/auth/me", { credentials: "include" });
-        if (!res.ok) {
-          if (!cancelled) setUser(null);
-          return;
-        }
-        const data: MeResponse = await res.json();
-        if (!cancelled) setUser(data);
+        const res = await fetch("/api/auth/me");
+        const data = res.ok ? await res.json() : null;
+        if (alive) setMe(data);
       } catch {
-        if (!cancelled) setUser(null);
+        if (alive) setMe(null);
       }
     })();
-
     return () => {
-      cancelled = true;
+      alive = false;
     };
-  }, [SUSPEND_CLIENT_AUTH, isPublic]);
+  }, [isPublic]);
 
-  if (SUSPEND_CLIENT_AUTH || isPublic) {
-    return null;
-  }
+  if (isPublic) return null;
 
   return (
     <TopNav
-      userEmail={user?.email}
-      tenantSlug={user?.tenant_slug}
-      userRole={user?.role}
+      userEmail={me?.email}
+      tenantSlug={me?.tenant_slug}
+      userRole={me?.role}
     />
   );
 }

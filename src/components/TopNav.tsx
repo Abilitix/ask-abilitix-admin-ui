@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { UserRole } from "@/lib/roles";
 
 type TopNavProps = {
   userEmail?: string;
   tenantSlug?: string;
-  userRole?: UserRole; // <- canonical role type
+  userRole?: UserRole;
 };
 
 type NavItem = { label: string; href: string };
@@ -27,10 +28,15 @@ function buildNavItems(): NavItem[] {
 
   if (showPilot) base.push({ label: "Pilot", href: "/pilot" });
 
+  // Dashboard always first in drawer
   return [{ label: "Dashboard", href: "/" }, ...base];
 }
 
-export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps) {
+export default function TopNav({
+  userEmail,
+  tenantSlug,
+  userRole,
+}: TopNavProps) {
   const [open, setOpen] = useState(false);
   const items = buildNavItems();
 
@@ -42,40 +48,31 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
       {/* Header bar */}
       <header className="sticky top-0 z-30 w-full border-b bg-white">
         <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          {/* Left: brand + (mobile) tenant pill */}
-          <div className="flex items-center gap-2">
-            <Link href="/" className="font-semibold tracking-tight">
-              Admin Portal
-            </Link>
-            {tenantSlug && (
-              <span className="md:hidden ml-2 inline-flex items-center rounded-full bg-slate-100 text-slate-600 text-xs px-2 py-0.5">
-                {tenantSlug}
-              </span>
-            )}
-          </div>
+          {/* Left: brand with logo */}
+          <Link href="/" className="flex items-center gap-2 shrink-0">
+            <Image
+              src="/abilitix-logo.png"
+              alt="AbilitiX"
+              width={28}
+              height={28}
+              priority
+              className="rounded"
+            />
+            <span className="font-semibold tracking-tight">Admin Portal</span>
+          </Link>
 
           {/* Right: identity (desktop) + menu button */}
           <div className="flex items-center gap-3">
-            {(userEmail || tenantSlug || userRole) && (
+            {(userEmail || tenantSlug) && (
               <div className="hidden md:flex items-center text-xs text-slate-600 whitespace-nowrap">
                 {userEmail && <span className="truncate">{userEmail}</span>}
-                {(userEmail && (tenantSlug || userRole)) && (
+                {userEmail && tenantSlug && (
                   <span className="mx-2 text-slate-300">•</span>
                 )}
                 {tenantSlug && (
                   <span className="truncate">
                     tenant: <span className="font-medium">{tenantSlug}</span>
                   </span>
-                )}
-                {userRole && (
-                  <>
-                    {(userEmail || tenantSlug) && (
-                      <span className="mx-2 text-slate-300">•</span>
-                    )}
-                    <span className="truncate">
-                      role: <span className="font-medium">{userRole}</span>
-                    </span>
-                  </>
                 )}
               </div>
             )}
@@ -92,24 +89,27 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
         </nav>
       </header>
 
-      {/* Drawer overlay */}
+      {/* Dim overlay (prevents overlapping readability issues) */}
       {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black/30"
+        <button
+          aria-label="Close menu overlay"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
           onClick={close}
-          aria-hidden="true"
         />
       )}
 
-      {/* Drawer panel (RIGHT-side) */}
+      {/* Right-side drawer */}
       <aside
         className={[
-          "fixed top-0 right-0 z-50 h-full w-80 max-w-[85vw] bg-white shadow-xl transition-transform",
+          "fixed top-0 right-0 z-50 h-full w-80 max-w-[85vw] bg-white shadow-xl transition-transform duration-300",
+          "flex flex-col", // layout
           open ? "translate-x-0" : "translate-x-full",
         ].join(" ")}
         role="dialog"
+        aria-modal="true"
         aria-label="Navigation menu"
       >
+        {/* Drawer header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="font-medium">Menu</div>
           <button
@@ -122,7 +122,7 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
           </button>
         </div>
 
-        {/* Identity (shows on mobile in drawer) */}
+        {/* Identity block (shown in drawer; includes role) */}
         {(userEmail || tenantSlug || userRole) && (
           <div className="border-b px-4 py-3 text-sm text-slate-700">
             {userEmail && <div className="truncate">{userEmail}</div>}
@@ -137,8 +137,8 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
           </div>
         )}
 
-        {/* Nav items */}
-        <nav className="px-2 py-2">
+        {/* Scrollable nav list */}
+        <nav className="px-2 py-2 overflow-y-auto max-h-[calc(100%-9rem)]">
           {items.map((it) => (
             <Link
               key={it.href}

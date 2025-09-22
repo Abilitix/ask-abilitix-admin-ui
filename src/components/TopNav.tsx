@@ -92,12 +92,12 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
               </span>
             )}
 
-            {/* Desktop: show full identity block */}
-            {(userEmail || tenantSlug || userRole) && (
-              <div className="hidden md:flex flex-col text-xs text-slate-600 whitespace-nowrap">
-                {userEmail && <span className="truncate">{userEmail}</span>}
-                {tenantSlug && <span className="truncate">Slug: {tenantSlug}</span>}
-                {userRole && <span className="truncate">Role: {roleBadge(userRole)}</span>}
+            {/* Desktop: horizontal identity block */}
+            {(tenantSlug || userRole || userEmail) && (
+              <div className="hidden md:flex items-center gap-2 text-xs text-slate-600 whitespace-nowrap">
+                {tenantSlug && <span>Tenant: {tenantSlug}</span>}
+                {userRole && <span>• {roleBadge(userRole)}</span>}
+                {userEmail && <span>• {userEmail}</span>}
               </div>
             )}
 
@@ -164,7 +164,7 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
               {/* Mobile identity block */}
               {(tenantSlug || userRole) && (
                 <div className="px-4 py-2 text-xs text-slate-600 border-b">
-                  {tenantSlug && <div>Slug: {tenantSlug}</div>}
+                  {tenantSlug && <div>Tenant: {tenantSlug}</div>}
                   {userRole && <div>Role: {roleBadge(userRole)}</div>}
                 </div>
               )}

@@ -67,25 +67,10 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
           </Link>
 
           <div className="flex items-center gap-3">
-            {(userEmail || tenantSlug || userRole) && (
-              <div className="hidden md:flex items-center text-xs text-slate-600 whitespace-nowrap">
-                {userEmail && <span className="truncate">{userEmail}</span>}
-                {userEmail && (tenantSlug || userRole) && (
-                  <span className="mx-2 text-slate-300">•</span>
-                )}
-                {tenantSlug && (
-                  <span className="truncate">
-                    tenant: <span className="font-medium">{tenantSlug}</span>
-                  </span>
-                )}
-                {tenantSlug && userRole && (
-                  <span className="mx-2 text-slate-300">•</span>
-                )}
-                {userRole && <span className="truncate">role: {userRole}</span>}
-              </div>
-            )}
+            <div className="flex items-center text-xs text-slate-600 whitespace-nowrap">
+              <span className="truncate">debug@abilitix.local</span>
+            </div>
 
-            {/* Menu button (three-dot icon) */}
             <button
               type="button"
               onClick={toggle}
@@ -143,22 +128,6 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
                   ✕
                 </button>
               </div>
-
-              {(userEmail || tenantSlug || userRole) && (
-                <div className="border-b px-4 py-3 text-sm text-slate-700">
-                  {userEmail && <div className="truncate">{userEmail}</div>}
-                  {tenantSlug && (
-                    <div className="truncate">
-                      tenant: <span className="font-medium">{tenantSlug}</span>
-                    </div>
-                  )}
-                  {userRole && (
-                    <div className="mt-1 text-xs text-slate-500">
-                      role: {userRole}
-                    </div>
-                  )}
-                </div>
-              )}
 
               <nav className="flex-1 overflow-y-auto px-2 py-2 divide-y divide-slate-200 text-slate-900">
                 {items.map((it) => (

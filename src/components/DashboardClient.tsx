@@ -6,7 +6,7 @@ type Card = {
   href: string;
   title: string;
   desc: string;
-  key: string; // stable key for conditionals
+  key: string;
 };
 
 const BASE_CARDS: Card[] = [
@@ -48,10 +48,6 @@ export default function DashboardClient() {
   const hideOld = process.env.NEXT_PUBLIC_HIDE_OLD_RAG === "1";
   const showPilot = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";
 
-  // Build cards with simple, composable rules:
-  // 1) Start with base
-  // 2) Add new card first if enabled
-  // 3) Optionally remove classic if hideOld is set
   let cards: Card[] = [...BASE_CARDS];
   if (enableNew) {
     cards = [NEW_RAG_CARD, ...cards];
@@ -62,22 +58,31 @@ export default function DashboardClient() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 space-y-10">
-      <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {cards.map((c) => (
-          <NoPrefetchLink
-            key={c.key}
-            href={c.href}
-            prefetch={false}
-            className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
-          >
-            <div className="text-base font-semibold text-slate-900">{c.title}</div>
-            <div className="mt-2 text-sm leading-relaxed text-slate-600">{c.desc}</div>
-          </NoPrefetchLink>
-        ))}
+      <section>
+        <h2 className="text-sm font-semibold text-slate-700 mb-4">
+          Dashboard Features
+        </h2>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {cards.map((c) => (
+            <NoPrefetchLink
+              key={c.key}
+              href={c.href}
+              prefetch={false}
+              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+            >
+              <div className="text-base font-semibold text-slate-900">
+                {c.title}
+              </div>
+              <div className="mt-2 text-sm leading-relaxed text-slate-600">
+                {c.desc}
+              </div>
+            </NoPrefetchLink>
+          ))}
+        </div>
       </section>
 
       {showPilot && (
-        <div className="mt-2">
+        <section className="border-t pt-6">
           <NoPrefetchLink
             href="/pilot"
             prefetch={false}
@@ -86,7 +91,7 @@ export default function DashboardClient() {
             <span>🎯</span>
             <span>Pilot objectives</span>
           </NoPrefetchLink>
-        </div>
+        </section>
       )}
     </div>
   );

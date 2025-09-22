@@ -92,7 +92,7 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
               className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
             >
               <svg
-                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 className="h-4 w-4"
                 fill="currentColor"

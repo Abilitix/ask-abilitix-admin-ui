@@ -2,269 +2,328 @@
 
 import * as React from "react";
 
-type Source = { label: string; url?: string; snippet?: string };
-type ChatMsg = {
+/** Minimal source shape returned with the final SSE 'done' event */
+type Source = {
+  id?: string | number;
+  title?: string;
+  url?: string;
+};
+
+type Message = {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
-  time?: string;
+  ts: string; // HH:MM
   sources?: Source[];
 };
 
 type Props = {
-  /** If omitted, we try /api/ask/stream, then fall back to /api/rag/stream */
-  streamUrl?: string;
+  /** SSE endpoint that streams content + final citations */
+  streamUrl: string;
+  /** Link to docs upload (shows a small CTA above chat) */
   uploadHref?: string;
-  defaultTopK?: number;
+  /**
+   * Callback to populate the TopK table when a question is asked.
+   * We call this with the exact question text after the user sends it.
+   */
   onQuestionAsked?: (q: string) => void;
+  /**
+   * Optional analytics endpoint (not used in this restore; added for future)
+   * If you want thumbs, wire it in later — keeping UI clean for now.
+   */
+  feedbackUrl?: string;
 };
 
-const hhmm = () => {
+// ---------- Utilities ----------
+const VALID_ROLES = new Set<"user" | "assistant" | "system">([
+  "user",
+  "assistant",
+  "system",
+]);
+
+const nowHHMM = () => {
   const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${String(d.getHours()).padStart(2, "0")}:${String(
+    d.getMinutes()
+  ).padStart(2, "0")}`;
 };
 
-/** Convert your `citations` shape to UI sources */
-function citationsToSources(citations: any[] | undefined): Source[] | undefined {
-  if (!Array.isArray(citations)) return undefined;
-  return citations.map((c, i) => ({
-    label:
-      typeof c?.doc_id === "string"
-        ? `Source ${i + 1} (${c.doc_id.slice(0, 8)})`
-        : `Source ${i + 1}`,
-  }));
-}
+const coerceSources = (raw: any): Source[] => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw.map((r) => {
+      if (r && typeof r === "object") {
+        return {
+          id: r.id ?? r.doc_id ?? r.slug ?? undefined,
+          title: r.title ?? r.name ?? r.filename ?? "Source",
+          url: r.url ?? r.href ?? undefined,
+        };
+      }
+      return { title: String(r ?? "Source") };
+    });
+  }
+  // single object
+  if (typeof raw === "object") return [coerceSources([raw])[0]];
+  return [{ title: String(raw) }];
+};
 
+// ---------- Component ----------
 export default function DenserChat({
   streamUrl,
   uploadHref = "/admin/docs",
-  defaultTopK = 8,
   onQuestionAsked,
 }: Props) {
-  const [messages, setMessages] = React.useState<ChatMsg[]>([]);
+  const [messages, setMessages] = React.useState<Message[]>([
+    {
+      id: "hello",
+      role: "assistant",
+      content: "Hello, how can I help you today?",
+      ts: nowHHMM(),
+    },
+  ]);
   const [input, setInput] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const scrollerRef = React.useRef<HTMLDivElement | null>(null);
+  const scrollerRef = React.useRef<HTMLDivElement>(null);
 
+  // Scroll to bottom when messages change
   React.useEffect(() => {
-    scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight });
-  }, [messages, busy]);
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages]);
 
-  async function postWithFallback(q: string, topk: number) {
-    const body = {
-      // Send both keys so either server variant works
-      question: q,
-      q,
-      topk,
-      stream: true,
-      session_id: "rag-new-ui",
-    };
-
-    const tryOne = async (url: string) => {
-      // Don't add stream=true to URL if it's already in the body
-      return fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "text/event-stream",
-        },
-        body: JSON.stringify(body),
-      });
-    };
-
-    if (streamUrl) return tryOne(streamUrl);
-
-    // Your canonical endpoint:
-    let res = await tryOne("/api/ask/stream");
-    if (res.status === 404 || res.status === 405) {
-      // Fallback to the older path if present
-      res = await tryOne("/api/rag/stream");
+  // Send on Enter (shift+enter = newline)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      triggerSend();
     }
-    return res;
-  }
+  };
 
-  async function send() {
+  const triggerSend = async () => {
     const q = input.trim();
     if (!q || busy) return;
 
+    // Add user message
+    const user: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: q,
+      ts: nowHHMM(),
+    };
+    setMessages((prev) => [...prev, user]);
+    setInput("");
+
+    // Call TopK updater (table) in parent
     onQuestionAsked?.(q);
 
-    const u: ChatMsg = { id: `u_${Date.now()}`, role: "user", content: q, time: hhmm() };
-    const aid = `a_${Date.now()}`;
-    setMessages((m) => [...m, u, { id: aid, role: "assistant", content: "", time: hhmm() }]);
-    setInput("");
-    setBusy(true);
+    // Create an empty assistant message to stream into
+    const assistantId = crypto.randomUUID();
+    const assistant: Message = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      ts: nowHHMM(),
+      sources: [],
+    };
+    setMessages((prev) => [...prev, assistant]);
 
     try {
-      const res = await postWithFallback(q, defaultTopK);
-      if (!res.ok || !res.body) throw new Error(`stream ${res.status}`);
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-
-      // SSE state (aligned to your payload)
-      let acc = "";
-      let finalCitations: any[] | undefined;
-      let currentEvent = ""; // "", "content", "done"
-      let buffer = "";
-      let dataLines: string[] = [];
-
-      const flushEvent = () => {
-        // join data lines and parse
-        const raw = dataLines.join("\n").trim();
-        if (!raw) {
-          currentEvent = "";
-          dataLines = [];
-          return;
-        }
-        try {
-          const json = JSON.parse(raw);
-
-          // 1) initial match info (no 'event:')
-          if (!currentEvent && json?.source === "docs.rag" && json?.match) {
-            // You can store/display json.match if desired
-          }
-
-          // 2) streaming content
-          if (currentEvent === "content" && typeof json?.delta === "string") {
-            acc += json.delta;
-            setMessages((prev) =>
-              prev.map((m) => (m.id === aid ? { ...m, content: acc } : m))
-            );
-          }
-
-          // 3) final citations
-          if (currentEvent === "done" && Array.isArray(json?.citations)) {
-            finalCitations = json.citations;
-          }
-        } catch {
-          // ignore bad JSON; your endpoint always sends JSON
-        }
-        currentEvent = "";
-        dataLines = [];
-      };
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // Process as SSE: split by lines, events separated by blank line
-        let idx: number;
-        while ((idx = buffer.indexOf("\n")) >= 0) {
-          const line = buffer.slice(0, idx).replace(/\r$/, "");
-          buffer = buffer.slice(idx + 1);
-
-          if (line.startsWith("event:")) {
-            currentEvent = line.slice(6).trim();
-          } else if (line.startsWith("data:")) {
-            dataLines.push(line.slice(5).trim());
-          } else if (line.trim() === "") {
-            // end of one event
-            flushEvent();
-          } else {
-            // ignore other fields (id:, retry:, etc.)
-          }
-        }
-      }
-      // flush any trailing event
-      if (dataLines.length) flushEvent();
-
-      // attach citations to the last assistant message
-      const sources = citationsToSources(finalCitations);
+      setBusy(true);
+      await streamAnswer(assistantId, q);
+    } catch (err) {
+      console.error("Streaming failed:", err);
       setMessages((prev) =>
-        prev.map((m) => (m.id === aid ? { ...m, sources } : m))
-      );
-    } catch (e) {
-      console.error(e);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === aid ? { ...m, content: "Sorry—there was a problem streaming the answer." } : m))
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, content: "Sorry—there was an error." }
+            : m
+        )
       );
     } finally {
       setBusy(false);
     }
-  }
+  };
+
+  // Core SSE reader — handles both "event:" + "data:" style and data-only style
+  const streamAnswer = async (assistantId: string, question: string) => {
+    const resp = await fetch(streamUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      // NOTE: if your API expects { question } or { query } instead of { q },
+      // change the payload key here:
+      body: JSON.stringify({ q: question, question, query: question }),
+    });
+
+    if (!resp.ok || !resp.body) {
+      throw new Error(`SSE HTTP ${resp.status}`);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let currentEvent: string | null = null;
+    let done = false;
+    let finalSources: Source[] = [];
+
+    while (!done) {
+      const { value, done: streamDone } = await reader.read();
+      if (streamDone) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process line-by-line
+      const lines = buffer.split("\n");
+      // keep the last partial line in buffer
+      buffer = lines.pop() ?? "";
+
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) {
+          // blank line separates SSE events — reset event type
+          currentEvent = null;
+          continue;
+        }
+
+        if (line.startsWith("event:")) {
+          currentEvent = line.slice(6).trim();
+          continue;
+        }
+
+        if (!line.startsWith("data:")) {
+          continue;
+        }
+
+        const dataStr = line.slice(5).trim();
+        if (!dataStr) continue;
+
+        // Some servers send "[DONE]" to end — ignore, we end when stream closes
+        if (dataStr === "[DONE]") continue;
+
+        try {
+          const json = JSON.parse(dataStr);
+
+          // If no event was set, assume content (older servers)
+          const evt = (currentEvent ?? "content").toLowerCase();
+
+          if (evt === "content" && json.delta) {
+            const delta: string = String(json.delta);
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, content: m.content + delta } : m
+              )
+            );
+          }
+
+          if ((evt === "done" || json.citations) && typeof json === "object") {
+            finalSources = coerceSources(json.citations);
+          }
+        } catch (e) {
+          // ignore bad chunks
+        }
+      }
+    }
+
+    // Attach final sources if present
+    if (finalSources.length) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === assistantId ? { ...m, sources: finalSources } : m))
+      );
+    }
+  };
 
   return (
-    <div className="rounded-xl border bg-white">
-      {/* header */}
+    <section className="rounded-2xl border bg-white shadow-sm">
+      {/* Header line with small CTA */}
       <div className="flex items-center justify-between border-b px-4 py-3">
-        <div className="text-sm font-medium text-slate-800">Chat with your documents</div>
+        <div className="text-sm font-semibold">RAG Chat</div>
         <a
           href={uploadHref}
-          className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
         >
+          <span role="img" aria-label="upload">📤</span>
           Upload docs
         </a>
       </div>
 
-      {/* transcript */}
-      <div ref={scrollerRef} className="max-h-[60vh] overflow-y-auto px-4 py-4 pb-24">
-        {messages.length === 0 ? (
-          <div className="text-sm text-slate-500">Ask a question to begin.</div>
-        ) : (
-          <div className="space-y-3">
-            {messages.map((m) => (
+      {/* Scrollable conversation */}
+      <div
+        ref={scrollerRef}
+        className="max-h-[60vh] overflow-y-auto px-4 py-3"
+      >
+        <div className="space-y-6">
+          {messages.map((m) => {
+            const isUser = m.role === "user";
+            const bubbleBase =
+              "inline-block rounded-2xl px-3 py-2 text-sm leading-relaxed max-w-[75%]";
+            const bubble = isUser
+              ? `${bubbleBase} bg-blue-600 text-white`
+              : `${bubbleBase} bg-slate-100 text-slate-900`;
+
+            return (
               <div
                 key={m.id}
-                className={["flex", m.role === "user" ? "justify-end" : "justify-start"].join(" ")}
+                className={isUser ? "flex justify-end" : "flex justify-start"}
               >
-                <div
-                  className={[
-                    "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
-                    m.role === "user" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-900",
-                  ].join(" ")}
-                >
-                  <div className="whitespace-pre-wrap">{m.content}</div>
-
-                  {m.sources && m.sources.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <div className="text-[11px] font-semibold opacity-70">Sources</div>
-                      <ul className="space-y-1">
+                <div>
+                  <div className={bubble}>
+                    <div className="whitespace-pre-wrap">{m.content}</div>
+                  </div>
+                  {/* Time + sources (assistant only) */}
+                  <div
+                    className={[
+                      "mt-2 flex items-center gap-2",
+                      isUser ? "justify-end" : "justify-start",
+                      "text-xs text-slate-500",
+                    ].join(" ")}
+                  >
+                    <span>{m.ts}</span>
+                    {!isUser && m.sources && m.sources.length > 0 && (
+                      <>
                         {m.sources.map((s, i) => (
-                          <li key={i} className="text-[11px]">
-                            {s.url ? (
-                              <a href={s.url} target="_blank" rel="noreferrer" className="underline">
-                                {s.label}
-                              </a>
-                            ) : (
-                              <span>{s.label}</span>
-                            )}
-                            {s.snippet ? <span className="opacity-70"> — {s.snippet}</span> : null}
-                          </li>
+                          <a
+                            key={`${m.id}-src-${i}`}
+                            href={s.url ?? "#"}
+                            target={s.url ? "_blank" : undefined}
+                            rel={s.url ? "noreferrer" : undefined}
+                            className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] text-slate-700 hover:bg-slate-50"
+                          >
+                            {s.title ? `Source ${i + 1}` : `Source ${i + 1}`}
+                          </a>
                         ))}
-                      </ul>
-                    </div>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
-            {busy && <div className="text-[11px] text-slate-500">…streaming</div>}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
 
-      {/* composer */}
-      <div className="sticky bottom-0 left-0 right-0 border-t bg-white px-3 py-3">
-        <div className="flex items-center gap-2">
-          <input
+      {/* Composer */}
+      <div className="border-t p-3">
+        <div className="flex items-end gap-2">
+          <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Type your question…"
-            className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={busy}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your question here…"
+            rows={1}
+            className="min-h-[40px] max-h-[140px] flex-1 resize-y rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
-            onClick={send}
-            disabled={!input.trim() || busy}
-            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            onClick={triggerSend}
+            disabled={busy || !input.trim()}
+            className="inline-flex select-none items-center gap-2 rounded-md border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
           >
+            <span role="img" aria-label="send">📤</span>
             Send
           </button>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

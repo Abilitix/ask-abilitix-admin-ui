@@ -5,21 +5,31 @@ import DenserChat from "@/components/rag/DenserChat";
 import { RagHitsTable, type Hit } from "@/components/rag/RagHitsTable";
 
 type Props = {
-  /** Optional key from page.tsx to force a clean mount on revisit */
+  /** Optional key from page.tsx to force a fresh mount/reset on revisit */
   instanceKey?: string;
 };
 
 export function RagNewPageClient({ instanceKey }: Props) {
   const [hits, setHits] = React.useState<Hit[]>([]);
-  const [topScore, setTopScore] = React.useState<number | undefined>();
+  const [topScore, setTopScore] = React.useState<number | undefined>(undefined);
   const [loadingHits, setLoadingHits] = React.useState(false);
   const TOPK = 8;
 
-  // Clear results whenever this page remounts (or instanceKey changes)
+  // Clear the results whenever page mounts or instanceKey changes
   React.useEffect(() => {
-    setHits([]);
-    setTopScore(undefined);
-    setLoadingHits(false);
+    const reset = () => {
+      setHits([]);
+      setTopScore(undefined);
+      setLoadingHits(false);
+    };
+    reset();
+
+    // Also clear on bfcache restore (Back/Forward)
+    const onPageShow = (e: any) => {
+      if (e?.persisted) reset();
+    };
+    window.addEventListener("pageshow", onPageShow as any);
+    return () => window.removeEventListener("pageshow", onPageShow as any);
   }, [instanceKey]);
 
   const runRagSearch = React.useCallback(async (q: string) => {
@@ -58,12 +68,14 @@ export function RagNewPageClient({ instanceKey }: Props) {
         <h1 className="text-3xl font-bold">RAG Testing (New)</h1>
       </div>
 
+      {/* Denser-style chat; this triggers the table below on each ask */}
       <DenserChat
         streamUrl="/api/ask/stream"
         uploadHref="/admin/docs"
         onQuestionAsked={runRagSearch}
       />
 
+      {/* Results table */}
       <div className="mt-6">
         <RagHitsTable hits={hits} topScore={topScore} loading={loadingHits} />
       </div>

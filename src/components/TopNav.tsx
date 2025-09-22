@@ -32,6 +32,20 @@ type TopNavProps = {
   userRole?: UserRole;
 };
 
+function roleBadge(role: UserRole) {
+  const base = "px-1.5 py-0.5 rounded text-xs font-medium";
+  switch (role) {
+    case "owner":
+      return <span className={`${base} bg-green-100 text-green-700`}>Owner</span>;
+    case "pilot":
+      return <span className={`${base} bg-blue-100 text-blue-700`}>Pilot</span>;
+    case "admin":
+      return <span className={`${base} bg-yellow-100 text-yellow-700`}>Admin</span>;
+    default:
+      return <span className={`${base} bg-slate-100 text-slate-600`}>{role}</span>;
+  }
+}
+
 export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -67,10 +81,20 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
           </Link>
 
           <div className="flex items-center gap-3">
+            {/* Mobile: show only email */}
             {userEmail && (
-              <span className="truncate text-xs text-slate-600 whitespace-nowrap">
+              <span className="md:hidden truncate text-xs text-slate-600 whitespace-nowrap">
                 {userEmail}
               </span>
+            )}
+
+            {/* Desktop: show full identity block */}
+            {(userEmail || tenantSlug || userRole) && (
+              <div className="hidden md:flex flex-col text-xs text-slate-600 whitespace-nowrap">
+                {userEmail && <span className="truncate">{userEmail}</span>}
+                {tenantSlug && <span className="truncate">Slug: {tenantSlug}</span>}
+                {userRole && <span className="truncate">Role: {roleBadge(userRole)}</span>}
+              </div>
             )}
 
             {userEmail && (
@@ -132,6 +156,14 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
                   ✕
                 </button>
               </div>
+
+              {/* Mobile identity block */}
+              {(tenantSlug || userRole) && (
+                <div className="px-4 py-2 text-xs text-slate-600 border-b">
+                  {tenantSlug && <div>Slug: {tenantSlug}</div>}
+                  {userRole && <div>Role: {roleBadge(userRole)}</div>}
+                </div>
+              )}
 
               <nav className="flex-1 overflow-y-auto px-2 py-2 divide-y divide-slate-200 text-slate-900">
                 {items.map((it) => (

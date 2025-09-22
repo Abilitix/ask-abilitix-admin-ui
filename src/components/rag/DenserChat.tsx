@@ -23,7 +23,7 @@ type Props = {
   uploadHref?: string;
   defaultTopK?: number;
   askUrl?: string;                 // e.g. "/api/ask/stream"
-  onAsked?: (q: string, k: number) => void; // caller can run RAG table below
+  onAsked?: (q: string, k: number) => void; // parent can run RAG search table
 };
 
 const nowHHMM = () => {
@@ -43,6 +43,31 @@ const normalizeSources = (raw: any): Source[] => {
   return [];
 };
 
+/** Try hard to extract a text token from many possible payload shapes */
+function extractToken(payload: any, currentEvent: string): string | undefined {
+  if (payload == null) return undefined;
+
+  // common direct keys
+  if (typeof payload.delta === "string") return payload.delta;
+  if (typeof payload.content === "string") return payload.content;
+  if (typeof payload.text === "string") return payload.text;
+  if (typeof payload.answer === "string") return payload.answer;
+
+  // OpenAI chat-completions style partials
+  const c0 = payload.choices?.[0];
+  const openaiDelta = c0?.delta?.content;
+  if (typeof openaiDelta === "string") return openaiDelta;
+
+  // Some servers do event: content with a plain string data
+  if (currentEvent === "content" && typeof payload === "string") return payload;
+
+  // Fallback: any first string field with "delta" in the name
+  for (const [k, v] of Object.entries(payload)) {
+    if (typeof v === "string" && /delta|chunk|part/i.test(k)) return v;
+  }
+  return undefined;
+}
+
 export default function DenserChat({
   documentTitle = "RAG Chat",
   uploadHref = "/admin/docs",
@@ -54,29 +79,19 @@ export default function DenserChat({
   const [input, setInput] = React.useState("");
   const [sending, setSending] = React.useState(false);
 
-  // seed with a friendly opener
   const [messages, setMessages] = React.useState<ChatMsg[]>([
     { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
   ]);
 
   const chatRef = React.useRef<HTMLDivElement | null>(null);
-
   const scrollToBottom = React.useCallback(() => {
-    // scroll the scrollable chat area
-    if (chatRef.current) {
-      chatRef.current.scrollTop = chatRef.current.scrollHeight;
-    }
+    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, []);
+  React.useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  React.useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
-
-  // ---------- STREAMING ----------
   async function streamAsk(question: string) {
     setSending(true);
 
-    // Push user message
     const userMsg: ChatMsg = {
       id: crypto.randomUUID(),
       role: "user",
@@ -85,21 +100,10 @@ export default function DenserChat({
     };
     setMessages((prev) => [...prev, userMsg]);
 
-    // Create placeholder assistant message we’ll update live
     const assistantId = crypto.randomUUID();
-    let assistantBuffer = "";
+    let buffer = "";
     let citations: Source[] = [];
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: assistantId,
-        role: "assistant",
-        text: "",
-        time: nowHHMM(),
-        sources: [],
-      },
-    ]);
+    let sawContent = false;
 
     const updateAssistant = (text: string, src?: Source[]) => {
       setMessages((prev) =>
@@ -107,7 +111,12 @@ export default function DenserChat({
       );
     };
 
-    // Helper: non-streaming fallback
+    setMessages((prev) => [
+      ...prev,
+      { id: assistantId, role: "assistant", text: "", time: nowHHMM(), sources: [] },
+    ]);
+
+    // Non-stream fallback
     const askNonStreaming = async () => {
       const res = await fetch(`${askUrl}?stream=false`, {
         method: "POST",
@@ -116,26 +125,28 @@ export default function DenserChat({
       });
       if (!res.ok) throw new Error(`Ask (non-stream) failed: ${res.status}`);
       const json = await res.json();
-      const answer = json?.answer ?? json?.content ?? "";
+      const answer =
+        json?.answer ??
+        json?.content ??
+        json?.text ??
+        json?.choices?.[0]?.message?.content ??
+        "";
       const srcs = normalizeSources(json?.citations ?? json?.sources);
-      assistantBuffer = String(answer ?? "");
+      buffer = String(answer ?? "");
       citations = srcs;
-      updateAssistant(assistantBuffer, citations);
+      updateAssistant(buffer, citations);
     };
 
-    // Main SSE path
     try {
       const res = await fetch(askUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Some backends prefer this; harmless otherwise:
           Accept: "text/event-stream",
         },
         body: JSON.stringify({ question, topk: topK, session_id: "rag-new" }),
       });
 
-      // If this endpoint is not streaming (405/404 etc.), fall back
       if (!res.ok || !res.body) {
         await askNonStreaming();
         return;
@@ -143,18 +154,16 @@ export default function DenserChat({
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let partial = "";     // carry across chunks for line-splitting
-      let currentEvent = ""; // remember the last "event:" value
+      let partial = "";
+      let currentEvent = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         partial += decoder.decode(value, { stream: true });
-
-        // Split into lines; keep trailing partial if the chunk ends mid-line
         const lines = partial.split(/\r?\n/);
-        partial = lines.pop() ?? ""; // remainder carried to next read
+        partial = lines.pop() ?? "";
 
         for (const rawLine of lines) {
           const line = rawLine.trim();
@@ -168,70 +177,52 @@ export default function DenserChat({
           if (line.startsWith("data:")) {
             const dataStr = line.slice(5).trim();
 
-            // Many providers use a sentinel
-            if (dataStr === "[DONE]") {
-              // finalize
-              updateAssistant(assistantBuffer, citations);
-              continue;
+            if (dataStr === "[DONE]") continue;
+
+            // Try JSON first
+            let payload: any = dataStr;
+            try { payload = JSON.parse(dataStr); } catch { /* keep as string */ }
+
+            // Citations can arrive with final data
+            const maybeSources = payload?.citations ?? payload?.sources;
+            if (maybeSources) {
+              citations = normalizeSources(maybeSources);
             }
 
-            // Robust parsing: try JSON; if not JSON, treat as plain text token
-            try {
-              const payload = JSON.parse(dataStr);
-
-              // Common shapes:
-              // { delta: "text" }   // streaming token
-              // { content: "..." }  // sometimes used
-              // { citations: [...] } // on "done"
-              // Or OpenAI’s choices[].delta.content, but we don’t expect that here
-
-              const token =
-                payload?.delta ??
-                payload?.content ??
-                (typeof payload === "string" ? payload : "");
-
-              if (token) {
-                assistantBuffer += String(token);
-                updateAssistant(assistantBuffer);
-              }
-
-              // Attach sources when provided (often on final "done" event)
-              if (payload?.citations || payload?.sources) {
-                citations = normalizeSources(payload.citations ?? payload.sources);
-                updateAssistant(assistantBuffer, citations);
-              }
-
-              // Some servers label content with event: content
-              if (currentEvent === "content" && typeof payload === "string") {
-                assistantBuffer += payload;
-                updateAssistant(assistantBuffer);
-              }
-            } catch {
-              // Not JSON — treat as literal text token
-              assistantBuffer += dataStr;
-              updateAssistant(assistantBuffer);
+            const token = extractToken(payload, currentEvent);
+            if (typeof token === "string" && token.length > 0) {
+              buffer += token;
+              sawContent = true;
+              updateAssistant(buffer, citations);
             }
           }
         }
       }
 
-      // Stream ended; ensure final text/sources are applied
-      updateAssistant(assistantBuffer, citations);
+      // Stream ended. If we never received content, fetch the full answer once.
+      if (!sawContent) {
+        try {
+          await askNonStreaming();
+        } catch (e) {
+          console.error("Non-stream fallback also failed:", e);
+          updateAssistant("Sorry—there was an error.", citations);
+        }
+      } else {
+        updateAssistant(buffer, citations);
+      }
     } catch (err) {
-      console.error("SSE error, falling back:", err);
-      // fallback path
+      console.error("SSE error:", err);
       try {
         await askNonStreaming();
       } catch (e) {
         console.error("Non-stream ask failed:", e);
-        updateAssistant("Sorry—there was an error.");
+        updateAssistant("Sorry—there was an error.", citations);
       }
     } finally {
       setSending(false);
     }
   }
 
-  // ---------- Handlers ----------
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const q = input.trim();
@@ -241,7 +232,6 @@ export default function DenserChat({
     await streamAsk(q);
   };
 
-  // ---------- UI ----------
   return (
     <div className="rounded-xl border bg-white">
       {/* Header */}
@@ -255,7 +245,7 @@ export default function DenserChat({
         </a>
       </div>
 
-      {/* Chat body (scrollable) */}
+      {/* Chat body */}
       <div className="flex max-h-[65vh] flex-col">
         <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-6">
           {messages.map((m) => {
@@ -265,13 +255,12 @@ export default function DenserChat({
                 <div
                   className={[
                     "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap break-words",
-                    isUser
-                      ? "bg-blue-600 text-white"
-                      : "bg-slate-100 text-slate-900",
+                    isUser ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-900",
                   ].join(" ")}
                 >
                   <div>{m.text}</div>
-                  {m.sources && m.sources.length > 0 && !isUser && (
+
+                  {!isUser && m.sources && m.sources.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {m.sources.map((s, i) => (
                         <a
@@ -287,6 +276,7 @@ export default function DenserChat({
                       ))}
                     </div>
                   )}
+
                   {m.time && (
                     <div
                       className={[
@@ -303,7 +293,7 @@ export default function DenserChat({
           })}
         </div>
 
-        {/* Composer (stays inside the card, no footer collision) */}
+        {/* Composer */}
         <form
           onSubmit={onSubmit}
           className="sticky bottom-0 z-[1] flex items-end gap-2 border-t bg-white px-3 py-2"
@@ -324,7 +314,6 @@ export default function DenserChat({
             {sending ? "Sending…" : "Send"}
           </button>
 
-          {/* Mini TopK control */}
           <div className="ml-2 inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs">
             <span>TopK</span>
             <input

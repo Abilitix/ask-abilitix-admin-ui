@@ -1,10 +1,12 @@
-import { requireAuth } from '@/lib/auth';
-import DashboardClient from '@/components/DashboardClient';
+import DashboardClient from "@/components/DashboardClient";
+import { requireAuth } from "@/lib/auth";
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function Page() {
-  const user = await requireAuth();
-  return <DashboardClient user={user} />;
+  // Enforce auth (returns user, but we don't need to pass it to the client component)
+  await requireAuth();
+
+  return <DashboardClient />;
 }

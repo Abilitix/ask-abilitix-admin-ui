@@ -5,8 +5,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function Page() {
-  // Enforce auth (returns user, but we don't need to pass it to the client component)
-  await requireAuth();
+  const user = await requireAuth(); // Capture the user
 
-  return <DashboardClient />;
+  return <DashboardClient user={user} />; // Pass it to the client component
 }

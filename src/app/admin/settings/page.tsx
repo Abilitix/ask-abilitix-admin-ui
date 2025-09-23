@@ -7,10 +7,24 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle, Settings, Users, Key, TestTube } from 'lucide-react';
+import { HelpCircle, Settings, Users, Key, TestTube, Trash2, UserX } from 'lucide-react';
+import { toast } from 'sonner';
 
 type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; };
 type SettingsResp = { effective: Eff; overrides: Partial<Eff>; tenant_id?: string; tenant_slug?: string; tenant_name?: string; };
+
+// User management types
+type Member = {
+  user_id: string;
+  email: string;
+  name: string;
+  role: 'owner' | 'admin' | 'curator' | 'viewer';
+  accepted_at: string;
+};
+
+type MembersResponse = {
+  members: Member[];
+};
 
 // User-friendly preset mappings
 const PRESETS = {
@@ -54,6 +68,12 @@ export default function SettingsPage() {
   const [inviteRole, setInviteRole] = useState<'admin' | 'curator' | 'viewer'>('viewer');
   const [inviting, setInviting] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
+
+  // User list state
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [offboardingUsers, setOffboardingUsers] = useState<Set<string>>(new Set());
+  const [currentUser, setCurrentUser] = useState<{ id: string; role: string } | null>(null);
 
   // Helper functions to map between presets and technical values
   function getPresetKey(category: keyof typeof PRESETS, value: number): string {
@@ -196,6 +216,112 @@ export default function SettingsPage() {
       setInviting(false);
     }
   }
+
+  // User list functions
+  async function fetchMembers() {
+    setLoadingMembers(true);
+    try {
+      const response = await fetch('/api/admin/members', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store'
+      });
+      
+      if (response.ok) {
+        const data: MembersResponse = await response.json();
+        setMembers(data.members || []);
+      } else {
+        toast.error('Failed to fetch members');
+      }
+    } catch (error) {
+      toast.error('Failed to fetch members');
+    } finally {
+      setLoadingMembers(false);
+    }
+  }
+
+  async function offboardUser(userId: string, userName: string) {
+    if (!confirm(`Remove ${userName} from this workspace?`)) return;
+    
+    setOffboardingUsers(prev => new Set([...prev, userId]));
+    try {
+      const response = await fetch(`/api/admin/members/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        toast.success(`User removed successfully. ${result.actions_taken?.join(', ') || ''}`);
+        // Refresh members list
+        await fetchMembers();
+      } else {
+        const errorData = await response.json();
+        const errorMessage = getErrorMessage(errorData.error);
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      toast.error('Failed to remove user. Please try again.');
+    } finally {
+      setOffboardingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
+    }
+  }
+
+  function getErrorMessage(errorCode: string): string {
+    const messages: Record<string, string> = {
+      'user_not_found_in_tenant': 'User not found in this workspace',
+      'cannot_remove_self': 'You cannot remove yourself',
+      'cannot_remove_last_owner': 'Cannot remove the last owner of the workspace',
+      'invalid_user_id_format': 'Invalid user ID format',
+      'offboarding_failed': 'Failed to remove user. Please try again.'
+    };
+    return messages[errorCode] || 'An error occurred while removing the user';
+  }
+
+  function canRemoveUser(user: Member): boolean {
+    if (!currentUser) return false;
+    
+    // Only admin/owner can remove users
+    if (!['admin', 'owner'].includes(currentUser.role)) return false;
+    
+    // Cannot remove yourself
+    if (user.user_id === currentUser.id) return false;
+    
+    // Cannot remove last owner
+    const ownerCount = members.filter(m => m.role === 'owner').length;
+    if (user.role === 'owner' && ownerCount <= 1) return false;
+    
+    return true;
+  }
+
+  function getRoleBadgeColor(role: string): string {
+    switch (role) {
+      case 'owner': return 'bg-green-100 text-green-700';
+      case 'admin': return 'bg-yellow-100 text-yellow-700';
+      case 'curator': return 'bg-blue-100 text-blue-700';
+      case 'viewer': return 'bg-slate-100 text-slate-600';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  }
+
+  // Load current user and members on component mount
+  useEffect(() => {
+    // Get current user info
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        setCurrentUser({ id: data.id, role: data.role });
+      })
+      .catch(() => {});
+    
+    // Load members list
+    fetchMembers();
+  }, []);
 
   if (!data) return <div className="p-6">Loading...</div>;
 
@@ -529,6 +655,88 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-500 mt-2">
                 This key will only be shown once. Copy it now if you need it.
               </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Current Members Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Current Members ({members.length})
+          </CardTitle>
+          <CardDescription>
+            Manage existing team members and their access levels.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingMembers ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="ml-2 text-slate-600">Loading members...</span>
+            </div>
+          ) : members.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              No members found. Invite your first team member below.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {members.map((member) => (
+                <div key={member.user_id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                        <UserX className="h-4 w-4 text-slate-600" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-900 truncate">
+                          {member.name || member.email}
+                        </span>
+                        <Badge className={`text-xs ${getRoleBadgeColor(member.role)}`}>
+                          {member.role}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-slate-500 truncate">
+                        {member.email}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        Joined {new Date(member.accepted_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0">
+                    {canRemoveUser(member) ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => offboardUser(member.user_id, member.name || member.email)}
+                        disabled={offboardingUsers.has(member.user_id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      >
+                        {offboardingUsers.has(member.user_id) ? (
+                          <>
+                            <div className="h-3 w-3 animate-spin rounded-full border border-red-600 border-t-transparent mr-1" />
+                            Removing...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Remove
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <div className="text-xs text-slate-400 px-2 py-1">
+                        {member.user_id === currentUser?.id ? 'You' : 'Protected'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

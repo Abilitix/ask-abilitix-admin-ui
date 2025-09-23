@@ -131,7 +131,7 @@ export default function PilotPage() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
-                <span>Invite 2–3 teammates to try the workflow (functionality available soon).</span>
+                <span>Invite 2–3 teammates to try the workflow.</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>

@@ -539,7 +539,7 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            User Management (Coming soon)
+            User Management (Live now)
           </CardTitle>
           <CardDescription>
             Invite new users to your tenant with appropriate access levels.

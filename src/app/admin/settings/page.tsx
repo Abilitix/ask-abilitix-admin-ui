@@ -51,7 +51,7 @@ export default function SettingsPage() {
   
   // User invitation state
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'admin' | 'viewer'>('viewer');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'curator' | 'viewer'>('viewer');
   const [inviting, setInviting] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
 
@@ -179,6 +179,9 @@ export default function SettingsPage() {
       
       if (!r.ok) {
         const errorData = await r.json();
+        if (r.status === 409) {
+          throw new Error(errorData.error || 'This email already has an account. Ask them to sign in directly.');
+        }
         throw new Error(errorData.error || `HTTP ${r.status}`);
       }
       
@@ -554,10 +557,11 @@ export default function SettingsPage() {
               />
               <Select
                 value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as 'admin' | 'viewer')}
+                onChange={(e) => setInviteRole(e.target.value as 'admin' | 'curator' | 'viewer')}
                 className="w-32"
               >
                 <option value="admin">Admin</option>
+                <option value="curator">Curator</option>
                 <option value="viewer">Viewer</option>
               </Select>
               <Button

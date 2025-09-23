@@ -37,9 +37,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    if (!['admin', 'viewer'].includes(role)) {
+    if (!['admin', 'curator', 'viewer'].includes(role)) {
       return NextResponse.json(
-        { error: 'Role must be admin or viewer' },
+        { error: 'Role must be admin, curator, or viewer' },
         { status: 400 }
       );
     }
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     console.log('Inviting user:', { email, role, tenantId: userData.tenant_id });
 
     // Try session auth first, fallback to admin token if needed
-    const response = await fetch(`${ADMIN_API}/admin/users/invite`, {
+    const response = await fetch(`${ADMIN_API}/admin/members/invite`, {
       method: 'POST',
       headers: {
         'Cookie': request.headers.get('cookie') || '', // Use session auth
@@ -68,6 +68,22 @@ export async function POST(request: NextRequest) {
     
     if (response.ok) {
       return NextResponse.json({ ok: true }, { status: 200 });
+    }
+    
+    // Handle specific error responses
+    if (response.status === 409) {
+      try {
+        const errorData = await response.json();
+        return NextResponse.json(
+          { error: errorData.detail?.message || 'This email already has an account' },
+          { status: 409 }
+        );
+      } catch {
+        return NextResponse.json(
+          { error: 'This email already has an account' },
+          { status: 409 }
+        );
+      }
     }
     
     return NextResponse.json(

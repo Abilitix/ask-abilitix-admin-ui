@@ -46,17 +46,17 @@ export async function POST(request: NextRequest) {
 
     console.log('Inviting user:', { email, role, tenantId: userData.tenant_id });
 
-    // Try session auth first, fallback to admin token if needed
+    // Call Admin API with correct endpoint and required X-Tenant-Id header
     const response = await fetch(`${ADMIN_API}/admin/members/invite`, {
       method: 'POST',
       headers: {
-        'Cookie': request.headers.get('cookie') || '', // Use session auth
+        'Cookie': request.headers.get('cookie') || '',
         'Content-Type': 'application/json',
+        'X-Tenant-Id': userData.tenant_id, // ← REQUIRED HEADER
       },
       body: JSON.stringify({ 
         email, 
-        role,
-        tenant_id: userData.tenant_id // Include tenant_id in body
+        role
       }),
       cache: 'no-store',
     });
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     // Handle specific error responses
     if (response.status === 409) {
       try {
-        const errorData = await response.json();
+        const errorData = JSON.parse(responseText);
         return NextResponse.json(
           { error: errorData.detail?.message || 'This email already has an account' },
           { status: 409 }

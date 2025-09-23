@@ -38,7 +38,7 @@ const BASE_CARDS: Card[] = [
     key: "settings",
     href: "/admin/settings",
     title: "Settings",
-    desc: "Tune DOC_MIN_SCORE and RAG_TOPK",
+    desc: "Manage team members and system preferences",
   },
 ];
 

@@ -42,7 +42,7 @@ export async function middleware(req: NextRequest) {
             
             if (isRestricted) {
               const url = req.nextUrl.clone();
-              url.pathname = "/admin/rag";
+              url.pathname = "/admin/rag-new";
               url.search = "";
               return NextResponse.redirect(url);
             }
@@ -50,7 +50,7 @@ export async function middleware(req: NextRequest) {
             // Redirect dashboard to Test Chat for viewers
             if (pathname === '/') {
               const url = req.nextUrl.clone();
-              url.pathname = "/admin/rag";
+              url.pathname = "/admin/rag-new";
               url.search = "";
               return NextResponse.redirect(url);
             }

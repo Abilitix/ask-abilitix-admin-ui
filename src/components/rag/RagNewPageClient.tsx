@@ -3,6 +3,7 @@
 import * as React from "react";
 import DenserChat from "@/components/rag/DenserChat";
 import { RagHitsTable, type Hit } from "@/components/rag/RagHitsTable";
+import type { UserRole } from "@/lib/roles";
 
 type Props = {
   /** unique per page render; used to reset state on revisit */
@@ -14,6 +15,7 @@ export function RagNewPageClient({ instanceKey }: Props) {
   const [topScore, setTopScore] = React.useState<number | undefined>(undefined);
   const [loadingHits, setLoadingHits] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [userRole, setUserRole] = React.useState<UserRole | undefined>();
 
   // Clear state when instanceKey changes (fresh visit)
   React.useEffect(() => {
@@ -21,6 +23,26 @@ export function RagNewPageClient({ instanceKey }: Props) {
     setTopScore(undefined);
     setError(null);
   }, [instanceKey]);
+
+  // Get user role for viewer instructions
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok && alive) {
+          const data = await res.json();
+          const role = data?.role;
+          if (role === 'owner' || role === 'admin' || role === 'curator' || role === 'viewer' || role === 'guest') {
+            setUserRole(role);
+          }
+        }
+      } catch {
+        // Ignore errors, role will remain undefined
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // Optional: when navigating back/forward from bfcache, ensure we reset
   React.useEffect(() => {
@@ -78,6 +100,30 @@ export function RagNewPageClient({ instanceKey }: Props) {
       <div>
         <h1 className="text-2xl md:text-3xl font-bold">Test Chat</h1>
       </div>
+
+      {/* Viewer Instructions */}
+      {userRole === 'viewer' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800">
+                Welcome, Viewer!
+              </h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p>
+                  Welcome! You're here to test our chatbot and see how well it answers questions from your team's documents. 
+                  Document uploads and settings are handled by your administrators.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Denser-style chat; triggers the table below on each ask */}
       <DenserChat

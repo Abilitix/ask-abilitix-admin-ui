@@ -251,13 +251,8 @@ export function RagPageClient() {
               </h3>
               <div className="mt-2 text-sm text-blue-700">
                 <p>
-                  You can test the chatbot by asking questions about the documents uploaded by your tenant. 
-                  The responses are grounded in those files and will help you understand how well the system 
-                  answers questions from your team's knowledge base.
-                </p>
-                <p className="mt-2">
-                  <strong>Note:</strong> You don't have permission to upload documents or manage settings - 
-                  only to test the chat functionality.
+                  Welcome! You're here to test our chatbot and see how well it answers questions from your team's documents. 
+                  Document uploads and settings are handled by your administrators.
                 </p>
               </div>
             </div>

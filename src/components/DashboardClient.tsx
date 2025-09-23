@@ -2,6 +2,7 @@
 
 import NoPrefetchLink from "@/components/NoPrefetchLink";
 import type { User } from "@/lib/auth"; // Adjust path if needed
+import { hasPermission } from "@/lib/roles";
 
 type DashboardClientProps = {
   user: User;
@@ -59,6 +60,25 @@ export default function DashboardClient({ user }: DashboardClientProps) {
   }
   if (hideOld) {
     cards = cards.filter((c) => c.key !== "rag-classic");
+  }
+
+  // Filter cards based on user role (safety measure)
+  if (user.role) {
+    cards = cards.filter((card) => {
+      switch (card.key) {
+        case "rag-classic":
+        case "rag-new":
+          return hasPermission(user.role, "canAccessDebug");
+        case "inbox":
+          return hasPermission(user.role, "canAccessInbox");
+        case "docs":
+          return hasPermission(user.role, "canAccessDocs");
+        case "settings":
+          return hasPermission(user.role, "canAccessSettings");
+        default:
+          return true;
+      }
+    });
   }
 
   return (

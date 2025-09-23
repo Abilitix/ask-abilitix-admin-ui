@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { type UserRole } from "@/lib/roles";
+import { type UserRole, getVisibleNavItems } from "@/lib/roles";
 
 type NavItem = { label: string; href: string };
 
@@ -53,7 +53,9 @@ function roleBadge(role: UserRole) {
 export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const items = buildNavItems();
+  
+  // Use role-based navigation filtering
+  const items = userRole ? getVisibleNavItems(userRole, false) : buildNavItems();
 
   const isActive = (href: string) =>
     pathname === href || (pathname && pathname.startsWith(href + "/"));

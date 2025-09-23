@@ -167,7 +167,7 @@ export default function SettingsPage() {
     setInviteSuccess(false);
     
     try {
-      const r = await fetch('/api/admin/users/invite', {
+      const r = await fetch('/api/admin/members/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

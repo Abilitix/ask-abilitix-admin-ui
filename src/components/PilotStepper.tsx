@@ -3,6 +3,8 @@
 import * as React from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import type { UserRole } from "@/lib/roles";
 
 // Toggle visibility with env; default ON unless explicitly "0"
 const SHOW_STEPPER = process.env.NEXT_PUBLIC_SHOW_PILOT_STEPPER !== "0";
@@ -27,15 +29,42 @@ function getActive(path: string): Step["key"] | null {
 
 export default function PilotStepper() {
   const pathname = usePathname();
+  const [userRole, setUserRole] = useState<UserRole | undefined>();
+  
   if (!SHOW_STEPPER) return null;
 
+  // Get user role for step filtering
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok && alive) {
+          const data = await res.json();
+          const role = data?.role;
+          if (role === 'owner' || role === 'admin' || role === 'curator' || role === 'viewer' || role === 'guest') {
+            setUserRole(role);
+          }
+        }
+      } catch {
+        // Ignore errors, role will remain undefined
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   const active = getActive(pathname || "");
+  
+  // Filter steps based on user role
+  const visibleSteps = userRole === 'viewer' 
+    ? STEPS.filter(step => step.key === 'chat') // Only show Test Chat for viewers
+    : STEPS; // Show all steps for other roles
 
   return (
     <div className="w-full border-b bg-white/80 backdrop-blur">
       <div className="mx-auto max-w-6xl px-4">
         <nav className="flex items-center gap-2 overflow-x-auto py-2 text-xs text-slate-600" aria-label="Pilot steps">
-          {STEPS.map((s, i) => {
+          {visibleSteps.map((s, i) => {
             const isActive = s.key === active;
             return (
               <React.Fragment key={s.key}>

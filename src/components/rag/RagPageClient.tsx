@@ -7,6 +7,7 @@ import { RagHitsTable, type Hit } from '@/components/rag/RagHitsTable';
 import { AskResultCard } from '@/components/rag/AskResultCard';
 import { askPost, type AskResponse } from '@/lib/api/ask';
 import { toast } from 'sonner';
+import type { UserRole } from '@/lib/roles';
 
 export function RagPageClient() {
   const searchParams = useSearchParams();
@@ -23,6 +24,7 @@ export function RagPageClient() {
   const [askError, setAskError] = useState<string | null>(null);
   const [streamingAnswer, setStreamingAnswer] = useState<string>('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole | undefined>();
 
   // Initialize from URL params
   useEffect(() => {
@@ -32,6 +34,26 @@ export function RagPageClient() {
     if (urlQuery) setQuery(urlQuery);
     if (urlTopK) setTopK(Math.max(1, Math.min(20, parseInt(urlTopK) || 8)));
   }, [searchParams]);
+
+  // Get user role for viewer instructions
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok && alive) {
+          const data = await res.json();
+          const role = data?.role;
+          if (role === 'owner' || role === 'admin' || role === 'curator' || role === 'viewer' || role === 'guest') {
+            setUserRole(role);
+          }
+        }
+      } catch {
+        // Ignore errors, role will remain undefined
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // Update URL when query/topK changes
   const updateURL = useCallback((newQuery: string, newTopK: number) => {
@@ -213,6 +235,35 @@ export function RagPageClient() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Chat Testing</h1>
       </div>
+
+      {/* Viewer Instructions */}
+      {userRole === 'viewer' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800">
+                Welcome, Viewer!
+              </h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p>
+                  You can test the chatbot by asking questions about the documents uploaded by your tenant. 
+                  The responses are grounded in those files and will help you understand how well the system 
+                  answers questions from your team's knowledge base.
+                </p>
+                <p className="mt-2">
+                  <strong>Note:</strong> You don't have permission to upload documents or manage settings - 
+                  only to test the chat functionality.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Query Form */}
       <RagQueryForm

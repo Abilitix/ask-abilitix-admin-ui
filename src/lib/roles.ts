@@ -65,12 +65,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canViewLogs: false,
   },
   viewer: {
-    canAccessDashboard: true,
+    canAccessDashboard: false, // Hide dashboard for viewers
     canAccessInbox: false,
-    canAccessDocs: true,
+    canAccessDocs: false, // Hide docs management for viewers
     canAccessSettings: false,
     canAccessOnboarding: false,
-    canAccessDebug: false,
+    canAccessDebug: true, // Allow Test Chat access
     canAccessDemo: false,
     canUploadDocs: false,
     canManageDocs: false,
@@ -102,6 +102,14 @@ export function hasPermission(role: UserRole, permission: keyof RolePermissions)
 
 export function getVisibleNavItems(role: UserRole, isMobile: boolean = false) {
   const permissions = ROLE_PERMISSIONS[role];
+  
+  // Special handling for viewers - only show Test Chat
+  if (role === 'viewer') {
+    return [
+      { href: "/admin/rag", label: "Test Chat", permission: "canAccessDebug" as keyof RolePermissions, mobileVisible: true }
+    ];
+  }
+  
   const navItems = [
     { href: "/", label: "Dashboard", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: true },
     { href: "/admin/inbox", label: "Inbox", permission: "canAccessInbox" as keyof RolePermissions, mobileVisible: true },

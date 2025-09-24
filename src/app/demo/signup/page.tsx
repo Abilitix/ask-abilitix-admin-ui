@@ -144,10 +144,6 @@ export default function DemoSignupPage() {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-8 text-sm text-gray-500">
-          <p>© 2025 Abilitix. All rights reserved.</p>
-        </div>
       </div>
     </div>
   );

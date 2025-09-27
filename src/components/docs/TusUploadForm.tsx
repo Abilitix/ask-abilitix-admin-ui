@@ -253,7 +253,7 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
           endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
           uploadUrl,
           chunkSize: 6 * 1024 * 1024, // 6MB chunks
-          parallelUploads: 3,
+          parallelUploads: 1, // Disable parallel uploads to use uploadUrl
           retryDelays: [500, 1000, 2000, 4000],
           headers: { 'Authorization': `Bearer ${token}` },
           metadata: {

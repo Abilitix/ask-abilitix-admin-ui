@@ -33,7 +33,7 @@ export function DocsUploadForm(props: DocsUploadFormProps) {
     // This will be validated when TUS actually tries to make API calls
     console.info('[UPLOAD] TUS UI enabled, checking mode...');
 
-    // Only accept exactly 'tus'
+    // Only accept exactly 'tus' when explicitly requested
     const nextMode = candidate === 'tus' ? 'tus' : 'legacy';
     console.info('[UPLOAD] decided mode:', nextMode, { qp, ls, enableTusUi: ENABLE_TUS_UI });
     setMode(nextMode);

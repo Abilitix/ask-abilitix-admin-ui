@@ -118,6 +118,7 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
         const status = await response.json();
         
         if (status.status === 'ready') {
+
           setUploadProgress({
             status: 'ready',
             progress: 100,
@@ -543,7 +544,7 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
                 />
                 <div className="flex items-center gap-2">
                   <File className="h-4 w-4" />
-                  <span className="text-sm">Upload File (PDF, TXT, DOCX)</span>
+                  <span className="text-sm">Upload File (PDF, DOCX, JPG, PNG, MP4, WEBM)</span>
                 </div>
               </label>
               <label className="flex items-center space-x-2 cursor-pointer">
@@ -591,7 +592,7 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
                 className="w-full"
               />
               <p className="text-xs text-gray-500">
-                Supported formats: PDF, TXT, DOCX, JPG, PNG, MP4, WEBM (max 100MB)
+                Supported formats: PDF, DOCX, JPG, PNG, MP4, WEBM (max 20MB)
               </p>
             </div>
           ) : (
@@ -653,9 +654,8 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
 
           {/* Upload Mode Indicator */}
           <div className="text-xs text-gray-500 text-center">
-            Mode: {getUploadMode().toUpperCase()}
-            {getUploadMode() === 'tus' && ' (Resumable)'}
-            {getUploadMode() === 'legacy' && ' (Fallback)'}
+            {getUploadMode() === 'tus' && 'Advanced Upload (Large Files Supported)'}
+            {getUploadMode() === 'legacy' && 'Standard Upload'}
           </div>
         </form>
       </CardContent>

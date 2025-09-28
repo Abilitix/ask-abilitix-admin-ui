@@ -133,7 +133,7 @@ export function LegacyUploadForm({ onDone }: LegacyUploadFormProps) {
                   className="text-blue-600"
                 />
                 <File className="h-4 w-4" />
-                <span>Upload File (PDF, TXT, DOCX)</span>
+                <span>Upload File (PDF, DOCX)</span>
               </label>
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -176,7 +176,7 @@ export function LegacyUploadForm({ onDone }: LegacyUploadFormProps) {
                 className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
               <div className="text-xs text-muted-foreground">
-                Supported formats: PDF, TXT, DOCX (max 15MB)
+                Supported formats: PDF, DOCX (max 5MB)
               </div>
               {file && (
                 <div className="text-sm text-green-600">

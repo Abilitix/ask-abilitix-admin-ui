@@ -49,8 +49,8 @@ export default function SignupPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Header with Logo */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-6">
+        <div className="text-center mb-6 md:mb-8">
+          <div className="flex justify-center mb-4 md:mb-6">
             <Image
               src="/abilitix-logo.png"
               alt="Abilitix"
@@ -65,9 +65,9 @@ export default function SignupPage() {
         </div>
 
         {/* Signup Form */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
           {!sent ? (
-            <form onSubmit={submit} className="space-y-6">
+            <form onSubmit={submit} className="space-y-4 md:space-y-6">
               <div>
                 <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
                   Company Name
@@ -155,7 +155,7 @@ export default function SignupPage() {
           )}
 
           {/* Terms and Privacy */}
-          <div className="mt-6 text-center text-xs text-gray-500">
+          <div className="mt-4 md:mt-6 text-center text-xs text-gray-500">
             <p>
               By continuing, you confirm that you have read and agree to our{' '}
               <a 
@@ -181,7 +181,7 @@ export default function SignupPage() {
         </div>
 
         {/* Link to Signin */}
-        <div className="mt-6 text-center">
+        <div className="mt-4 md:mt-6 text-center">
           <p className="text-sm text-gray-600">
             Already have a workspace?{' '}
             <Link href="/signin" className="text-indigo-600 hover:text-indigo-500 font-medium">

@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { HelpCircle, Settings, Users, Key, TestTube, Trash2, UserX } from 'lucide-react';
@@ -753,50 +752,95 @@ export default function SettingsPage() {
             Invite new users to your tenant with appropriate access levels.
           </CardDescription>
         </CardHeader>
+
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                type="email"
-                placeholder="Enter email address"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1"
-              />
-              <Select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as 'admin' | 'curator' | 'viewer')}
-                className="w-32"
-              >
-                <option value="admin">Admin</option>
-                <option value="curator">Curator</option>
-                <option value="viewer">Viewer</option>
-              </Select>
-              <Button
-                onClick={inviteUser}
-                disabled={inviting || !inviteEmail.trim()}
-                className="flex items-center gap-2"
-              >
-                {inviting ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Inviting...
-                  </>
-                ) : (
-                  <>
-                    <Users className="h-4 w-4" />
-                    Invite
-                  </>
-                )}
-              </Button>
+          {/* Wrap in a form so Enter works and button can be type="submit" */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!inviting && inviteEmail.trim()) inviteUser();
+            }}
+            className="space-y-4"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {/* Email */}
+              <div className="flex-1">
+                <label htmlFor="invite-email" className="sr-only">Email address</label>
+                <Input
+                  id="invite-email"
+                  name="inviteEmail"
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  enterKeyHint="send"
+                  placeholder="Enter email address"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="h-9 w-full"
+                  required
+                />
+              </div>
+
+              {/* Role + Button */}
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <div>
+                  <label htmlFor="invite-role" className="sr-only">Role</label>
+                  <select
+                    id="invite-role"
+                    name="inviteRole"
+                    value={inviteRole}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === 'admin' || v === 'curator' || v === 'viewer') {
+                        setInviteRole(v);
+                      }
+                    }}
+                    className="h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm
+                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                               disabled:cursor-not-allowed disabled:opacity-50 sm:w-32"
+                    aria-label="Select user role"
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="curator">Curator</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={inviting || !inviteEmail.trim()}
+                  className="h-9 w-full whitespace-nowrap sm:w-auto"
+                  aria-busy={inviting ? true : undefined}
+                >
+                  {inviting ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
+                      Inviting...
+                    </>
+                  ) : (
+                    <>
+                      <Users className="h-4 w-4 mr-2" />
+                      Invite
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
-            
+
+            {/* Status messages with screen-reader friendly live regions */}
             {inviteSuccess && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">
+              <div role="status" aria-live="polite"
+                   className="rounded-lg border border-green-200 bg-green-50 p-3 text-green-700">
                 ✓ User invitation sent successfully!
               </div>
             )}
-          </div>
+            {err && (
+              <div role="alert" aria-live="assertive"
+                   className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
+                ⚠️ {err}
+              </div>
+            )}
+          </form>
         </CardContent>
       </Card>
       </div>

@@ -19,6 +19,8 @@ export default function TokenErrorView({
 }) {
   const [busy, setBusy] = useState(false);
   const [cooldown, setCooldown] = useState<number | null>(null);
+  const [email, setEmail] = useState('');
+  const [showEmailInput, setShowEmailInput] = useState(false);
 
   useEffect(() => {
     let t: any;
@@ -38,14 +40,17 @@ export default function TokenErrorView({
   };
 
   async function onResend() {
-    const email = getUserEmail();
-    if (!email) {
-      toast.error('Email required. Please enter your email to get a new link.');
+    const storedEmail = getUserEmail();
+    const emailToUse = storedEmail || email;
+    
+    if (!emailToUse) {
+      setShowEmailInput(true);
       return;
     }
+    
     setBusy(true);
     try {
-      const r = await requestNewMagicLink(email);
+      const r = await requestNewMagicLink(emailToUse);
       const cd = typeof r?.cooldown_seconds === 'number' ? r.cooldown_seconds : 60;
       setCooldown(cd);
       toast.success('Check your email. A new sign-in link is on its way.');
@@ -75,10 +80,29 @@ export default function TokenErrorView({
           </div>
         )}
 
-        <div className="pt-2 flex items-center gap-2">
-          <Button onClick={onResend} disabled={busy || (cooldown !== null && cooldown > 0)}>
-            {cooldown ? `Resend available in ${cooldown}s` : '📧 Request New Sign-in Link'}
-          </Button>
+        <div className="pt-2 space-y-3">
+          {showEmailInput && (
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+          )}
+          
+          <div className="flex items-center gap-2">
+            <Button onClick={onResend} disabled={busy || (cooldown !== null && cooldown > 0)}>
+              {cooldown ? `Resend available in ${cooldown}s` : '📧 Request New Sign-in Link'}
+            </Button>
+          </div>
         </div>
 
         <p className="text-xs text-muted-foreground pt-2">

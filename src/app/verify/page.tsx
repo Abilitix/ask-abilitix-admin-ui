@@ -21,8 +21,9 @@ function VerifyPageContent() {
     (async () => {
       if (!token) { setChecking(false); return; }
 
-      // Check if preflight is disabled via environment variable
-      const PREFLIGHT = process.env.NEXT_PUBLIC_ENABLE_VERIFY_PREFLIGHT === '1';
+      // HOTFIX: Disable preflight check to restore stable auth
+      // TODO: Re-enable when Admin API preflight endpoint is fixed
+      const PREFLIGHT = false; // process.env.NEXT_PUBLIC_ENABLE_VERIFY_PREFLIGHT === '1';
       if (!PREFLIGHT) {
         // skip token-status; go directly to verify
         window.location.href = `/public/verify?token=${encodeURIComponent(token)}`;

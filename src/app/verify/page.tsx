@@ -21,6 +21,14 @@ function VerifyPageContent() {
     (async () => {
       if (!token) { setChecking(false); return; }
 
+      // Check if preflight is disabled via environment variable
+      const PREFLIGHT = process.env.NEXT_PUBLIC_ENABLE_VERIFY_PREFLIGHT === '1';
+      if (!PREFLIGHT) {
+        // skip token-status; go directly to verify
+        window.location.href = `/public/verify?token=${encodeURIComponent(token)}`;
+        return;
+      }
+
       const status = await checkTokenStatus(token);
       if (!alive) return;
 
@@ -45,10 +53,37 @@ function VerifyPageContent() {
         });
         setChecking(false);
       } else {
-        const r = await fetch(`/public/verify?token=${encodeURIComponent(token)}`, { method: 'GET' });
-        if (r.ok) { window.location.href = '/'; return; }
-        const json = await r.json().catch(() => null);
-        setErrorDetail(parseTokenError(json));
+        // Try direct verification, but handle errors gracefully
+        try {
+          const r = await fetch(`/public/verify?token=${encodeURIComponent(token)}`, { method: 'GET' });
+          if (r.ok) { 
+            window.location.href = '/'; 
+            return; 
+          }
+          const json = await r.json().catch(() => null);
+          const errorDetail = parseTokenError(json);
+          if (errorDetail) {
+            setErrorDetail(errorDetail);
+          } else {
+            // Fallback error if parsing fails
+            setErrorDetail({
+              error: 'token_verification_failed',
+              code: 'TOKEN_CHECK_ERROR',
+              message: 'Unable to verify sign-in link. Please try again or request a new one.',
+              reason: 'Database error during token check',
+              recovery_action: 'request_new_link'
+            });
+          }
+        } catch (error) {
+          // Network or other error
+          setErrorDetail({
+            error: 'token_verification_failed',
+            code: 'TOKEN_CHECK_ERROR',
+            message: 'Unable to verify sign-in link. Please try again or request a new one.',
+            reason: 'Network error during verification',
+            recovery_action: 'request_new_link'
+          });
+        }
         setChecking(false);
       }
     })();

@@ -33,6 +33,7 @@ export default function TokenErrorView({
     TOKEN_ALREADY_USED: 'Link Already Used',
     TOKEN_NOT_FOUND: 'Invalid Sign-in Link',
     TOKEN_MALFORMED: 'Invalid Sign-in Link',
+    TOKEN_CHECK_ERROR: 'Verification Error',
     SESSION_ERROR: 'Couldn\'t Start Session',
   };
 

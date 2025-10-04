@@ -33,6 +33,7 @@ function VerifyPageContent() {
           invalid: 'TOKEN_NOT_FOUND',
           malformed: 'TOKEN_MALFORMED',
           domain_mismatch: 'TOKEN_MALFORMED',
+          check_error: 'TOKEN_CHECK_ERROR',
         };
         setErrorDetail({
           error: 'token_verification_failed',

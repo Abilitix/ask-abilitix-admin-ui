@@ -3,6 +3,7 @@ export type TokenErrorCode =
   | 'TOKEN_ALREADY_USED'
   | 'TOKEN_NOT_FOUND'
   | 'TOKEN_MALFORMED'
+  | 'TOKEN_CHECK_ERROR'
   | 'SESSION_ERROR';
 
 export type TokenErrorDetail = {

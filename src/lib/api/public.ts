@@ -4,7 +4,7 @@ export async function checkTokenStatus(token: string) {
 }
 
 export async function requestNewMagicLink(email: string) {
-  const r = await fetch('/public/request-new-link', {
+  const r = await fetch('/public/signin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email })

@@ -21,14 +21,10 @@ function VerifyPageContent() {
     (async () => {
       if (!token) { setChecking(false); return; }
 
-      // HOTFIX: Disable preflight check to restore stable auth
-      // TODO: Re-enable when Admin API preflight endpoint is fixed
-      const PREFLIGHT = false; // process.env.NEXT_PUBLIC_ENABLE_VERIFY_PREFLIGHT === '1';
-      if (!PREFLIGHT) {
-        // skip token-status; go directly to verify
-        window.location.href = `/public/verify?token=${encodeURIComponent(token)}`;
-        return;
-      }
+      // EMERGENCY FIX: Go directly to Admin API, bypass our broken /api/public/verify
+      const adminApiUrl = `${process.env.NEXT_PUBLIC_ADMIN_API}/public/verify?token=${encodeURIComponent(token)}&next=/`;
+      window.location.href = adminApiUrl;
+      return;
 
       const status = await checkTokenStatus(token);
       if (!alive) return;

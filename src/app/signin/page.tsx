@@ -72,6 +72,10 @@ function SignInForm() {
       const responseData = await r.json();
       
       if (responseData.status === 'email_sent') {
+        // Store email in localStorage for recovery functionality
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('last_signin_email', email);
+        }
         setSent(true);  // Show success state
       } else if (responseData.status === 'user_not_found') {
         setErr(responseData.message);  // Show "No account found" message

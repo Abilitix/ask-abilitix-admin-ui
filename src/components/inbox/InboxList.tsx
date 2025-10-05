@@ -169,7 +169,7 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
                     {editingId === item.id ? (
                       <div className="space-y-2">
                         <Textarea
-                          value={editedAnswers[item.id] || item.answer}
+                          value={editedAnswers[item.id] ?? item.answer}
                           onChange={(e) => setEditedAnswers(prev => ({ ...prev, [item.id]: e.target.value }))}
                           className="min-h-[100px] resize-y"
                           placeholder="Edit the answer..."

@@ -60,7 +60,7 @@ function SignInForm() {
     // Client-side email validation
     const normalizedEmail = normalizeEmail(email);
     if (!isEmailValid(normalizedEmail)) {
-      setErr('Please enter a valid email address');
+      setErr('Please check email format and try again.');
       setLoading(false);
       return;
     }
@@ -77,9 +77,9 @@ function SignInForm() {
         
         // Handle specific error codes
         if (errorData?.detail?.code === 'INVALID_EMAIL_FORMAT') {
-          setErr('Please enter a valid email address');
+          setErr('Please check email format and try again.');
         } else {
-          setErr(errorData.error || 'Could not request sign-in link. Please try again.');
+          setErr('Please check email format and try again.');
         }
         return; 
       }

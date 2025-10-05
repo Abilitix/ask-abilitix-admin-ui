@@ -20,6 +20,9 @@ export const isEmailValid = (raw: string): boolean => {
   // Check length constraint (RFC 5321 limit)
   if (email.length > 254) return false;
   
+  // Check for double dashes (catches malformed emails like email@domain.com--extra)
+  if (email.includes('--')) return false;
+  
   // Check basic format with regex
   return EMAIL_RX.test(email);
 };

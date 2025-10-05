@@ -187,7 +187,7 @@ export default function SettingsPage() {
     // Client-side email validation
     const normalizedEmail = normalizeEmail(inviteEmail);
     if (!isEmailValid(normalizedEmail)) {
-      setErr('Please enter a valid email address');
+      setErr('Please check email format and try again.');
       return;
     }
     
@@ -211,7 +211,7 @@ export default function SettingsPage() {
         
         // Handle specific error codes
         if (errorData?.detail?.code === 'INVALID_EMAIL_FORMAT') {
-          setErr('Please enter a valid email address');
+          setErr('Please check email format and try again.');
         } else if (errorData?.detail?.code === 'INVITATION_PENDING') {
           setErr('An invitation is already active for this address.');
         } else if (errorData?.detail?.code === 'EMAIL_TAKEN') {
@@ -219,7 +219,7 @@ export default function SettingsPage() {
         } else if (r.status === 409) {
           setErr('This email already has an account. Ask them to sign in directly.');
         } else {
-          setErr(errorData?.detail?.message || errorData?.error || `HTTP ${r.status}`);
+          setErr('Please check email format and try again.');
         }
         return;
       }

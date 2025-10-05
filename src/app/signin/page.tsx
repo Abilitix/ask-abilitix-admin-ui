@@ -3,6 +3,8 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
+import { isEmailValid, normalizeEmail } from '@/utils/email';
+import { ApiErrorCode } from '@/types/errors';
 
 function SignInForm() {
   const [email, setEmail] = useState('');
@@ -55,16 +57,30 @@ function SignInForm() {
     setSent(false);
     setLoading(true);
     
+    // Client-side email validation
+    const normalizedEmail = normalizeEmail(email);
+    if (!isEmailValid(normalizedEmail)) {
+      setErr('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+    
     try {
       const r = await fetch('/api/public/signin', {
         method: 'POST', 
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: normalizedEmail }),
       });
       
       if (!r.ok) { 
         const errorData = await r.json();
-        setErr(errorData.error || 'Could not request sign-in link. Please try again.'); 
+        
+        // Handle specific error codes
+        if (errorData?.detail?.code === 'INVALID_EMAIL_FORMAT') {
+          setErr('Please enter a valid email address');
+        } else {
+          setErr(errorData.error || 'Could not request sign-in link. Please try again.');
+        }
         return; 
       }
       
@@ -74,7 +90,7 @@ function SignInForm() {
       if (responseData.status === 'email_sent') {
         // Store email in localStorage for recovery functionality
         if (typeof window !== 'undefined') {
-          localStorage.setItem('last_signin_email', email);
+          localStorage.setItem('last_signin_email', normalizedEmail);
         }
         setSent(true);  // Show success state
       } else if (responseData.status === 'user_not_found') {
@@ -134,16 +150,22 @@ function SignInForm() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={e => {
+                    setEmail(e.target.value);
+                    // Clear error when user starts typing
+                    if (err) setErr(null);
+                  }}
                   placeholder="Enter your registered email address"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  aria-invalid={!!err}
+                  aria-describedby={err ? "email-error" : undefined}
                   required
                 />
               </div>
               
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !isEmailValid(normalizeEmail(email))}
                 className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {loading ? 'Sending link...' : 'Sign In'}
@@ -157,7 +179,7 @@ function SignInForm() {
 
               {/* Error Message */}
               {err && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div id="email-error" role="alert" aria-live="assertive" className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                   <div className="flex">
                     <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />

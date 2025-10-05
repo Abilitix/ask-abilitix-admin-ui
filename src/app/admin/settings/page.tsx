@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { HelpCircle, Settings, Users, Key, TestTube, Trash2, UserX } from 'lucide-react';
 import { toast } from 'sonner';
+import { isEmailValid, normalizeEmail } from '@/utils/email';
+import { ApiErrorCode } from '@/types/errors';
 
 type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; };
 type SettingsResp = { effective: Eff; overrides: Partial<Eff>; tenant_id?: string; tenant_slug?: string; tenant_name?: string; };
@@ -181,6 +183,13 @@ export default function SettingsPage() {
       setErr('Please enter an email address');
       return;
     }
+
+    // Client-side email validation
+    const normalizedEmail = normalizeEmail(inviteEmail);
+    if (!isEmailValid(normalizedEmail)) {
+      setErr('Please enter a valid email address');
+      return;
+    }
     
     setInviting(true);
     setErr(null);
@@ -191,7 +200,7 @@ export default function SettingsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          email: inviteEmail.trim(), 
+          email: normalizedEmail, 
           role: inviteRole 
         }),
         cache: 'no-store'
@@ -199,10 +208,20 @@ export default function SettingsPage() {
       
       if (!r.ok) {
         const errorData = await r.json();
-        if (r.status === 409) {
-          throw new Error(errorData.error || 'This email already has an account. Ask them to sign in directly.');
+        
+        // Handle specific error codes
+        if (errorData?.detail?.code === 'INVALID_EMAIL_FORMAT') {
+          setErr('Please enter a valid email address');
+        } else if (errorData?.detail?.code === 'INVITATION_PENDING') {
+          setErr('An invitation is already active for this address.');
+        } else if (errorData?.detail?.code === 'EMAIL_TAKEN') {
+          setErr('This email already has access.');
+        } else if (r.status === 409) {
+          setErr('This email already has an account. Ask them to sign in directly.');
+        } else {
+          setErr(errorData?.detail?.message || errorData?.error || `HTTP ${r.status}`);
         }
-        throw new Error(errorData.error || `HTTP ${r.status}`);
+        return;
       }
       
       setInviteSuccess(true);
@@ -759,7 +778,11 @@ export default function SettingsPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!inviting && inviteEmail.trim()) inviteUser();
+              if (!inviting && inviteEmail.trim()) {
+                // Clear any existing errors when user submits
+                setErr('');
+                inviteUser();
+              }
             }}
             className="space-y-4"
           >
@@ -776,8 +799,14 @@ export default function SettingsPage() {
                   enterKeyHint="send"
                   placeholder="Enter email address"
                   value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
+                  onChange={(e) => {
+                    setInviteEmail(e.target.value);
+                    // Clear error when user starts typing
+                    if (err) setErr('');
+                  }}
                   className="h-9 w-full"
+                  aria-invalid={!!err}
+                  aria-describedby={err ? "email-error" : undefined}
                   required
                 />
               </div>
@@ -809,7 +838,7 @@ export default function SettingsPage() {
 
                 <Button
                   type="submit"
-                  disabled={inviting || !inviteEmail.trim()}
+                  disabled={inviting || !inviteEmail.trim() || !isEmailValid(normalizeEmail(inviteEmail))}
                   className="h-9 w-full whitespace-nowrap sm:w-auto"
                   aria-busy={inviting ? true : undefined}
                 >
@@ -836,7 +865,7 @@ export default function SettingsPage() {
               </div>
             )}
             {err && (
-              <div role="alert" aria-live="assertive"
+              <div id="email-error" role="alert" aria-live="assertive"
                    className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
                 ⚠️ {err}
               </div>

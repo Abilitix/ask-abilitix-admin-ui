@@ -9,14 +9,29 @@ export async function GET(
   try {
     const ADMIN_API_URL = process.env.ADMIN_API;
     const ADMIN_API_TOKEN = process.env.ADMIN_API_TOKEN;
-    const DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID;
 
-    if (!ADMIN_API_URL || !ADMIN_API_TOKEN || !DEFAULT_TENANT_ID) {
+    if (!ADMIN_API_URL || !ADMIN_API_TOKEN) {
       return NextResponse.json(
         { error: 'Server configuration missing' },
         { status: 500 }
       );
     }
+
+    // Resolve tenant from authenticated session
+    const authResponse = await fetch(`${request.nextUrl.origin}/api/auth/me`, {
+      headers: {
+        'Cookie': request.headers.get('cookie') || ''
+      }
+    });
+
+    if (!authResponse.ok) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const userData = await authResponse.json();
 
     const { id } = await params;
     
@@ -24,7 +39,7 @@ export async function GET(
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${ADMIN_API_TOKEN}`,
-        'X-Tenant-Id': DEFAULT_TENANT_ID,
+        'X-Tenant-Id': userData.tenant_id,
       },
       cache: 'no-store',
     });

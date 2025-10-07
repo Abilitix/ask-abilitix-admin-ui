@@ -6,26 +6,41 @@ export async function POST(req: NextRequest) {
   try {
     const ADMIN_API_URL = process.env.ADMIN_API;
     const ADMIN_API_TOKEN = process.env.ADMIN_API_TOKEN;
-    const DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID;
 
-    if (!ADMIN_API_URL || !ADMIN_API_TOKEN || !DEFAULT_TENANT_ID) {
+    if (!ADMIN_API_URL || !ADMIN_API_TOKEN) {
       return NextResponse.json(
         { error: 'Server configuration missing' },
         { status: 500 }
       );
     }
 
+    // Resolve tenant from authenticated session
+    const authResponse = await fetch(`${req.nextUrl.origin}/api/auth/me`, {
+      headers: {
+        'Cookie': req.headers.get('cookie') || ''
+      }
+    });
+
+    if (!authResponse.ok) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const userData = await authResponse.json();
+
     const response = await fetch(`${ADMIN_API_URL}/admin/uploads/token`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${ADMIN_API_TOKEN}`,
-        'X-Tenant-Id': DEFAULT_TENANT_ID,
+        'X-Tenant-Id': userData.tenant_id,
         'Content-Type': 'application/json',
       },
     });
 
     const responseText = await response.text();
-    
+
     return new NextResponse(responseText, {
       status: response.status,
       headers: {

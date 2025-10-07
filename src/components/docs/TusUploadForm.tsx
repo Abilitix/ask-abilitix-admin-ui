@@ -26,7 +26,10 @@ interface UploadProgress {
 }
 
 // Environment variables
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://atnidggjuzhlcxxnnltn.supabase.co';
+// Public-safe storage host for direct TUS uploads
+const STORAGE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_STORAGE_URL ||
+  'https://atnidggjuzhlcxxnnltn.storage.supabase.co';
 
 // File validation
 const ALLOWED_MIME_TYPES = {
@@ -58,12 +61,14 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
     setMounted(true);
   }, []);
 
-  // Get upload mode (TUS default, legacy fallback)
+  // Get upload mode (legacy default, TUS only when explicitly requested or forced)
   const getUploadMode = useCallback(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const queryMode = urlParams.get('uploadMode');
+    const force = urlParams.get('force') === '1';
     const storageMode = localStorage.getItem('uploadMode');
-    return queryMode || storageMode || 'tus';
+    if (force) return 'tus';
+    return queryMode || storageMode || 'legacy';
   }, []);
 
   // Get upload token (secure, short-lived)
@@ -225,18 +230,22 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
       const initData = await initResponse.json();
       emitUploadEvent('upload_tus_created', { upload_id: initData.upload_id });
 
-      // 2) TUS CREATE + PATCH with token
+      // 2) TUS CREATE + PATCH with token (storage-direct with bucket in path)
       await withUploadToken(async (token) => {
-        const b64 = (s: string) => btoa(s);
-        
-        // Create TUS upload
-        const createResponse = await fetch(`${SUPABASE_URL}/storage/v1/upload/resumable`, {
+        const bucket: string = initData.bucket || 'tenant-uploads';
+        const objectPath: string = encodeURI(initData.object_name);
+        const createUrl = `${STORAGE_URL}/storage/v1/upload/resumable/object/${bucket}/${objectPath}`;
+
+        // Create upload to get Location
+        const createResponse = await fetch(createUrl, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Tus-Resumable': '1.0.0',
             'Upload-Length': String(file.size),
-            'Upload-Metadata': `bucketName ${b64('tenant-uploads')},objectName ${b64(initData.object_name)},contentType ${b64(file.type || 'application/octet-stream')}`
+            // Optional upsert; harmless for new paths
+            'x-upsert': 'true',
+            'Upload-Metadata': `objectName ${btoa(initData.object_name)},contentType ${btoa(file.type || 'application/octet-stream')}`
           }
         });
 
@@ -249,17 +258,17 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
           throw new Error('Missing TUS Location header');
         }
 
-        // Upload file with tus-js-client
+        // Upload file with tus-js-client (continue at Location)
         const upload = new TusUpload(file, {
-          endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
+          endpoint: createUrl,
           uploadUrl,
           chunkSize: 6 * 1024 * 1024, // 6MB chunks
-          parallelUploads: 1, // Disable parallel uploads to use uploadUrl
-          retryDelays: [500, 1000, 2000, 4000],
-          headers: { 'Authorization': `Bearer ${token}` },
+          parallelUploads: 3,
+          retryDelays: [500, 1000, 2000],
+          headers: { 'Authorization': `Bearer ${token}`, 'x-upsert': 'true' },
           metadata: {
-            filename: file.name,
-            filetype: file.type || 'application/octet-stream'
+            objectName: initData.object_name,
+            contentType: file.type || 'application/octet-stream'
           },
           onProgress: (sent, total) => {
             const progress = Math.round((sent / total) * 100);
@@ -274,6 +283,14 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
               error: `Upload failed: ${error.message}`
             });
             toast.error(`Upload failed: ${error.message}`);
+            // Auto-fallback to legacy for non-auth failures
+            const status = (error as any)?.originalResponse?.getStatus?.() ?? (error as any)?.status;
+            if (status !== 401 && status !== 403) {
+              const url = new URL(window.location.href);
+              url.searchParams.set('uploadMode', 'legacy');
+              url.searchParams.delete('force');
+              window.location.href = url.toString();
+            }
           },
           onSuccess: async () => {
             setUploadProgress(prev => ({ ...prev, progress: 100 }));

@@ -230,22 +230,22 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
       const initData = await initResponse.json();
       emitUploadEvent('upload_tus_created', { upload_id: initData.upload_id });
 
-      // 2) TUS CREATE + PATCH with token (storage-direct with bucket in path)
+      // 2) TUS CREATE + PATCH with token (generic resumable endpoint + metadata)
       await withUploadToken(async (token) => {
         const bucket: string = initData.bucket || 'tenant-uploads';
-        const objectPath: string = encodeURI(initData.object_name);
-        const createUrl = `${STORAGE_URL}/storage/v1/upload/resumable/object/${bucket}/${objectPath}`;
+        const createUrl = `${STORAGE_URL}/storage/v1/upload/resumable`;
 
-        // Create upload to get Location
+        // base64 helper for Upload-Metadata
+        const b64 = (s: string) => btoa(s);
+
+        // Create upload to get Location (bucket/object via Upload-Metadata)
         const createResponse = await fetch(createUrl, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Tus-Resumable': '1.0.0',
             'Upload-Length': String(file.size),
-            // Optional upsert; harmless for new paths
-            'x-upsert': 'true',
-            'Upload-Metadata': `objectName ${btoa(initData.object_name)},contentType ${btoa(file.type || 'application/octet-stream')}`
+            'Upload-Metadata': `bucketName ${b64(bucket)},objectName ${b64(initData.object_name)},contentType ${b64(file.type || 'application/octet-stream')}`
           }
         });
 
@@ -263,9 +263,9 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
           endpoint: createUrl,
           uploadUrl,
           chunkSize: 6 * 1024 * 1024, // 6MB chunks
-          parallelUploads: 3,
+          parallelUploads: 1,
           retryDelays: [500, 1000, 2000],
-          headers: { 'Authorization': `Bearer ${token}`, 'x-upsert': 'true' },
+          headers: { 'Authorization': `Bearer ${token}` },
           metadata: {
             objectName: initData.object_name,
             contentType: file.type || 'application/octet-stream'

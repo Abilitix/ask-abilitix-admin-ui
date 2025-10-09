@@ -358,7 +358,9 @@ export default function GovernancePage() {
                   {tenants.map((tenant, idx) => (
                     <tr key={tenant.tenant_id} className="border-b hover:bg-muted/50">
                       <td className="py-2 font-mono text-xs" title={tenant.tenant_id}>
-                        {tenant.tenant_id.substring(0, 8)}...
+                        <span className="cursor-pointer" onClick={() => navigator.clipboard.writeText(tenant.tenant_id)}>
+                          {tenant.tenant_id}
+                        </span>
                       </td>
                       <td className="text-right py-2">
                         {tenant.calls.toLocaleString()}

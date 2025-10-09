@@ -217,7 +217,13 @@ export default function SuperadminPage() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                     <Shield className="h-4 w-4" />
-                    {tenant.tenant_id.substring(0, 8)}...
+                    <span 
+                      className="cursor-pointer" 
+                      onClick={() => navigator.clipboard.writeText(tenant.tenant_id)}
+                      title={tenant.tenant_id}
+                    >
+                      {tenant.tenant_id}
+                    </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

@@ -55,7 +55,7 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
   const pathname = usePathname();
   
   // Use role-based navigation filtering
-  const items = userRole ? getVisibleNavItems(userRole, false) : buildNavItems();
+  const items = userRole ? getVisibleNavItems(userRole, false, userEmail) : buildNavItems();
 
   const isActive = (href: string) =>
     pathname === href || (pathname && pathname.startsWith(href + "/"));

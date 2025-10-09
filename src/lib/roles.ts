@@ -100,7 +100,7 @@ export function hasPermission(role: UserRole, permission: keyof RolePermissions)
   return ROLE_PERMISSIONS[role]?.[permission] ?? false;
 }
 
-export function getVisibleNavItems(role: UserRole, isMobile: boolean = false) {
+export function getVisibleNavItems(role: UserRole, isMobile: boolean = false, userEmail?: string) {
   const permissions = ROLE_PERMISSIONS[role];
   
   // Special handling for viewers - only show Test Chat
@@ -118,6 +118,19 @@ export function getVisibleNavItems(role: UserRole, isMobile: boolean = false) {
     { href: "/admin/rag", label: "Test Chat", permission: "canAccessDebug" as keyof RolePermissions, mobileVisible: false },
     { href: "/pilot", label: "Pilot", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: false },
   ];
+
+  // Add superadmin-only pages (email-based check)
+  if (userEmail && typeof window !== 'undefined') {
+    const SUPERADMIN_EMAILS = process.env.NEXT_PUBLIC_SUPERADMIN_EMAILS?.split(',') ?? [];
+    const isSuperAdmin = SUPERADMIN_EMAILS.includes(userEmail);
+    
+    if (isSuperAdmin) {
+      navItems.push(
+        { href: "/admin/governance", label: "Governance", permission: "canAccessSettings" as keyof RolePermissions, mobileVisible: false },
+        { href: "/admin/superadmin", label: "Superadmin", permission: "canAccessSettings" as keyof RolePermissions, mobileVisible: false }
+      );
+    }
+  }
 
   return navItems.filter(item => {
     // Check permission first

@@ -71,3 +71,22 @@ export function canUploadDocs(role: string): boolean {
 export function canApproveInbox(role: string): boolean {
   return hasPermission(role as UserRole, 'canApproveInbox');
 }
+
+export async function requireSuperadminAuth(): Promise<User> {
+  const user = await requireAuth();
+  
+  // Check if user email is in superadmin list (server-side)
+  const SUPERADMIN_EMAILS = process.env.NEXT_PUBLIC_SUPERADMIN_EMAILS?.split(',') ?? [];
+  const isSuperAdmin = SUPERADMIN_EMAILS.includes(user.email);
+  
+  if (!isSuperAdmin) {
+    redirect('/admin/docs?error=insufficient_permissions');
+  }
+  
+  return user;
+}
+
+export function isSuperadmin(email: string): boolean {
+  const SUPERADMIN_EMAILS = process.env.NEXT_PUBLIC_SUPERADMIN_EMAILS?.split(',') ?? [];
+  return SUPERADMIN_EMAILS.includes(email);
+}

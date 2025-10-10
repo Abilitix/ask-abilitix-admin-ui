@@ -302,39 +302,43 @@ export default function ChatInterface({
         {/* Composer */}
         <form
           onSubmit={onSubmit}
-          className="sticky bottom-0 z-[1] flex items-end gap-2 border-t bg-white px-3 py-2"
+          className="sticky bottom-0 z-[1] flex flex-col gap-3 lg:flex-row lg:items-end lg:gap-2 border-t bg-white px-3 py-2"
         >
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask your AI Assistant anything…"
-            className="flex-1 rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200"
-            disabled={sending}
-          />
-          <button
-            type="submit"
-            disabled={sending || input.trim().length === 0}
-            className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-            title="Ask"
-            aria-label="Ask your AI Assistant"
-          >
-            {sending ? "Asking…" : "Ask"}
-          </button>
-
-          <div className="ml-2 inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs">
-            <span>TopK</span>
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:gap-2 lg:flex-1">
             <input
-              type="number"
-              min={1}
-              max={20}
-              value={topK}
-              onChange={(e) =>
-                setTopK(Math.max(1, Math.min(20, parseInt(e.target.value || "8", 10))))
-              }
-              className="w-12 rounded border px-1 py-0.5 text-center"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask your AI Assistant anything…"
+              className="flex-1 rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200"
               disabled={sending}
-              title="Number of sources to search"
             />
+            <button
+              type="submit"
+              disabled={sending || input.trim().length === 0}
+              className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 lg:w-auto"
+              title="Ask"
+              aria-label="Ask your AI Assistant"
+            >
+              {sending ? "Asking…" : "Ask"}
+            </button>
+          </div>
+
+          <div className="flex justify-center lg:ml-2">
+            <div className="inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs">
+              <span>TopK</span>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={topK}
+                onChange={(e) =>
+                  setTopK(Math.max(1, Math.min(20, parseInt(e.target.value || "8", 10))))
+                }
+                className="w-12 rounded border px-1 py-0.5 text-center"
+                disabled={sending}
+                title="Number of sources to search"
+              />
+            </div>
           </div>
         </form>
       </div>

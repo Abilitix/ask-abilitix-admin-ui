@@ -351,7 +351,7 @@ export default function SettingsPage() {
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <Settings className="h-8 w-8 text-blue-600" />
-          <h1 className="text-3xl font-bold">Chatbot Settings</h1>
+          <h1 className="text-3xl font-bold">AI Assistant Settings</h1>
         </div>
         <p className="text-sm text-gray-600">
           Tenant: <Badge variant="outline">{data?.tenant_slug || data?.tenant_name || 'Loading...'}</Badge>
@@ -369,10 +369,10 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Chatbot Configuration
+            AI Assistant Configuration
           </CardTitle>
           <CardDescription>
-            Configure how your chatbot responds to questions and handles different types of content.
+            Configure how your AI Assistant responds to questions and handles different types of content.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
@@ -403,7 +403,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                   <Label className="text-sm text-gray-500">DOC_MIN_SCORE:</Label>
                   <Input
                     type="number"
@@ -447,7 +447,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                   <Label className="text-sm text-gray-500">RAG_TOPK:</Label>
                   <Input
                     type="number"
@@ -491,7 +491,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                   <Label className="text-sm text-gray-500">DOC_VEC_W:</Label>
                   <Input
                     type="number"
@@ -535,7 +535,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                   <Label className="text-sm text-gray-500">DOC_TRGM_W:</Label>
                   <Input
                     type="number"
@@ -578,7 +578,7 @@ export default function SettingsPage() {
                   <option value="keyRequired">Key Required</option>
                 </Select>
                 {advancedMode && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                     <Label className="text-sm text-gray-500">REQUIRE_WIDGET_KEY:</Label>
                     <Select
                       value={form.REQUIRE_WIDGET_KEY ?? 0}

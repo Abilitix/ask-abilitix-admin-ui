@@ -9,13 +9,10 @@ import { type UserRole, getVisibleNavItems } from "@/lib/roles";
 type NavItem = { label: string; href: string };
 
 function buildNavItems(): NavItem[] {
-  const enableNew = process.env.NEXT_PUBLIC_ENABLE_RAG_NEW === "1";
   const showPilot = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";
 
   const base: NavItem[] = [
-    enableNew
-      ? { label: "Test Chat", href: "/admin/rag-new" }
-      : { label: "RAG Testing", href: "/admin/rag" },
+    { label: "AI Assistant", href: "/admin/ai" },
     { label: "Inbox", href: "/admin/inbox" },
     { label: "Docs", href: "/admin/docs" },
     { label: "Settings", href: "/admin/settings" },

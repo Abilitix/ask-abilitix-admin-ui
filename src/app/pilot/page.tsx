@@ -3,8 +3,6 @@ import NoPrefetchLink from "@/components/NoPrefetchLink";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const USE_RAG_NEW = process.env.NEXT_PUBLIC_ENABLE_RAG_NEW !== "0";
-
 // Small helper so each card is a single clickable element
 function QuickLinkCard({
   href,
@@ -39,7 +37,7 @@ function QuickLinkCard({
 }
 
 export default function PilotPage() {
-  const chatHref = USE_RAG_NEW ? "/admin/rag-new" : "/admin/rag";
+  const chatHref = "/admin/ai";
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10">

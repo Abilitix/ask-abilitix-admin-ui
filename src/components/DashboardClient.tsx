@@ -42,22 +42,19 @@ const BASE_CARDS: Card[] = [
   },
 ];
 
-const NEW_RAG_CARD: Card = {
-  key: "rag-new",
-  href: "/admin/rag-new",
-  title: "Test Chat",
-  desc: "Streaming answers; inline sources",
+const AI_CARD: Card = {
+  key: "ai",
+  href: "/admin/ai",
+  title: "AI Assistant",
+  desc: "Chat with intelligent responses and citations",
 };
 
 export default function DashboardClient({ user }: DashboardClientProps) {
-  const enableNew = process.env.NEXT_PUBLIC_ENABLE_RAG_NEW === "1";
   const hideOld = process.env.NEXT_PUBLIC_HIDE_OLD_RAG === "1";
   const showPilot = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";
 
-  let cards: Card[] = [...BASE_CARDS];
-  if (enableNew) {
-    cards = [NEW_RAG_CARD, ...cards];
-  }
+  let cards: Card[] = [AI_CARD, ...BASE_CARDS];
+  
   if (hideOld) {
     cards = cards.filter((c) => c.key !== "rag-classic");
   }
@@ -67,7 +64,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
     cards = cards.filter((card) => {
       switch (card.key) {
         case "rag-classic":
-        case "rag-new":
+        case "ai":
           return hasPermission(user.role, "canAccessDebug");
         case "inbox":
           return hasPermission(user.role, "canAccessInbox");

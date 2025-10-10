@@ -40,7 +40,7 @@ export function RagHitsTable({ hits, topScore, loading }: Props) {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Search className="h-5 w-5" />
-            <span>Chat Results</span>
+            <span>Ask Results</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -72,7 +72,7 @@ export function RagHitsTable({ hits, topScore, loading }: Props) {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Search className="h-5 w-5" />
-            <span>Chat Results</span>
+            <span>Ask Results</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -93,7 +93,7 @@ export function RagHitsTable({ hits, topScore, loading }: Props) {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Search className="h-5 w-5" />
-            <span>Chat Results</span>
+            <span>Ask Results</span>
           </div>
           {topScore && (
             <Badge variant="secondary" className="text-sm">

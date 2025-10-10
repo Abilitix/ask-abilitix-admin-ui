@@ -98,7 +98,7 @@ export function RagNewPageClient({ instanceKey }: Props) {
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Test Chat</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">AI Assistant</h1>
       </div>
 
       {/* Viewer Instructions */}
@@ -127,7 +127,7 @@ export function RagNewPageClient({ instanceKey }: Props) {
 
       {/* Denser-style chat; triggers the table below on each ask */}
       <DenserChat
-        documentTitle="RAG Chat"
+        documentTitle="Ask Assistant"
         uploadHref="/admin/docs"
         askUrl="/api/ask/stream"
         onAsked={runRagSearch}

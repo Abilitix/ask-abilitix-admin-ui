@@ -121,7 +121,7 @@ export default function DenserChat({
       const res = await fetch(`${askUrl}?stream=false`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, topk: topK, session_id: "rag-new" }),
+        body: JSON.stringify({ question, topk: topK, session_id: "ai" }),
       });
       if (!res.ok) throw new Error(`Ask (non-stream) failed: ${res.status}`);
       const json = await res.json();
@@ -144,7 +144,7 @@ export default function DenserChat({
           "Content-Type": "application/json",
           Accept: "text/event-stream",
         },
-        body: JSON.stringify({ question, topk: topK, session_id: "rag-new" }),
+        body: JSON.stringify({ question, topk: topK, session_id: "ai" }),
       });
 
       if (!res.ok || !res.body) {
@@ -248,6 +248,12 @@ export default function DenserChat({
       {/* Chat body */}
       <div className="flex max-h-[65vh] flex-col">
         <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-6">
+          {/* Screen reader announcements */}
+          {sending && (
+            <div aria-live="polite" aria-atomic="true" className="sr-only">
+              Asking your AI Assistant...
+            </div>
+          )}
           {messages.map((m) => {
             const isUser = m.role === "user";
             return (
@@ -301,7 +307,7 @@ export default function DenserChat({
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your question here…"
+            placeholder="Ask your AI Assistant anything…"
             className="flex-1 rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200"
             disabled={sending}
           />
@@ -309,9 +315,10 @@ export default function DenserChat({
             type="submit"
             disabled={sending || input.trim().length === 0}
             className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-            title="Send"
+            title="Ask"
+            aria-label="Ask your AI Assistant"
           >
-            {sending ? "Sending…" : "Send"}
+            {sending ? "Asking…" : "Ask"}
           </button>
 
           <div className="ml-2 inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs">

@@ -42,15 +42,15 @@ export async function middleware(req: NextRequest) {
             
             if (isRestricted) {
               const url = req.nextUrl.clone();
-              url.pathname = "/admin/rag-new";
+              url.pathname = "/admin/ai";
               url.search = "";
               return NextResponse.redirect(url);
             }
             
-            // Redirect dashboard to Test Chat for viewers
+            // Redirect dashboard to AI Assistant for viewers
             if (pathname === '/') {
               const url = req.nextUrl.clone();
-              url.pathname = "/admin/rag-new";
+              url.pathname = "/admin/ai";
               url.search = "";
               return NextResponse.redirect(url);
             }

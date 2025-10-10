@@ -583,7 +583,7 @@ export default function SettingsPage() {
                     <Select
                       value={form.REQUIRE_WIDGET_KEY ?? 0}
                       onChange={(e) => set('REQUIRE_WIDGET_KEY', parseInt(e.target.value))}
-                      className="w-24"
+                      className="w-full sm:w-24"
                     >
                       <option value="0">Disabled</option>
                       <option value="1">Enabled</option>
@@ -611,7 +611,7 @@ export default function SettingsPage() {
                 Show Advanced Settings
               </Label>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-1 break-words">
               Display technical parameter names and allow custom value input
             </p>
           </div>

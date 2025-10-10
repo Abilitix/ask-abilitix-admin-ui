@@ -103,10 +103,10 @@ export function hasPermission(role: UserRole, permission: keyof RolePermissions)
 export function getVisibleNavItems(role: UserRole, isMobile: boolean = false, userEmail?: string) {
   const permissions = ROLE_PERMISSIONS[role];
   
-  // Special handling for viewers - only show Test Chat
+  // Special handling for viewers - only show AI Assistant
   if (role === 'viewer') {
     return [
-      { href: "/admin/rag", label: "Test Chat", permission: "canAccessDebug" as keyof RolePermissions, mobileVisible: true }
+      { href: "/admin/ai", label: "AI Assistant", permission: "canAccessDebug" as keyof RolePermissions, mobileVisible: true }
     ];
   }
   
@@ -115,7 +115,7 @@ export function getVisibleNavItems(role: UserRole, isMobile: boolean = false, us
     { href: "/admin/inbox", label: "Inbox", permission: "canAccessInbox" as keyof RolePermissions, mobileVisible: true },
     { href: "/admin/docs", label: "Docs", permission: "canAccessDocs" as keyof RolePermissions, mobileVisible: true },
     { href: "/admin/settings", label: "Settings", permission: "canAccessSettings" as keyof RolePermissions, mobileVisible: false },
-    { href: "/admin/rag", label: "Test Chat", permission: "canAccessDebug" as keyof RolePermissions, mobileVisible: false },
+    { href: "/admin/ai", label: "AI Assistant", permission: "canAccessDebug" as keyof RolePermissions, mobileVisible: false },
     { href: "/pilot", label: "Pilot", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: false },
   ];
 

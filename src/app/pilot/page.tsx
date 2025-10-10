@@ -87,7 +87,7 @@ export default function PilotPage() {
             <QuickLinkCard
               href={chatHref}
               emoji="💬"
-              title="Test chat"
+              title="AI Assistant"
               tooltip="Ask 10–25 real questions. Watch sources; adjust TopK if answers feel thin."
               className="bg-purple-500 text-white hover:bg-purple-600"
             />

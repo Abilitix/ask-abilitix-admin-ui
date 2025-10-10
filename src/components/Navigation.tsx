@@ -6,7 +6,7 @@ const navigation = [
   { href: '/', label: 'Dashboard', icon: '🏠' },
   { href: '/admin/settings', label: 'Settings', icon: '⚙️' },
   { href: '/admin/docs', label: 'Documents', icon: '📄' },
-  { href: '/admin/rag', label: 'RAG Testing', icon: '🧠' },
+  { href: '/admin/ai', label: 'AI Assistant', icon: '🤖' },
   { href: '/admin/inbox', label: 'Inbox', icon: '📥' },
   { href: '/signup', label: 'Signup', icon: '➕' },
 ];

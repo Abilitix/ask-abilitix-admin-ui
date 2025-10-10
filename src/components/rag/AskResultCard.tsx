@@ -116,7 +116,7 @@ export function AskResultCard({ data, loading, error, streamingAnswer, isStreami
           <div className="text-center py-8">
             <p className="text-muted-foreground">No result yet</p>
             <p className="text-sm text-muted-foreground">
-              Click &quot;Test Chat&quot; to test the Q&A flow
+              Click &quot;AI Assistant&quot; to test the Q&A flow
             </p>
           </div>
         </CardContent>

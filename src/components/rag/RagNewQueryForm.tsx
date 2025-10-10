@@ -84,7 +84,7 @@ export function RagNewQueryForm({ defaultQuery = '', defaultTopK = 8, onTestChat
           ) : (
             <>
               <MessageCircle className="mr-2 h-5 w-5" />
-              Test Chat
+              AI Assistant
             </>
           )}
         </Button>

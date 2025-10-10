@@ -123,7 +123,7 @@ export function RagQueryForm({ defaultQuery = '', defaultTopK = 8, onRun, onAsk 
               ) : (
                 <>
                   <Play className="mr-2 h-4 w-4" />
-                  Test Chat
+                  AI Assistant
                 </>
               )}
             </Button>

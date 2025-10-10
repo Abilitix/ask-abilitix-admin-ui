@@ -403,7 +403,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
                   <Label className="text-sm text-gray-500">DOC_MIN_SCORE:</Label>
                   <Input
                     type="number"
@@ -447,7 +447,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
                   <Label className="text-sm text-gray-500">RAG_TOPK:</Label>
                   <Input
                     type="number"
@@ -491,7 +491,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
                   <Label className="text-sm text-gray-500">DOC_VEC_W:</Label>
                   <Input
                     type="number"
@@ -535,7 +535,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
                   <Label className="text-sm text-gray-500">DOC_TRGM_W:</Label>
                   <Input
                     type="number"
@@ -578,7 +578,7 @@ export default function SettingsPage() {
                   <option value="keyRequired">Key Required</option>
                 </Select>
                 {advancedMode && (
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
                     <Label className="text-sm text-gray-500">REQUIRE_WIDGET_KEY:</Label>
                     <Select
                       value={form.REQUIRE_WIDGET_KEY ?? 0}

@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { stripMarkdown } from "@/lib/text/markdown";
+import { RENDER_MD } from "@/lib/text/flags";
 
 type ChatRole = "user" | "assistant" | "system";
 
@@ -256,6 +258,7 @@ export default function ChatInterface({
           )}
           {messages.map((m) => {
             const isUser = m.role === "user";
+            const displayText = isUser ? m.text : (RENDER_MD ? m.text : stripMarkdown(m.text));
             return (
               <div key={m.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
                 <div
@@ -264,7 +267,7 @@ export default function ChatInterface({
                     isUser ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-900",
                   ].join(" ")}
                 >
-                  <div>{m.text}</div>
+                  <div>{displayText}</div>
 
                   {!isUser && m.sources && m.sources.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">

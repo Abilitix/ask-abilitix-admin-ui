@@ -68,7 +68,7 @@ function extractToken(payload: any, currentEvent: string): string | undefined {
   return undefined;
 }
 
-export default function DenserChat({
+export default function ChatInterface({
   documentTitle = "RAG Chat",
   uploadHref = "/admin/docs",
   defaultTopK = 8,

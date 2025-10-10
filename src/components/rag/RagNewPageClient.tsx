@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import DenserChat from "@/components/rag/DenserChat";
+import ChatInterface from "@/components/rag/ChatInterface";
 import { RagHitsTable, type Hit } from "@/components/rag/RagHitsTable";
 import type { UserRole } from "@/lib/roles";
 
@@ -125,8 +125,8 @@ export function RagNewPageClient({ instanceKey }: Props) {
         </div>
       )}
 
-      {/* Denser-style chat; triggers the table below on each ask */}
-      <DenserChat
+      {/* Modern-style chat; triggers the table below on each ask */}
+      <ChatInterface
         documentTitle="Ask Assistant"
         uploadHref="/admin/docs"
         askUrl="/api/ask/stream"

@@ -391,7 +391,7 @@ export default function SettingsPage() {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
               <Select
                 value={getPresetKey('answerQuality', form.DOC_MIN_SCORE ?? 0.15)}
                 onChange={(e) => setPreset('answerQuality', e.target.value)}
@@ -403,7 +403,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
                   <Label className="text-sm text-gray-500">DOC_MIN_SCORE:</Label>
                   <Input
                     type="number"
@@ -435,7 +435,7 @@ export default function SettingsPage() {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
               <Select
                 value={getPresetKey('answerDetail', form.RAG_TOPK ?? 6)}
                 onChange={(e) => setPreset('answerDetail', e.target.value)}
@@ -447,7 +447,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
                   <Label className="text-sm text-gray-500">RAG_TOPK:</Label>
                   <Input
                     type="number"
@@ -479,7 +479,7 @@ export default function SettingsPage() {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
               <Select
                 value={getPresetKey('understandingFocus', form.DOC_VEC_W ?? 0.6)}
                 onChange={(e) => setPreset('understandingFocus', e.target.value)}
@@ -491,7 +491,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
                   <Label className="text-sm text-gray-500">DOC_VEC_W:</Label>
                   <Input
                     type="number"
@@ -523,7 +523,7 @@ export default function SettingsPage() {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
               <Select
                 value={getPresetKey('typoTolerance', form.DOC_TRGM_W ?? 0.4)}
                 onChange={(e) => setPreset('typoTolerance', e.target.value)}
@@ -535,7 +535,7 @@ export default function SettingsPage() {
                 <option value="custom">Custom</option>
               </Select>
               {advancedMode && (
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
                   <Label className="text-sm text-gray-500">DOC_TRGM_W:</Label>
                   <Input
                     type="number"
@@ -568,7 +568,7 @@ export default function SettingsPage() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
                 <Select
                   value={getPresetKey('widgetSecurity', form.REQUIRE_WIDGET_KEY ?? 0)}
                   onChange={(e) => setPreset('widgetSecurity', e.target.value)}
@@ -578,7 +578,7 @@ export default function SettingsPage() {
                   <option value="keyRequired">Key Required</option>
                 </Select>
                 {advancedMode && (
-                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
                     <Label className="text-sm text-gray-500">REQUIRE_WIDGET_KEY:</Label>
                     <Select
                       value={form.REQUIRE_WIDGET_KEY ?? 0}

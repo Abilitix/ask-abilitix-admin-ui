@@ -346,7 +346,7 @@ export default function SettingsPage() {
 
   return (
     <TooltipProvider>
-      <div className="p-6 max-w-4xl">
+      <div className="p-4 sm:p-6 max-w-4xl">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
@@ -617,7 +617,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-3">
             <Button
               onClick={save}
               disabled={saving}
@@ -703,7 +703,7 @@ export default function SettingsPage() {
           ) : (
             <div className="space-y-3">
               {members.map((member) => (
-                <div key={member.user_id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50">
+                <div key={member.user_id} className="flex flex-col gap-3 p-4 border border-slate-200 rounded-lg hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex-shrink-0">
                       <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">

@@ -302,9 +302,9 @@ export default function ChatInterface({
         {/* Composer */}
         <form
           onSubmit={onSubmit}
-          className="sticky bottom-0 z-[1] flex flex-col gap-3 lg:flex-row lg:items-end lg:gap-2 border-t bg-white px-3 py-2"
+          className="sticky bottom-0 z-[1] bg-white/80 backdrop-blur border-t pt-3 px-3 pb-2"
         >
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:gap-2 lg:flex-1">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -315,29 +315,29 @@ export default function ChatInterface({
             <button
               type="submit"
               disabled={sending || input.trim().length === 0}
-              className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 lg:w-auto"
+              className="w-full sm:w-auto min-h-11 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
               title="Ask"
-              aria-label="Ask your AI Assistant"
+              aria-label="Ask"
             >
               {sending ? "Asking…" : "Ask"}
             </button>
-          </div>
-
-          <div className="flex justify-center lg:ml-2">
-            <div className="inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs">
-              <span>TopK</span>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={topK}
-                onChange={(e) =>
-                  setTopK(Math.max(1, Math.min(20, parseInt(e.target.value || "8", 10))))
-                }
-                className="w-12 rounded border px-1 py-0.5 text-center"
-                disabled={sending}
-                title="Number of sources to search"
-              />
+            
+            <div className="order-last sm:order-none w-full sm:w-auto">
+              <div className="inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs mx-auto sm:mx-0">
+                <span>TopK</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={topK}
+                  onChange={(e) =>
+                    setTopK(Math.max(1, Math.min(20, parseInt(e.target.value || "8", 10))))
+                  }
+                  className="w-12 rounded border px-1 py-0.5 text-center focus:ring-2 focus:ring-blue-200"
+                  disabled={sending}
+                  title="Number of sources to search"
+                />
+              </div>
             </div>
           </div>
         </form>

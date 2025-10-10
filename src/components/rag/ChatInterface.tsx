@@ -333,6 +333,7 @@ export default function ChatInterface({
                   onChange={(e) =>
                     setTopK(Math.max(1, Math.min(20, parseInt(e.target.value || "8", 10))))
                   }
+                  onFocus={(e) => e.target.select()}
                   className="w-12 rounded border px-1 py-0.5 text-center focus:ring-2 focus:ring-blue-200"
                   disabled={sending}
                   title="Number of sources to search"

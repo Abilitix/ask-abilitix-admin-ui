@@ -370,8 +370,8 @@ export default function ChatInterface({
               {sending ? "Asking…" : "Ask"}
             </button>
             
-            <div className="order-last sm:order-none w-full sm:w-auto">
-              <div className="inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs mx-auto sm:mx-0">
+            <div className="order-last sm:order-none w-full sm:w-auto flex justify-center sm:justify-start">
+              <div className="inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs">
                 <span>TopK</span>
                 <input
                   type="number"
@@ -382,17 +382,21 @@ export default function ChatInterface({
                     const newTopK = Math.max(1, Math.min(20, parseInt(e.target.value || "8", 10)));
                     setTopK(newTopK);
                   }}
+                  onKeyDown={(e) => {
+                    // Prevent arrow keys from exceeding limits
+                    if (e.key === 'ArrowUp' && topK >= 20) {
+                      e.preventDefault();
+                    }
+                    if (e.key === 'ArrowDown' && topK <= 1) {
+                      e.preventDefault();
+                    }
+                  }}
                   onFocus={(e) => e.target.select()}
                   className="w-12 rounded border px-1 py-0.5 text-center focus:ring-2 focus:ring-blue-200"
                   disabled={sending}
-                  title={`Number of sources to search (Session max tokens: ${sessionMaxTokens || 'auto'})`}
+                  title="Number of sources to search (1-20)"
                 />
               </div>
-              {sessionMaxTokens && (
-                <div className="text-xs text-gray-500 text-center mt-1 sm:text-left">
-                  Max tokens: {sessionMaxTokens}
-                </div>
-              )}
             </div>
           </div>
         </form>

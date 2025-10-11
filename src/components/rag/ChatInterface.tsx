@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 import { stripMarkdown } from "@/lib/text/markdown";
 import { RENDER_MD } from "@/lib/text/flags";
 
@@ -258,16 +261,28 @@ export default function ChatInterface({
           )}
           {messages.map((m) => {
             const isUser = m.role === "user";
-            const displayText = isUser ? m.text : (RENDER_MD ? m.text : stripMarkdown(m.text));
+            const displayContent = isUser ? (
+              m.text
+            ) : RENDER_MD ? (
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+                className="prose prose-slate max-w-none text-[15px] prose-headings:text-slate-900 prose-strong:text-slate-900 prose-p:text-slate-900 prose-li:text-slate-900 prose-a:text-blue-600 hover:prose-a:text-blue-700"
+              >
+                {m.text}
+              </ReactMarkdown>
+            ) : (
+              stripMarkdown(m.text)
+            );
             return (
               <div key={m.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
                 <div
                   className={[
-                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap break-words",
-                    isUser ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-900",
+                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words",
+                    isUser ? "bg-blue-600 text-white whitespace-pre-wrap" : "bg-slate-100 text-slate-900",
                   ].join(" ")}
                 >
-                  <div>{displayText}</div>
+                  <div>{displayContent}</div>
 
                   {!isUser && m.sources && m.sources.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">

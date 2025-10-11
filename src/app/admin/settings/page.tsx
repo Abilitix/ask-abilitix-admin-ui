@@ -12,8 +12,18 @@ import { toast } from 'sonner';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
 import { ApiErrorCode } from '@/types/errors';
 
-type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; };
+type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; LLM_MAX_OUTPUT_TOKENS?: number; };
 type SettingsResp = { effective: Eff; overrides: Partial<Eff>; tenant_id?: string; tenant_slug?: string; tenant_name?: string; };
+
+// Token sync utility function
+function getTokenLimitForRagTopK(ragTopK: number): number {
+  if (ragTopK <= 2) return 250;
+  if (ragTopK <= 4) return 400;
+  if (ragTopK <= 6) return 600;
+  if (ragTopK <= 8) return 800;
+  if (ragTopK <= 12) return 1000;
+  return 1200; // Max tokens
+}
 
 // User management types
 type Member = {
@@ -105,6 +115,7 @@ export default function SettingsPage() {
       RAG_TOPK: j.effective.RAG_TOPK,
       DOC_VEC_W: j.effective.DOC_VEC_W,
       DOC_TRGM_W: j.effective.DOC_TRGM_W,
+      LLM_MAX_OUTPUT_TOKENS: j.effective.LLM_MAX_OUTPUT_TOKENS ?? getTokenLimitForRagTopK(j.effective.RAG_TOPK),
       ...(supportsGate ? { REQUIRE_WIDGET_KEY: j.effective.REQUIRE_WIDGET_KEY ?? 0 } : {})
     });
   }
@@ -129,16 +140,25 @@ export default function SettingsPage() {
     const technicalKey = mapping[category];
     if (technicalKey) {
       set(technicalKey, value);
+      
+      // Auto-sync tokens when RAG_TOPK changes
+      if (technicalKey === 'RAG_TOPK') {
+        const correspondingTokens = getTokenLimitForRagTopK(value);
+        set('LLM_MAX_OUTPUT_TOKENS', correspondingTokens);
+      }
     }
   }
 
   // Reset to defaults
   function resetToDefaults() {
+    const defaultRagTopK = 6;
+    const defaultTokens = getTokenLimitForRagTopK(defaultRagTopK);
     setForm({
       DOC_MIN_SCORE: 0.15,
-      RAG_TOPK: 6,
+      RAG_TOPK: defaultRagTopK,
       DOC_VEC_W: 0.6,
       DOC_TRGM_W: 0.4,
+      LLM_MAX_OUTPUT_TOKENS: defaultTokens,
       ...(supportsGate ? { REQUIRE_WIDGET_KEY: 0 } : {})
     });
   }
@@ -453,7 +473,13 @@ export default function SettingsPage() {
                     type="number"
                     min="1" max="50" step="1"
                     value={form.RAG_TOPK ?? ''}
-                    onChange={(e) => set('RAG_TOPK', parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const newTopK = parseInt(e.target.value);
+                      set('RAG_TOPK', newTopK);
+                      // Auto-sync tokens when RAG_TOPK changes
+                      const correspondingTokens = getTokenLimitForRagTopK(newTopK);
+                      set('LLM_MAX_OUTPUT_TOKENS', correspondingTokens);
+                    }}
                     className="w-24"
                   />
                 </div>
@@ -596,6 +622,37 @@ export default function SettingsPage() {
               </p>
             </div>
           )}
+
+          {/* LLM Max Output Tokens */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="llm-tokens" className="text-base font-medium">
+                LLM Max Output Tokens
+              </Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Maximum number of tokens the AI can generate in responses. Automatically synced with Answer Detail Level, but can be overridden manually.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
+              <Input
+                type="number"
+                min="100" max="2000" step="50"
+                value={form.LLM_MAX_OUTPUT_TOKENS ?? ''}
+                onChange={(e) => set('LLM_MAX_OUTPUT_TOKENS', parseInt(e.target.value))}
+                className="w-32"
+                placeholder="600"
+              />
+              <span className="text-sm text-gray-500">tokens (auto-synced with Answer Detail Level)</span>
+            </div>
+            <p className="text-sm text-gray-600">
+              Controls response length and detail level. Higher values allow more comprehensive answers but increase token usage.
+            </p>
+          </div>
 
           {/* Advanced Mode Toggle */}
           <div className="pt-4 border-t">

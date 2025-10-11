@@ -7,6 +7,16 @@ import rehypeSanitize from "rehype-sanitize";
 import { stripMarkdown } from "@/lib/text/markdown";
 import { RENDER_MD } from "@/lib/text/flags";
 
+// Token sync utility function
+function getTokenLimitForRagTopK(ragTopK: number): number {
+  if (ragTopK <= 2) return 250;
+  if (ragTopK <= 4) return 400;
+  if (ragTopK <= 6) return 600;
+  if (ragTopK <= 8) return 800;
+  if (ragTopK <= 12) return 1000;
+  return 1200; // Max tokens
+}
+
 type ChatRole = "user" | "assistant" | "system";
 
 type Source = {
@@ -81,12 +91,21 @@ export default function ChatInterface({
   onAsked,
 }: Props) {
   const [topK, setTopK] = React.useState<number>(defaultTopK);
+  const [sessionMaxTokens, setSessionMaxTokens] = React.useState<number | null>(null);
   const [input, setInput] = React.useState("");
   const [sending, setSending] = React.useState(false);
 
   const [messages, setMessages] = React.useState<ChatMsg[]>([
     { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
   ]);
+
+  // Auto-sync tokens when TopK changes (with 50% buffer, capped at 20)
+  React.useEffect(() => {
+    const baseTokens = getTokenLimitForRagTopK(topK);
+    const bufferTokens = Math.floor(baseTokens * 1.5);
+    const cappedTokens = Math.min(bufferTokens, 1200); // Max 1200 tokens
+    setSessionMaxTokens(cappedTokens);
+  }, [topK]);
 
   const chatRef = React.useRef<HTMLDivElement | null>(null);
   const scrollToBottom = React.useCallback(() => {
@@ -126,7 +145,12 @@ export default function ChatInterface({
       const res = await fetch(`${askUrl}?stream=false`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, topk: topK, session_id: "ai" }),
+        body: JSON.stringify({ 
+          question, 
+          topk: topK, 
+          session_id: "ai",
+          ...(sessionMaxTokens ? { max_tokens: sessionMaxTokens } : {})
+        }),
       });
       if (!res.ok) throw new Error(`Ask (non-stream) failed: ${res.status}`);
       const json = await res.json();
@@ -149,7 +173,12 @@ export default function ChatInterface({
           "Content-Type": "application/json",
           Accept: "text/event-stream",
         },
-        body: JSON.stringify({ question, topk: topK, session_id: "ai" }),
+        body: JSON.stringify({ 
+          question, 
+          topk: topK, 
+          session_id: "ai",
+          ...(sessionMaxTokens ? { max_tokens: sessionMaxTokens } : {})
+        }),
       });
 
       if (!res.ok || !res.body) {
@@ -349,15 +378,21 @@ export default function ChatInterface({
                   min={1}
                   max={20}
                   value={topK}
-                  onChange={(e) =>
-                    setTopK(Math.max(1, Math.min(20, parseInt(e.target.value || "8", 10))))
-                  }
+                  onChange={(e) => {
+                    const newTopK = Math.max(1, Math.min(20, parseInt(e.target.value || "8", 10)));
+                    setTopK(newTopK);
+                  }}
                   onFocus={(e) => e.target.select()}
                   className="w-12 rounded border px-1 py-0.5 text-center focus:ring-2 focus:ring-blue-200"
                   disabled={sending}
-                  title="Number of sources to search"
+                  title={`Number of sources to search (Session max tokens: ${sessionMaxTokens || 'auto'})`}
                 />
               </div>
+              {sessionMaxTokens && (
+                <div className="text-xs text-gray-500 text-center mt-1 sm:text-left">
+                  Max tokens: {sessionMaxTokens}
+                </div>
+              )}
             </div>
           </div>
         </form>

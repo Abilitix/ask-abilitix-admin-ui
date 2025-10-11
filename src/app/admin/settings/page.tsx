@@ -12,8 +12,28 @@ import { toast } from 'sonner';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
 import { ApiErrorCode } from '@/types/errors';
 
-type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; LLM_MAX_OUTPUT_TOKENS?: number; };
+type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; LLM_MAX_OUTPUT_TOKENS?: number; PROMPT_TOPK?: number; LLM_MAX_OUTPUT_TOKENS_CEILING?: number; };
 type SettingsResp = { effective: Eff; overrides: Partial<Eff>; tenant_id?: string; tenant_slug?: string; tenant_name?: string; };
+
+// Preset configuration
+const PRESET_MAPPINGS = {
+  'Concise': { PROMPT_TOPK: 3, LLM_MAX_OUTPUT_TOKENS: 300 },
+  'Standard': { PROMPT_TOPK: 4, LLM_MAX_OUTPUT_TOKENS: 500 },
+  'Detailed': { PROMPT_TOPK: 6, LLM_MAX_OUTPUT_TOKENS: 800 },
+  'Comprehensive': { PROMPT_TOPK: 8, LLM_MAX_OUTPUT_TOKENS: 1000 }
+} as const;
+
+type PresetKey = keyof typeof PRESET_MAPPINGS | 'Custom';
+
+// Detect preset from values
+function detectPreset(promptTopK: number, maxTokens: number): PresetKey {
+  for (const [key, values] of Object.entries(PRESET_MAPPINGS)) {
+    if (values.PROMPT_TOPK === promptTopK && values.LLM_MAX_OUTPUT_TOKENS === maxTokens) {
+      return key as PresetKey;
+    }
+  }
+  return 'Custom';
+}
 
 // Token sync utility function
 function getTokenLimitForRagTopK(ragTopK: number): number {
@@ -75,6 +95,21 @@ export default function SettingsPage() {
   const [supportsGate, setSupportsGate] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
   
+  // New preset + sliders state
+  const [presetState, setPresetState] = useState<{
+    promptTopK: number;
+    maxTokens: number;
+    preset: PresetKey;
+    ceiling: number;
+    supportsPromptTopK: boolean;
+  }>({
+    promptTopK: 4,
+    maxTokens: 500,
+    preset: 'Standard',
+    ceiling: 1200,
+    supportsPromptTopK: false
+  });
+  
   // User invitation state
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'curator' | 'viewer'>('viewer');
@@ -118,11 +153,120 @@ export default function SettingsPage() {
       LLM_MAX_OUTPUT_TOKENS: j.effective.LLM_MAX_OUTPUT_TOKENS ?? getTokenLimitForRagTopK(j.effective.RAG_TOPK),
       ...(supportsGate ? { REQUIRE_WIDGET_KEY: j.effective.REQUIRE_WIDGET_KEY ?? 0 } : {})
     });
+    
+    // Initialize preset state
+    const promptTopK = j.effective.PROMPT_TOPK ?? 4;
+    const maxTokens = j.effective.LLM_MAX_OUTPUT_TOKENS ?? 500;
+    const ceiling = j.effective.LLM_MAX_OUTPUT_TOKENS_CEILING ?? 1200;
+    const supportsPromptTopK = j.effective.PROMPT_TOPK !== undefined;
+    
+    setPresetState({
+      promptTopK,
+      maxTokens,
+      preset: detectPreset(promptTopK, maxTokens),
+      ceiling,
+      supportsPromptTopK
+    });
   }
 
   useEffect(() => { load(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, []);
 
+  // Trigger save when preset values change
+  useEffect(() => {
+    if (data) { // Only save after initial load
+      debouncedSavePresetSettings();
+    }
+  }, [presetState.promptTopK, presetState.maxTokens]);
+
   function set<K extends keyof Eff>(k:K, v:any){ setForm(p => ({...p, [k]: v})); }
+
+  // Preset handlers
+  const applyPreset = (presetKey: PresetKey) => {
+    if (presetKey === 'Custom') return;
+    
+    const values = PRESET_MAPPINGS[presetKey as keyof typeof PRESET_MAPPINGS];
+    setPresetState(prev => ({
+      ...prev,
+      promptTopK: values.PROMPT_TOPK,
+      maxTokens: values.LLM_MAX_OUTPUT_TOKENS,
+      preset: presetKey
+    }));
+  };
+
+  const updatePromptTopK = (value: number) => {
+    const clamped = Math.max(1, Math.min(12, value));
+    setPresetState(prev => ({
+      ...prev,
+      promptTopK: clamped,
+      preset: detectPreset(clamped, prev.maxTokens)
+    }));
+  };
+
+  const updateMaxTokens = (value: number) => {
+    const clamped = Math.max(100, Math.min(presetState.ceiling, value));
+    setPresetState(prev => ({
+      ...prev,
+      maxTokens: clamped,
+      preset: detectPreset(prev.promptTopK, clamped)
+    }));
+  };
+
+  const resetToPreset = () => {
+    if (presetState.preset === 'Custom') return;
+    applyPreset(presetState.preset);
+  };
+
+  // Debounced save for preset settings
+  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  const debouncedSavePresetSettings = async () => {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    
+    const timeout = setTimeout(async () => {
+      try {
+        const payload: any = {};
+        const currentPromptTopK = data?.effective?.PROMPT_TOPK ?? 4;
+        const currentMaxTokens = data?.effective?.LLM_MAX_OUTPUT_TOKENS ?? 500;
+        
+        if (presetState.promptTopK !== currentPromptTopK) {
+          payload.PROMPT_TOPK = presetState.promptTopK;
+        }
+        if (presetState.maxTokens !== currentMaxTokens) {
+          payload.LLM_MAX_OUTPUT_TOKENS = presetState.maxTokens;
+        }
+        
+        if (Object.keys(payload).length > 0) {
+          const response = await fetch('/api/admin/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Preset settings save failed:', errorData);
+            return;
+          }
+          
+          // Fire telemetry event
+          if (typeof window !== 'undefined' && (window as any).gtag) {
+            (window as any).gtag('event', 'settings.update', {
+              preset: presetState.preset,
+              prompt_topk: presetState.promptTopK,
+              llm_max_tokens: presetState.maxTokens
+            });
+          }
+          
+          // Reload to get fresh data
+          await load();
+        }
+      } catch (error) {
+        console.error('Error saving preset settings:', error);
+      }
+    }, 400);
+    
+    setSaveTimeout(timeout);
+  };
 
   // Handle preset selection
   function setPreset(category: keyof typeof PRESETS, presetKey: string) {
@@ -623,35 +767,125 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* LLM Max Output Tokens */}
-          <div className="space-y-3">
+          {/* AI Response Configuration */}
+          <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Label htmlFor="llm-tokens" className="text-base font-medium">
-                LLM Max Output Tokens
+              <Label className="text-base font-medium">
+                AI Response Configuration
               </Label>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Maximum number of tokens the AI can generate in responses. Automatically synced with Answer Detail Level, but can be overridden manually.</p>
+                  <p>Configure how comprehensive AI responses are. Presets set both answer length and source count automatically.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
-              <Input
-                type="number"
-                min="100" max="2000" step="50"
-                value={form.LLM_MAX_OUTPUT_TOKENS ?? ''}
-                onChange={(e) => set('LLM_MAX_OUTPUT_TOKENS', parseInt(e.target.value))}
-                className="w-32"
-                placeholder="600"
-              />
-              <span className="text-sm text-gray-500">tokens (auto-synced with Answer Detail Level)</span>
+            
+            {/* Preset Dropdown */}
+            <div className="space-y-2">
+              <Label htmlFor="preset" className="text-sm font-medium">Response Style</Label>
+              <Select
+                value={presetState.preset}
+                onChange={(e) => applyPreset(e.target.value as PresetKey)}
+                className="w-48"
+              >
+                <option value="Concise">Concise</option>
+                <option value="Standard">Standard</option>
+                <option value="Detailed">Detailed</option>
+                <option value="Comprehensive">Comprehensive</option>
+                <option value="Custom">Custom</option>
+              </Select>
+              {presetState.preset === 'Custom' && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={resetToPreset}
+                    className="text-xs text-blue-600 hover:text-blue-700 underline"
+                  >
+                    Reset to preset
+                  </button>
+                </div>
+              )}
             </div>
-            <p className="text-sm text-gray-600">
-              Controls response length and detail level. Higher values allow more comprehensive answers but increase token usage.
-            </p>
+
+            {/* Sliders */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Max Answer Length */}
+              <div className="space-y-3">
+                <Label htmlFor="max-tokens" className="text-sm font-medium">
+                  Max Answer Length
+                </Label>
+                <div className="space-y-2">
+                  <input
+                    type="range"
+                    min="100"
+                    max={presetState.ceiling}
+                    step="50"
+                    value={presetState.maxTokens}
+                    onChange={(e) => updateMaxTokens(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>100</span>
+                    <span className="font-medium">{presetState.maxTokens}</span>
+                    <span>{presetState.ceiling}</span>
+                  </div>
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p className="text-xs text-gray-600 cursor-help">
+                      Upper limit on tokens generated
+                    </p>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Controls how long AI responses can be. Higher values allow more detailed answers.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+
+              {/* Sources in Prompt */}
+              {presetState.supportsPromptTopK && (
+                <div className="space-y-3">
+                  <Label htmlFor="prompt-topk" className="text-sm font-medium">
+                    Sources in Prompt
+                  </Label>
+                  <div className="space-y-2">
+                    <input
+                      type="range"
+                      min="1"
+                      max="12"
+                      step="1"
+                      value={presetState.promptTopK}
+                      onChange={(e) => updatePromptTopK(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>1</span>
+                      <span className="font-medium">{presetState.promptTopK}</span>
+                      <span>12</span>
+                    </div>
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <p className="text-xs text-gray-600 cursor-help">
+                        Number of document chunks included in the prompt
+                      </p>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>More sources provide richer context but increase processing time.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+            </div>
+
+            {/* Linked Controls Badge */}
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span>🔗</span>
+              <span>Linked controls. Editing flips to Custom.</span>
+            </div>
           </div>
 
           {/* Advanced Mode Toggle */}

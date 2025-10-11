@@ -257,8 +257,7 @@ export default function SettingsPage() {
             });
           }
           
-          // Reload to get fresh data
-          await load();
+          // No need to reload - we just saved these values
         }
       } catch (error) {
         console.error('Error saving preset settings:', error);

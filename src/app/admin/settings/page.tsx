@@ -237,7 +237,7 @@ export default function SettingsPage() {
         
         if (Object.keys(payload).length > 0) {
           const response = await fetch('/api/admin/settings', {
-            method: 'PATCH',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });

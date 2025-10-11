@@ -264,13 +264,14 @@ export default function ChatInterface({
             const displayContent = isUser ? (
               m.text
             ) : RENDER_MD ? (
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeSanitize]}
-                className="prose prose-slate max-w-none text-[15px] prose-headings:text-slate-900 prose-strong:text-slate-900 prose-p:text-slate-900 prose-li:text-slate-900 prose-a:text-blue-600 hover:prose-a:text-blue-700"
-              >
-                {m.text}
-              </ReactMarkdown>
+              <div className="prose prose-slate max-w-none text-[15px] prose-headings:text-slate-900 prose-strong:text-slate-900 prose-p:text-slate-900 prose-li:text-slate-900 prose-a:text-blue-600 hover:prose-a:text-blue-700">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeSanitize]}
+                >
+                  {m.text}
+                </ReactMarkdown>
+              </div>
             ) : (
               stripMarkdown(m.text)
             );

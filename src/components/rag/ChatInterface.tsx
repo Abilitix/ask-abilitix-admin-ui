@@ -17,6 +17,13 @@ function getTokenLimitForRagTopK(ragTopK: number): number {
   return 1200; // Max tokens
 }
 
+// Governance calculation helper
+function getGovernanceMaxTopK(settingsTopK: number | null): number {
+  if (!settingsTopK) return 20; // Fallback to current behavior
+  const bufferTopK = Math.floor(settingsTopK * 1.5); // 50% buffer
+  return Math.min(20, bufferTopK); // Cap at 20, but respect governance
+}
+
 type ChatRole = "user" | "assistant" | "system";
 
 type Source = {
@@ -92,12 +99,33 @@ export default function ChatInterface({
 }: Props) {
   const [topK, setTopK] = React.useState<number>(defaultTopK);
   const [sessionMaxTokens, setSessionMaxTokens] = React.useState<number | null>(null);
+  const [tenantSettings, setTenantSettings] = React.useState<{RAG_TOPK: number} | null>(null);
   const [input, setInput] = React.useState("");
   const [sending, setSending] = React.useState(false);
 
   const [messages, setMessages] = React.useState<ChatMsg[]>([
     { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
   ]);
+
+  // Fetch tenant settings on mount (additive enhancement)
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch('/api/admin/settings', { cache: 'no-store' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.effective?.RAG_TOPK) {
+            setTenantSettings({ RAG_TOPK: data.effective.RAG_TOPK });
+            setTopK(data.effective.RAG_TOPK); // Use Settings value as starting point
+          }
+        }
+      } catch (error) {
+        // Silent fallback - use defaultTopK if API fails
+        console.debug('Settings fetch failed, using default:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // Auto-sync tokens when TopK changes (with 50% buffer, capped at 20)
   React.useEffect(() => {
@@ -370,21 +398,23 @@ export default function ChatInterface({
               {sending ? "Asking…" : "Ask"}
             </button>
             
-            <div className="order-last sm:order-none w-full sm:w-auto flex justify-center sm:justify-start">
-              <div className="inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs">
+            <div className="order-last sm:order-none w-full sm:w-auto">
+              <div className="inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs mx-auto sm:mx-0">
                 <span>TopK</span>
                 <input
                   type="number"
                   min={1}
-                  max={20}
+                  max={getGovernanceMaxTopK(tenantSettings?.RAG_TOPK ?? null)}
                   value={topK}
                   onChange={(e) => {
-                    const newTopK = Math.max(1, Math.min(20, parseInt(e.target.value || "8", 10)));
+                    const governanceMax = getGovernanceMaxTopK(tenantSettings?.RAG_TOPK ?? null);
+                    const newTopK = Math.max(1, Math.min(governanceMax, parseInt(e.target.value || "8", 10)));
                     setTopK(newTopK);
                   }}
                   onKeyDown={(e) => {
-                    // Prevent arrow keys from exceeding limits
-                    if (e.key === 'ArrowUp' && topK >= 20) {
+                    // Prevent arrow keys from exceeding governance limits
+                    const governanceMax = getGovernanceMaxTopK(tenantSettings?.RAG_TOPK ?? null);
+                    if (e.key === 'ArrowUp' && topK >= governanceMax) {
                       e.preventDefault();
                     }
                     if (e.key === 'ArrowDown' && topK <= 1) {
@@ -394,7 +424,7 @@ export default function ChatInterface({
                   onFocus={(e) => e.target.select()}
                   className="w-12 rounded border px-1 py-0.5 text-center focus:ring-2 focus:ring-blue-200"
                   disabled={sending}
-                  title="Number of sources to search (1-20)"
+                  title={`Number of sources to search (1-${getGovernanceMaxTopK(tenantSettings?.RAG_TOPK ?? null)})`}
                 />
               </div>
             </div>

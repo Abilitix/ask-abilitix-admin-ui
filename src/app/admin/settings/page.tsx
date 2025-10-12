@@ -172,6 +172,10 @@ export default function SettingsPage() {
 
   useEffect(() => { load(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, []);
 
+  // Debounced save state
+  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isSettingPreset, setIsSettingPreset] = useState(false);
+
   // Trigger save when preset values change (but not during preset selection)
   useEffect(() => {
     if (data && !isSettingPreset) { // Only save after initial load and not during preset selection
@@ -266,10 +270,6 @@ export default function SettingsPage() {
     applyPreset(presetState.preset);
   };
 
-  // Debounced save for preset settings
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [isSettingPreset, setIsSettingPreset] = useState(false);
-  
   const debouncedSavePresetSettings = async () => {
     if (saveTimeout) clearTimeout(saveTimeout);
     

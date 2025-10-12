@@ -145,15 +145,29 @@ export default function SettingsPage() {
     const j: SettingsResp & { effective: Eff } = await r.json();
     setData(j);
     setSupportsGate(Object.prototype.hasOwnProperty.call(j.effective, 'REQUIRE_WIDGET_KEY'));
-    setForm({
+    
+    // Debug logging
+    console.log('Load Debug - Backend values:', {
       DOC_MIN_SCORE: j.effective.DOC_MIN_SCORE,
       RAG_TOPK: j.effective.RAG_TOPK,
-      DOC_VEC_W: j.effective.DOC_VEC_W,
-      DOC_TRGM_W: j.effective.DOC_TRGM_W,
-      LLM_MAX_OUTPUT_TOKENS: j.effective.LLM_MAX_OUTPUT_TOKENS ?? getTokenLimitForRagTopK(j.effective.RAG_TOPK),
-      PROMPT_TOPK: j.effective.PROMPT_TOPK ?? 4,
-      ...(supportsGate ? { REQUIRE_WIDGET_KEY: j.effective.REQUIRE_WIDGET_KEY ?? 0 } : {})
+      LLM_MAX_OUTPUT_TOKENS: j.effective.LLM_MAX_OUTPUT_TOKENS,
+      PROMPT_TOPK: j.effective.PROMPT_TOPK
     });
+    
+    // Only update form if not currently setting a preset (prevents conflicts)
+    if (!isSettingPreset) {
+      // Preserve existing form state to prevent overwriting user changes
+      setForm(prev => ({
+        ...prev,
+        DOC_MIN_SCORE: j.effective.DOC_MIN_SCORE,
+        RAG_TOPK: j.effective.RAG_TOPK,
+        DOC_VEC_W: j.effective.DOC_VEC_W,
+        DOC_TRGM_W: j.effective.DOC_TRGM_W,
+        LLM_MAX_OUTPUT_TOKENS: j.effective.LLM_MAX_OUTPUT_TOKENS ?? getTokenLimitForRagTopK(j.effective.RAG_TOPK),
+        PROMPT_TOPK: j.effective.PROMPT_TOPK ?? 4,
+        ...(supportsGate ? { REQUIRE_WIDGET_KEY: j.effective.REQUIRE_WIDGET_KEY ?? 0 } : {})
+      }));
+    }
     
     // Initialize preset state
     const promptTopK = j.effective.PROMPT_TOPK ?? 4;
@@ -411,6 +425,14 @@ export default function SettingsPage() {
   async function save() {
     setSaving(true); setErr(null);
     try {
+      // Debug logging
+      console.log('Save Debug - Form values:', {
+        DOC_MIN_SCORE: form.DOC_MIN_SCORE,
+        RAG_TOPK: form.RAG_TOPK,
+        LLM_MAX_OUTPUT_TOKENS: form.LLM_MAX_OUTPUT_TOKENS,
+        PROMPT_TOPK: form.PROMPT_TOPK
+      });
+      
       const r = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

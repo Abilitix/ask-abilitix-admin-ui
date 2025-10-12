@@ -140,6 +140,9 @@ export default function SettingsPage() {
   }
 
   async function load() {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] Load Debug - Starting load() call`);
+    
     setErr(null);
     const r = await fetch('/api/admin/settings', { cache: 'no-store' });
     const j: SettingsResp & { effective: Eff } = await r.json();
@@ -147,15 +150,17 @@ export default function SettingsPage() {
     setSupportsGate(Object.prototype.hasOwnProperty.call(j.effective, 'REQUIRE_WIDGET_KEY'));
     
     // Debug logging
-    console.log('Load Debug - Backend values:', {
+    console.log(`[${timestamp}] Load Debug - Backend values:`, {
       DOC_MIN_SCORE: j.effective.DOC_MIN_SCORE,
       RAG_TOPK: j.effective.RAG_TOPK,
       LLM_MAX_OUTPUT_TOKENS: j.effective.LLM_MAX_OUTPUT_TOKENS,
-      PROMPT_TOPK: j.effective.PROMPT_TOPK
+      PROMPT_TOPK: j.effective.PROMPT_TOPK,
+      isSettingPreset
     });
     
     // Only update form if not currently setting a preset (prevents conflicts)
     if (!isSettingPreset) {
+      console.log(`[${timestamp}] Load Debug - Updating form state (isSettingPreset=false)`);
       // Preserve existing form state to prevent overwriting user changes
       setForm(prev => ({
         ...prev,
@@ -167,6 +172,8 @@ export default function SettingsPage() {
         PROMPT_TOPK: j.effective.PROMPT_TOPK ?? 4,
         ...(supportsGate ? { REQUIRE_WIDGET_KEY: j.effective.REQUIRE_WIDGET_KEY ?? 0 } : {})
       }));
+    } else {
+      console.log(`[${timestamp}] Load Debug - Skipping form update (isSettingPreset=true)`);
     }
     
     // Initialize preset state
@@ -182,6 +189,8 @@ export default function SettingsPage() {
       ceiling,
       supportsPromptTopK
     });
+    
+    console.log(`[${timestamp}] Load Debug - Load complete`);
   }
 
   useEffect(() => { load(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, []);
@@ -192,9 +201,20 @@ export default function SettingsPage() {
 
   // Trigger save when preset values change (but not during preset selection)
   useEffect(() => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] UseEffect Debug - Triggered by:`, {
+      promptTopK: presetState.promptTopK,
+      maxTokens: presetState.maxTokens,
+      isSettingPreset,
+      hasData: !!data
+    });
+    
     if (data && !isSettingPreset) { // Only save after initial load and not during preset selection
+      console.log(`[${timestamp}] UseEffect Debug - Calling debouncedSavePresetSettings()`);
       // Only save for manual slider changes, not preset selections
       debouncedSavePresetSettings();
+    } else {
+      console.log(`[${timestamp}] UseEffect Debug - Skipping debouncedSavePresetSettings() - data: ${!!data}, isSettingPreset: ${isSettingPreset}`);
     }
   }, [presetState.promptTopK, presetState.maxTokens, isSettingPreset]);
 
@@ -251,7 +271,11 @@ export default function SettingsPage() {
   };
 
   const updatePromptTopK = (value: number) => {
+    const timestamp = new Date().toISOString();
     const clamped = Math.max(1, Math.min(12, value));
+    
+    console.log(`[${timestamp}] UpdatePromptTopK Debug - Value: ${value}, Clamped: ${clamped}`);
+    
     setPresetState(prev => ({
       ...prev,
       promptTopK: clamped,
@@ -259,14 +283,21 @@ export default function SettingsPage() {
     }));
     
     // Sync to form state for main save button
-    setForm(prev => ({
-      ...prev,
-      PROMPT_TOPK: clamped
-    }));
+    setForm(prev => {
+      console.log(`[${timestamp}] UpdatePromptTopK Debug - Syncing to form: PROMPT_TOPK = ${clamped}`);
+      return {
+        ...prev,
+        PROMPT_TOPK: clamped
+      };
+    });
   };
 
   const updateMaxTokens = (value: number) => {
+    const timestamp = new Date().toISOString();
     const clamped = Math.max(100, Math.min(presetState.ceiling, value));
+    
+    console.log(`[${timestamp}] UpdateMaxTokens Debug - Value: ${value}, Clamped: ${clamped}, Ceiling: ${presetState.ceiling}`);
+    
     setPresetState(prev => ({
       ...prev,
       maxTokens: clamped,
@@ -274,10 +305,13 @@ export default function SettingsPage() {
     }));
     
     // Sync to form state for main save button
-    setForm(prev => ({
-      ...prev,
-      LLM_MAX_OUTPUT_TOKENS: clamped
-    }));
+    setForm(prev => {
+      console.log(`[${timestamp}] UpdateMaxTokens Debug - Syncing to form: LLM_MAX_OUTPUT_TOKENS = ${clamped}`);
+      return {
+        ...prev,
+        LLM_MAX_OUTPUT_TOKENS: clamped
+      };
+    });
   };
 
   const resetToPreset = () => {
@@ -439,7 +473,9 @@ export default function SettingsPage() {
         cache: 'no-store'
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      await load();
+      
+      // Remove await load() to prevent state overwrite - use optimistic updates
+      console.log('Save Debug - Success, keeping form state intact');
     } catch (e) {
       setErr(String(e));
     } finally {

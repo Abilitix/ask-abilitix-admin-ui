@@ -179,6 +179,7 @@ export default function SettingsPage() {
   // Trigger save when preset values change (but not during preset selection)
   useEffect(() => {
     if (data && !isSettingPreset) { // Only save after initial load and not during preset selection
+      // Only save for manual slider changes, not preset selections
       debouncedSavePresetSettings();
     }
   }, [presetState.promptTopK, presetState.maxTokens, isSettingPreset]);
@@ -308,7 +309,8 @@ export default function SettingsPage() {
             });
           }
           
-          // No need to reload - we just saved these values
+          // Reload to sync data state with what we just saved
+          await load();
         }
       } catch (error) {
         console.error('Error saving preset settings:', error);

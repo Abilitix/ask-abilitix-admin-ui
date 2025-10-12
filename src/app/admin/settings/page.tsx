@@ -323,8 +323,7 @@ export default function SettingsPage() {
             });
           }
           
-          // Reload to sync data state with what we just saved
-          await load();
+          // No need to reload - we just saved these values and they're already in state
         }
       } catch (error) {
         console.error('Error saving preset settings:', error);

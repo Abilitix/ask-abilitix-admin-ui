@@ -102,6 +102,14 @@ export default function ChatInterface({
   const [tenantSettings, setTenantSettings] = React.useState<{RAG_TOPK: number} | null>(null);
   const [input, setInput] = React.useState("");
   const [sending, setSending] = React.useState(false);
+  
+  // Generate unique session ID for conversation memory (additive enhancement)
+  const [sessionId] = React.useState(() => `ai-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  
+  // Debug logging for session memory
+  React.useEffect(() => {
+    console.log('ChatInterface Debug - Session ID generated:', sessionId);
+  }, [sessionId]);
 
   const [messages, setMessages] = React.useState<ChatMsg[]>([
     { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
@@ -170,15 +178,19 @@ export default function ChatInterface({
 
     // Non-stream fallback
     const askNonStreaming = async () => {
+      const requestPayload = { 
+        question, 
+        topk: topK, 
+        session_id: sessionId,
+        ...(sessionMaxTokens ? { max_tokens: sessionMaxTokens } : {})
+      };
+      
+      console.log('ChatInterface Debug - Non-stream request:', requestPayload);
+      
       const res = await fetch(`${askUrl}?stream=false`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          question, 
-          topk: topK, 
-          session_id: "ai",
-          ...(sessionMaxTokens ? { max_tokens: sessionMaxTokens } : {})
-        }),
+        body: JSON.stringify(requestPayload),
       });
       if (!res.ok) throw new Error(`Ask (non-stream) failed: ${res.status}`);
       const json = await res.json();
@@ -195,18 +207,22 @@ export default function ChatInterface({
     };
 
     try {
+      const streamingPayload = { 
+        question, 
+        topk: topK, 
+        session_id: sessionId,
+        ...(sessionMaxTokens ? { max_tokens: sessionMaxTokens } : {})
+      };
+      
+      console.log('ChatInterface Debug - Streaming request:', streamingPayload);
+      
       const res = await fetch(askUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
         },
-        body: JSON.stringify({ 
-          question, 
-          topk: topK, 
-          session_id: "ai",
-          ...(sessionMaxTokens ? { max_tokens: sessionMaxTokens } : {})
-        }),
+        body: JSON.stringify(streamingPayload),
       });
 
       if (!res.ok || !res.body) {

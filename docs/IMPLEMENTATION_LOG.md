@@ -644,4 +644,44 @@ TopK Range  → Base Tokens → Session Tokens (50% buffer, capped at 1200)
 
 ---
 
+## **December 11, 2024 - Settings UI Slider Persistence Fix**
+
+### **Problem:**
+Settings page sliders (Max Answer Length, Sources in Prompt) were resetting to default values after saving and page reloads. Users would move sliders, save settings, navigate away, and return to find sliders back at default positions.
+
+### **Root Cause:**
+Backend Pydantic model was missing required fields (`LLM_MAX_OUTPUT_TOKENS`, `PROMPT_TOPK`, `REQUIRE_WIDGET_KEY`), causing 422 validation errors when UI tried to save these settings. The errors were silent, making it appear as a frontend state management issue.
+
+### **Solution:**
+**Backend Fix:** Added missing fields to Pydantic model for both PUT and PATCH endpoints.
+
+**Frontend Enhancements:**
+- Added comprehensive debug logging with timestamps for all state changes
+- Removed `await load()` from `save()` function to prevent state overwrites
+- Added `isSettingPreset` guard to prevent rehydration conflicts
+- Enhanced state preservation in `load()` function using `setForm(prev => ({ ...prev, ... }))`
+- Added optimistic updates instead of post-save reloads
+
+### **Technical Details:**
+- **Files Modified:** `src/app/admin/settings/page.tsx`, `src/app/api/ask/stream/route.ts`
+- **Key Changes:** State management improvements, debug logging, parameter forwarding
+- **API Integration:** Enhanced ask API to forward `max_tokens` and `topk` parameters
+- **Error Handling:** Added comprehensive logging for troubleshooting
+
+### **Testing Results:**
+- ✅ Slider positions persist after save and page reload
+- ✅ Preset selection works correctly without resetting to "Standard"
+- ✅ Save button includes all preset changes
+- ✅ Runtime receives token limits from settings page
+- ✅ Reset button uses Admin API defaults with UI fallback
+- ✅ No breaking changes to existing functionality
+
+### **Impact:**
+- **User Experience:** Settings now persist correctly across sessions
+- **Development:** Enhanced debugging capabilities for future troubleshooting
+- **Architecture:** Improved state management and API integration
+- **Reliability:** Eliminated silent backend errors affecting UI behavior
+
+---
+
 *This document should be updated whenever significant changes are made to the codebase.*

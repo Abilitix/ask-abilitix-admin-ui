@@ -151,6 +151,7 @@ export default function SettingsPage() {
       DOC_VEC_W: j.effective.DOC_VEC_W,
       DOC_TRGM_W: j.effective.DOC_TRGM_W,
       LLM_MAX_OUTPUT_TOKENS: j.effective.LLM_MAX_OUTPUT_TOKENS ?? getTokenLimitForRagTopK(j.effective.RAG_TOPK),
+      PROMPT_TOPK: j.effective.PROMPT_TOPK ?? 4,
       ...(supportsGate ? { REQUIRE_WIDGET_KEY: j.effective.REQUIRE_WIDGET_KEY ?? 0 } : {})
     });
     
@@ -171,12 +172,12 @@ export default function SettingsPage() {
 
   useEffect(() => { load(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, []);
 
-  // Trigger save when preset values change
+  // Trigger save when preset values change (but not during preset selection)
   useEffect(() => {
-    if (data) { // Only save after initial load
+    if (data && !isSettingPreset) { // Only save after initial load and not during preset selection
       debouncedSavePresetSettings();
     }
-  }, [presetState.promptTopK, presetState.maxTokens]);
+  }, [presetState.promptTopK, presetState.maxTokens, isSettingPreset]);
 
   function set<K extends keyof Eff>(k:K, v:any){ setForm(p => ({...p, [k]: v})); }
 
@@ -184,6 +185,7 @@ export default function SettingsPage() {
   const applyPreset = (presetKey: PresetKey) => {
     if (presetKey === 'Custom') return;
     
+    setIsSettingPreset(true);
     const values = PRESET_MAPPINGS[presetKey as keyof typeof PRESET_MAPPINGS];
     setPresetState(prev => ({
       ...prev,
@@ -191,6 +193,42 @@ export default function SettingsPage() {
       maxTokens: values.LLM_MAX_OUTPUT_TOKENS,
       preset: presetKey
     }));
+    
+    // Sync preset values into form state for main save button
+    setForm(prev => ({
+      ...prev,
+      PROMPT_TOPK: values.PROMPT_TOPK,
+      LLM_MAX_OUTPUT_TOKENS: values.LLM_MAX_OUTPUT_TOKENS
+    }));
+    
+    // Save immediately for presets
+    setTimeout(async () => {
+      try {
+        const response = await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            PROMPT_TOPK: values.PROMPT_TOPK,
+            LLM_MAX_OUTPUT_TOKENS: values.LLM_MAX_OUTPUT_TOKENS
+          })
+        });
+        
+        if (response.ok) {
+          // Fire telemetry event
+          if (typeof window !== 'undefined' && (window as any).gtag) {
+            (window as any).gtag('event', 'settings.update', {
+              preset: presetKey,
+              prompt_topk: values.PROMPT_TOPK,
+              llm_max_tokens: values.LLM_MAX_OUTPUT_TOKENS
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error saving preset:', error);
+      } finally {
+        setIsSettingPreset(false);
+      }
+    }, 100);
   };
 
   const updatePromptTopK = (value: number) => {
@@ -199,6 +237,12 @@ export default function SettingsPage() {
       ...prev,
       promptTopK: clamped,
       preset: detectPreset(clamped, prev.maxTokens)
+    }));
+    
+    // Sync to form state for main save button
+    setForm(prev => ({
+      ...prev,
+      PROMPT_TOPK: clamped
     }));
   };
 
@@ -209,6 +253,12 @@ export default function SettingsPage() {
       maxTokens: clamped,
       preset: detectPreset(prev.promptTopK, clamped)
     }));
+    
+    // Sync to form state for main save button
+    setForm(prev => ({
+      ...prev,
+      LLM_MAX_OUTPUT_TOKENS: clamped
+    }));
   };
 
   const resetToPreset = () => {
@@ -218,6 +268,7 @@ export default function SettingsPage() {
 
   // Debounced save for preset settings
   const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isSettingPreset, setIsSettingPreset] = useState(false);
   
   const debouncedSavePresetSettings = async () => {
     if (saveTimeout) clearTimeout(saveTimeout);
@@ -292,18 +343,67 @@ export default function SettingsPage() {
     }
   }
 
-  // Reset to defaults
-  function resetToDefaults() {
-    const defaultRagTopK = 6;
-    const defaultTokens = getTokenLimitForRagTopK(defaultRagTopK);
-    setForm({
-      DOC_MIN_SCORE: 0.15,
-      RAG_TOPK: defaultRagTopK,
+  // Reset to defaults - try Admin API first, fallback to UI defaults
+  async function resetToDefaults() {
+    // UI fallback defaults (used if Admin API call fails)
+    const fallbackDefaults = {
+      DOC_MIN_SCORE: 0.24,
+      RAG_TOPK: 6,
       DOC_VEC_W: 0.6,
       DOC_TRGM_W: 0.4,
-      LLM_MAX_OUTPUT_TOKENS: defaultTokens,
-      ...(supportsGate ? { REQUIRE_WIDGET_KEY: 0 } : {})
-    });
+      PROMPT_TOPK: 4,
+      LLM_MAX_OUTPUT_TOKENS: getTokenLimitForRagTopK(6),
+      REQUIRE_WIDGET_KEY: 0
+    };
+    
+    try {
+      // Try to fetch environment defaults from Admin API
+      const response = await fetch('/api/admin/settings', { cache: 'no-store' });
+      if (response.ok) {
+        const freshData = await response.json();
+        
+        // Use environment_defaults for reset (true system defaults)
+        const defaults = freshData.environment_defaults || freshData.effective;
+        const defaultTokens = getTokenLimitForRagTopK(defaults.RAG_TOPK);
+        
+        setForm({
+          DOC_MIN_SCORE: defaults.DOC_MIN_SCORE,
+          RAG_TOPK: defaults.RAG_TOPK,
+          DOC_VEC_W: defaults.DOC_VEC_W,
+          DOC_TRGM_W: defaults.DOC_TRGM_W,
+          LLM_MAX_OUTPUT_TOKENS: defaults.LLM_MAX_OUTPUT_TOKENS ?? defaultTokens,
+          PROMPT_TOPK: defaults.PROMPT_TOPK ?? 4,
+          ...(supportsGate ? { REQUIRE_WIDGET_KEY: defaults.REQUIRE_WIDGET_KEY ?? 0 } : {})
+        });
+        
+        // Also reset preset state to match
+        setPresetState({
+          promptTopK: defaults.PROMPT_TOPK ?? 4,
+          maxTokens: defaults.LLM_MAX_OUTPUT_TOKENS ?? 500,
+          preset: detectPreset(defaults.PROMPT_TOPK ?? 4, defaults.LLM_MAX_OUTPUT_TOKENS ?? 500),
+          ceiling: defaults.LLM_MAX_OUTPUT_TOKENS_CEILING ?? 1200,
+          supportsPromptTopK: defaults.PROMPT_TOPK !== undefined
+        });
+      } else {
+        throw new Error('Admin API not available');
+      }
+    } catch (error) {
+      console.warn('Failed to fetch defaults from Admin API, using fallback:', error);
+      
+      // Fallback to UI defaults
+      setForm({
+        ...fallbackDefaults,
+        ...(supportsGate ? { REQUIRE_WIDGET_KEY: fallbackDefaults.REQUIRE_WIDGET_KEY } : {})
+      });
+      
+      setPresetState({
+        promptTopK: fallbackDefaults.PROMPT_TOPK,
+        maxTokens: fallbackDefaults.LLM_MAX_OUTPUT_TOKENS,
+        preset: 'Standard',
+        ceiling: 1200,
+        supportsPromptTopK: true
+      });
+    }
   }
 
   async function save() {

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { question, session_id } = body;
+    const { question, session_id, max_tokens, topk } = body;
     const { searchParams } = new URL(req.url);
     const stream = searchParams.get('stream') !== 'false'; // Default to streaming unless explicitly disabled
 
@@ -56,6 +56,8 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         question,
         session_id: session_id || 'ui-rag-stream',
+        ...(max_tokens ? { max_tokens } : {}),
+        ...(topk ? { topk } : {}),
       }),
     });
 

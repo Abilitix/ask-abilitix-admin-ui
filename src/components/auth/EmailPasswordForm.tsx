@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface PasswordValidation {
   length: boolean;
@@ -130,14 +129,14 @@ export default function EmailPasswordForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle>Sign in with Email</CardTitle>
-        <CardDescription>
+    <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-lg p-6">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Sign in with Email</h2>
+        <p className="text-sm text-gray-600">
           Enter your email and password to access your workspace
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
+      </div>
+      <div>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Email Field */}
           <div className="space-y-2">
@@ -199,7 +198,7 @@ export default function EmailPasswordForm() {
                 </div>
                 <div className={`flex items-center ${passwordValidation.symbols ? 'text-green-600' : 'text-red-500'}`}>
                   <span className="mr-2">{passwordValidation.symbols ? '✓' : '✗'}</span>
-                  One symbol (!@#$%^&*()_+-=[]{}|;:,.<>?)
+                  One symbol (special characters)
                 </div>
               </div>
             )}
@@ -250,7 +249,7 @@ export default function EmailPasswordForm() {
             Forgot your password?
           </a>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

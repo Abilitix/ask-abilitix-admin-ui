@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
 import { ApiErrorCode } from '@/types/errors';
-// import EmailPasswordForm from '@/components/auth/EmailPasswordForm';
+import EmailPasswordFormSimple from '@/components/auth/EmailPasswordFormSimple';
 
 function SignInForm() {
   const [email, setEmail] = useState('');
@@ -146,13 +146,13 @@ function SignInForm() {
                    </div>
                  ) : !sent ? (
                    <>
-                     {/* Email/Password Form - Temporarily disabled for debugging */}
-                     {/* {false && showPasswordLogin && (
+                     {/* Email/Password Form - Testing simplified version */}
+                     {showPasswordLogin && (
                        <div className="mb-6">
-                         <EmailPasswordForm />
+                         <EmailPasswordFormSimple />
                          <div className="text-center text-sm text-gray-500 my-4">or</div>
                        </div>
-                     )} */}
+                     )}
                      {/* Magic Link Form */}
                      <form onSubmit={submit} className="space-y-4 md:space-y-6">
                        <div>

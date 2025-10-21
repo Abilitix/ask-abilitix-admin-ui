@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
 import { ApiErrorCode } from '@/types/errors';
+// import EmailPasswordForm from '@/components/auth/EmailPasswordForm';
 
 function SignInForm() {
   const [email, setEmail] = useState('');
@@ -13,6 +14,9 @@ function SignInForm() {
   const [loading, setLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState(false);
   const searchParams = useSearchParams();
+  
+  // Feature flag for email/password login
+  const showPasswordLogin = process.env.NEXT_PUBLIC_ALLOW_PASSWORD_LOGIN === "1";
 
   // Handle magic link token exchange
   useEffect(() => {
@@ -141,64 +145,73 @@ function SignInForm() {
                      <p className="text-gray-600">Please wait while we sign you in...</p>
                    </div>
                  ) : !sent ? (
-            <form onSubmit={submit} className="space-y-4 md:space-y-6">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={e => {
-                    setEmail(e.target.value);
-                    // Clear error when user starts typing
-                    if (err) setErr(null);
-                  }}
-                  placeholder="Enter your registered email address"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  aria-invalid={!!err}
-                  aria-describedby={err ? "email-error" : undefined}
-                  required
-                />
-              </div>
-              
-              <button
-                type="submit"
-                disabled={loading || !isEmailValid(normalizeEmail(email))}
-                className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? 'Sending link...' : 'Sign In'}
-              </button>
+                   <>
+                     {/* Email/Password Form - Temporarily disabled for debugging */}
+                     {/* {false && showPasswordLogin && (
+                       <div className="mb-6">
+                         <EmailPasswordForm />
+                         <div className="text-center text-sm text-gray-500 my-4">or</div>
+                       </div>
+                     )} */}
+                     {/* Magic Link Form */}
+                     <form onSubmit={submit} className="space-y-4 md:space-y-6">
+                       <div>
+                         <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                           Email Address
+                         </label>
+                         <input
+                           id="email"
+                           type="email"
+                           value={email}
+                           onChange={e => {
+                             setEmail(e.target.value);
+                             // Clear error when user starts typing
+                             if (err) setErr(null);
+                           }}
+                           placeholder="Enter your registered email address"
+                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                           aria-invalid={!!err}
+                           aria-describedby={err ? "email-error" : undefined}
+                           required
+                         />
+                       </div>
+                       
+                       <button
+                         type="submit"
+                         disabled={loading || !isEmailValid(normalizeEmail(email))}
+                         className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                       >
+                         {loading ? 'Sending link...' : 'Send Magic Link'}
+                       </button>
 
-              {/* Helper Text */}
-              <div className="mt-4 text-sm text-gray-600 text-center">
-                <p>We'll email you a secure link to access your workspace</p>
-              </div>
+                       {/* Helper Text */}
+                       <div className="mt-4 text-sm text-gray-600 text-center">
+                         <p>We'll email you a secure link to access your workspace</p>
+                       </div>
 
-
-              {/* Error Message */}
-              {err && (
-                <div id="email-error" role="alert" aria-live="assertive" className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex">
-                    <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                    <div className="text-sm text-red-700">
-                      {err}
-                      {err.includes('No account found') && (
-                        <div className="mt-2">
-                          <span className="text-gray-600">New to AbilitiX? </span>
-                          <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium underline">
-                            Create your workspace below
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </form>
+                       {/* Error Message */}
+                       {err && (
+                         <div id="email-error" role="alert" aria-live="assertive" className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                           <div className="flex">
+                             <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                             </svg>
+                             <div className="text-sm text-red-700">
+                               {err}
+                               {err.includes('No account found') && (
+                                 <div className="mt-2">
+                                   <span className="text-gray-600">New to AbilitiX? </span>
+                                   <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium underline">
+                                     Create your workspace below
+                                   </Link>
+                                 </div>
+                               )}
+                             </div>
+                           </div>
+                         </div>
+                       )}
+                     </form>
+                   </>
           ) : (
             /* Success State */
             <div className="text-center py-4">

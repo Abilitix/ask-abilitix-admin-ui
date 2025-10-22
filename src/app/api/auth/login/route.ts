@@ -1,58 +1,51 @@
-// src/app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-
 export const runtime = "nodejs";
 
-function baseUrl() {
-  return process.env.ADMIN_API_BASE || process.env.ADMIN_API || "https://ask-abilitix-admin-api.onrender.com";
-}
+const BASE = process.env.ADMIN_API_BASE || process.env.ADMIN_API;
+const NAME = process.env.SESSION_COOKIE_NAME || "abilitix_s";
+const TTL  = (Number(process.env.SESSION_TTL_MINUTES || "60") * 60) | 0;
 
-function extractCookieValue(setCookieHeader: string, cookieName: string): string | null {
-  const match = setCookieHeader.match(new RegExp(`${cookieName}=([^;]+)`));
-  return match ? match[1] : null;
+function pickCookieValue(raw: string[] | null, name: string): string | null {
+  if (!raw || !raw.length) return null;
+  const hit = raw.find(h => h.toLowerCase().startsWith(`${name.toLowerCase()}=`));
+  if (!hit) return null;
+  const first = hit.split(";")[0];
+  const eq = first.indexOf("=");
+  return eq > -1 ? first.slice(eq + 1) : null;
 }
 
 export async function POST(req: Request) {
+  if (!BASE) return NextResponse.json({ detail: "ADMIN_API_BASE not configured" }, { status: 500 });
   const { email, password } = await req.json();
-  const base = baseUrl();
-  if (!base) return NextResponse.json({ detail: "ADMIN_API_BASE not configured" }, { status: 500 });
 
-  try {
-    // Call Admin API - it sets session cookie on its domain
-    const response = await fetch(`${base}/auth/login`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+  const upstream = await fetch(`${BASE}/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password }),
+    redirect: "manual",
+  });
 
-    const data = await response.json().catch(() => ({}));
-
-    // Extract cookie from Admin API response and set on UI domain
-    const setCookieHeader = response.headers.get('set-cookie');
-    if (setCookieHeader) {
-      const cookieValue = extractCookieValue(setCookieHeader, 'abilitix_s');
-      if (cookieValue) {
-        // Set cookie on UI domain for cross-subdomain access
-        const cookieStore = await cookies();
-        cookieStore.set('abilitix_s', cookieValue, {
-          domain: '.abilitix.com.au',  // UI domain
-          path: '/',
-          httpOnly: true,
-          secure: true,
-          sameSite: 'lax',
-          maxAge: 60 * 60 // 1 hour
-        });
-      }
-    }
-
-    // Forward the response from Admin API
-    return NextResponse.json(data, { status: response.status });
-  } catch (error) {
-    console.error('Login proxy error:', error);
-    return NextResponse.json(
-      { detail: "Unable to connect to authentication service" },
-      { status: 500 }
-    );
+  if (!upstream.ok && (upstream.status < 300 || upstream.status >= 400)) {
+    const err = await upstream.json().catch(() => ({}));
+    return NextResponse.json({ detail: err.detail || "Login failed" }, { status: upstream.status });
   }
+
+  // @ts-ignore – Node runtime exposes getSetCookie()
+  const rawSetCookie: string[] | null = upstream.headers.getSetCookie?.() ?? null;
+  const token = pickCookieValue(rawSetCookie, NAME);
+  if (!token) return NextResponse.json({ detail: "Missing session cookie" }, { status: 502 });
+
+  // ✅ Mint cookie on UI domain
+  cookies().set({
+    name: NAME,
+    value: token,
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: TTL,
+  });
+
+  return NextResponse.json({ ok: true });
 }

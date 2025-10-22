@@ -1,14 +1,60 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function EmailPasswordFormSimple() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    
     console.log('Simple form submitted:', { email, password });
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+      console.log('API Response:', { status: response.status, data });
+
+      if (response.ok) {
+        console.log('Login successful:', data);
+        // Success - session cookie is set by the API
+        router.push('/admin');
+        router.refresh();
+      } else {
+        // Handle specific error codes
+        console.log('Login failed:', data);
+        if (data?.detail?.code === 'INVALID_CREDENTIALS') {
+          setError('Invalid email or password');
+        } else if (data?.detail?.code === 'EMAIL_NOT_VERIFIED') {
+          setError('Please verify your email address before signing in');
+        } else if (data?.detail?.code === 'NO_TENANT_ACCESS') {
+          setError('Account has no workspace access. Please contact your administrator.');
+        } else if (data?.detail?.code === 'rate_limited') {
+          setError('Too many attempts, try again later');
+        } else {
+          setError(data?.detail?.message || 'An error occurred during sign in');
+        }
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Unable to connect, please try again');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -51,11 +97,19 @@ export default function EmailPasswordFormSimple() {
           />
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={isLoading}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Sign in
+          {isLoading ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
     </div>

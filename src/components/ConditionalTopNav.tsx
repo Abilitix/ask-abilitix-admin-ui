@@ -40,8 +40,17 @@ export default function ConditionalTopNav() {
     (async () => {
       try {
         const res = await fetch("/api/auth/me");
-        const data = res.ok ? await res.json() : null;
-        if (alive) setMe(data);
+        const raw = res.ok ? await res.json() : null;
+        // Normalize possible shapes from the API
+        const normalized: UserMe | null = raw
+          ? {
+              email: raw.email || raw.user?.email || undefined,
+              tenant_name: raw.tenant_name || raw.tenant?.name || undefined,
+              tenant_slug: raw.tenant_slug || raw.tenant?.slug || raw.tenant_id || undefined,
+              role: raw.role || raw.user?.role || undefined,
+            }
+          : null;
+        if (alive) setMe(normalized);
       } catch {
         if (alive) setMe(null);
       }

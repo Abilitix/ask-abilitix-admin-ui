@@ -4,6 +4,15 @@ import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
+type Me = {
+  ok: boolean;
+  email: string | null;
+  user: { id?: string; email: string | null };
+  tenant?: { id?: string; slug?: string; role?: string } | null;
+  tenants?: Array<any>;
+  role?: string | null;
+};
+
 function baseUrl() {
   return process.env.ADMIN_API_BASE || process.env.ADMIN_API;
 }
@@ -23,5 +32,21 @@ export async function GET() {
   });
 
   const body = await r.json().catch(() => ({}));
-  return NextResponse.json(body, { status: r.status });
+  
+  // Normalize response shape to prevent UI regressions
+  const normalized: Me = {
+    ok: body.ok ?? !!body.user,
+    email: body.email ?? body.user?.email ?? null,
+    user: body.user ?? { email: body.email ?? null },
+    tenant: body.tenant ?? body.currentTenant ?? null,
+    role: body.role ?? body.user?.role ?? body.tenant?.role ?? null,
+    tenants: body.tenants ?? body.memberships ?? [],
+  };
+
+  // Log warning on payload drift
+  if (!("email" in body) && !body.user?.email) {
+    console.warn("auth/me: email missing in both root and user", { bodyKeys: Object.keys(body) });
+  }
+
+  return NextResponse.json(normalized, { status: r.status });
 }

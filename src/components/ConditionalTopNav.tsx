@@ -5,14 +5,16 @@ import { usePathname } from "next/navigation";
 import TopNav from "@/components/TopNav";
 import type { UserRole } from "@/lib/roles";
 
-type UserMe = {
-  email?: string;
-  tenant_name?: string;
-  tenant_slug?: string;
-  role?: string; // API may return roles outside our union
+type Me = {
+  ok: boolean;
+  email: string | null;
+  user: { id?: string; email: string | null };
+  tenant?: { id?: string; slug?: string; role?: string } | null;
+  tenants?: Array<any>;
+  role?: string | null;
 };
 
-function normalizeRole(r?: string): UserRole | undefined {
+function normalizeRole(r?: string | null): UserRole | undefined {
   switch (r) {
     case "owner":
     case "admin":
@@ -32,7 +34,7 @@ export default function ConditionalTopNav() {
     pathname?.startsWith("/signup") ||
     pathname?.startsWith("/verify");
 
-  const [me, setMe] = useState<UserMe | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => {
     if (isPublic) return;
@@ -40,17 +42,8 @@ export default function ConditionalTopNav() {
     (async () => {
       try {
         const res = await fetch("/api/auth/me");
-        const raw = res.ok ? await res.json() : null;
-        // Normalize possible shapes from the API
-        const normalized: UserMe | null = raw
-          ? {
-              email: raw.email || raw.user?.email || undefined,
-              tenant_name: raw.tenant_name || raw.tenant?.name || undefined,
-              tenant_slug: raw.tenant_slug || raw.tenant?.slug || raw.tenant_id || undefined,
-              role: raw.role || raw.user?.role || undefined,
-            }
-          : null;
-        if (alive) setMe(normalized);
+        const data = res.ok ? await res.json() : null;
+        if (alive) setMe(data);
       } catch {
         if (alive) setMe(null);
       }
@@ -64,8 +57,8 @@ export default function ConditionalTopNav() {
 
   return (
     <TopNav
-      userEmail={me?.email}
-      tenantSlug={me?.tenant_slug}
+      userEmail={me?.email || undefined}
+      tenantSlug={me?.tenant?.slug}
       userRole={normalizeRole(me?.role)}
     />
   );

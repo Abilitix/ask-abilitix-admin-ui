@@ -46,7 +46,15 @@ export async function GET() {
 
   const body = await r.json().catch(() => ({}));
   
-  // Normalize response shape to prevent UI regressions
+  // If Admin API returned an error, return normalized error response
+  if (!r.ok || body.error) {
+    return NextResponse.json(
+      { ok: false, email: null, user: { email: null }, tenant: null, role: null, tenants: [] },
+      { status: r.status }
+    );
+  }
+  
+  // Normalize successful response shape
   const normalized: Me = {
     ok: body.ok ?? !!body.user,
     email: body.email ?? body.user?.email ?? null,
@@ -55,11 +63,6 @@ export async function GET() {
     role: body.role ?? body.user?.role ?? body.tenant?.role ?? null,
     tenants: body.tenants ?? body.memberships ?? [],
   };
-
-  // Log warning on payload drift
-  if (!("email" in body) && !body.user?.email) {
-    console.warn("auth/me: email missing in both root and user", { bodyKeys: Object.keys(body) });
-  }
 
   return NextResponse.json(normalized, { status: r.status });
 }

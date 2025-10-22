@@ -25,9 +25,9 @@ export async function POST(req: Request) {
   const name = process.env.SESSION_COOKIE_NAME || "abilitix_s";
   const ttl = Number(process.env.SESSION_TTL_MINUTES || "60") * 60;
 
-  const upstream = await fetch(`${base}/auth/login`, {
+  const upstream = await fetch(`${base}/public/signin`, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-auth-proxy": "1" }, // proxy hint (optional)
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, password }),
     redirect: "manual", // don't lose Set-Cookie on 30x
   });
@@ -47,6 +47,8 @@ export async function POST(req: Request) {
   const ct = upstream.headers.get("content-type") || "";
   if (ct.includes("application/json")) {
     const data = await upstream.json().catch(() => ({}));
+    
+    
     token = data?.session_token || null;
     if (!upstream.ok && !token) {
       return NextResponse.json({ detail: data?.detail || "Invalid credentials" }, { status: upstream.status });
@@ -60,6 +62,12 @@ export async function POST(req: Request) {
 
   if (!token) {
     const bodyText = upstream.ok ? await upstream.text().catch(() => "") : "";
+    console.log('Login route: No token found', {
+      upstreamStatus: upstream.status,
+      contentType: ct,
+      hasSetCookie: !!rawSetCookie?.length,
+      bodyText: bodyText.slice(0, 200)
+    });
     return NextResponse.json(
       { detail: "Missing session token from upstream", hint: bodyText.slice(0, 200) },
       { status: upstream.ok ? 502 : upstream.status },

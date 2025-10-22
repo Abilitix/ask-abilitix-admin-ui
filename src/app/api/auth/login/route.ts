@@ -36,16 +36,16 @@ export async function POST(req: Request) {
   const token = pickCookieValue(rawSetCookie, NAME);
   if (!token) return NextResponse.json({ detail: "Missing session cookie" }, { status: 502 });
 
-  // ✅ Mint cookie on UI domain
+  // ✅ Mint cookie on UI domain with explicit domain setting
   const cookieStore = await cookies();
-  cookieStore.set({
-    name: NAME,
-    value: token,
-    domain: ".abilitix.com.au",  // 👈 allows sharing with api.abilitix.com.au
+  
+  // Set cookie with explicit domain to ensure cross-subdomain access
+  cookieStore.set(NAME, token, {
+    domain: ".abilitix.com.au",
+    path: "/",
     httpOnly: true,
     secure: true,
     sameSite: "lax",
-    path: "/",
     maxAge: TTL,
   });
 

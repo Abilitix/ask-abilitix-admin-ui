@@ -113,6 +113,11 @@ export default function EmailPasswordFormSimple() {
           {isLoading ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
+
+      {/* Forgot password link */}
+      <div className="mt-3 text-sm">
+        <a href="/reset" className="underline">Forgot password?</a>
+      </div>
     </div>
   );
 }

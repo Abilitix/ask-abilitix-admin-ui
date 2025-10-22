@@ -57,14 +57,6 @@ export async function POST(req: Request) {
   // @ts-ignore - getSetCookie is available in Next.js Node runtime
   const rawSetCookie: string[] | null = upstream.headers.getSetCookie?.() ?? null;
   if (!token) token = pickCookieValue(rawSetCookie, name);
-  
-  console.log('Token extraction debug:', {
-    hasJsonToken: !!token && ct.includes("application/json"),
-    hasSetCookie: !!rawSetCookie?.length,
-    tokenLength: token?.length || 0,
-    contentType: ct,
-    upstreamStatus: upstream.status
-  });
 
   if (!token) {
     const bodyText = upstream.ok ? await upstream.text().catch(() => "") : "";
@@ -76,16 +68,6 @@ export async function POST(req: Request) {
 
   // Mint cookie on UI origin
   const cookieStore = await cookies();
-  
-  console.log('Setting session cookie:', {
-    name,
-    tokenLength: token?.length || 0,
-    ttl,
-    domain: process.env.COOKIE_DOMAIN || 'default',
-    secure: true,
-    sameSite: "lax"
-  });
-  
   cookieStore.set({
     name,
     value: token,

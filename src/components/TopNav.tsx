@@ -1,27 +1,18 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { type UserRole, getVisibleNavItems } from "@/lib/roles";
 
-type NavItem = { label: string; href: string };
-
-function buildNavItems(): NavItem[] {
-  const showPilot = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";
-
-  const base: NavItem[] = [
-    { label: "AI Assistant", href: "/admin/ai" },
-    { label: "Inbox", href: "/admin/inbox" },
-    { label: "Docs", href: "/admin/docs" },
-    { label: "Settings", href: "/admin/settings" },
-  ];
-
-  if (showPilot) base.push({ label: "Pilot", href: "/pilot" });
-
-  return [{ label: "Dashboard", href: "/" }, ...base];
-}
+type Me = {
+  ok: boolean;
+  email: string | null;
+  user?: { email?: string | null };
+  tenant?: { slug?: string | null; role?: string | null } | null;
+  role?: string | null;
+};
 
 type TopNavProps = {
   userEmail?: string;
@@ -49,10 +40,37 @@ function roleBadge(role: UserRole) {
 
 export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps) {
   const [open, setOpen] = useState(false);
+  const [me, setMe] = useState<Me | null>(null);
   const pathname = usePathname();
+
+  // Fetch identity data
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+        const j = await r.json().catch(() => ({}));
+        if (!live) return;
+        setMe({
+          ok: !!(j.ok ?? j.user),
+          email: j.email ?? j.user?.email ?? null,
+          tenant: j.tenant ?? null,
+          role: j.role ?? j.user?.role ?? j.tenant?.role ?? null,
+        });
+      } catch {
+        if (live) setMe(null);
+      }
+    })();
+    return () => { live = false; };
+  }, []);
+
+  // Use fetched identity or fallback to props
+  const identity = me?.email || me?.tenant?.slug || me?.role || userEmail || tenantSlug || userRole;
+  const effectiveRole = (me?.role as UserRole) || userRole;
+  const effectiveEmail = me?.email || userEmail;
   
   // Use role-based navigation filtering
-  const items = userRole ? getVisibleNavItems(userRole, false, userEmail) : buildNavItems();
+  const items = effectiveRole ? getVisibleNavItems(effectiveRole, false, effectiveEmail) : [];
 
   const isActive = (href: string) =>
     pathname === href || (pathname && pathname.startsWith(href + "/"));
@@ -85,40 +103,39 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
 
           <div className="flex items-center gap-3">
             {/* Mobile: show only email */}
-            {userEmail && (
+            {effectiveEmail && (
               <span className="md:hidden truncate text-xs text-slate-600 whitespace-nowrap">
-                {userEmail}
+                {effectiveEmail}
               </span>
             )}
 
             {/* Desktop: horizontal identity block */}
-            {(tenantSlug || userRole || userEmail) && (
+            {identity && (
               <div className="hidden md:flex items-center gap-2 text-xs text-slate-600 whitespace-nowrap">
-                {tenantSlug && <span>Tenant: {tenantSlug}</span>}
-                {userRole && <span>• {roleBadge(userRole)}</span>}
-                {userEmail && <span>• {userEmail}</span>}
+                {me?.tenant?.slug && <span>Tenant: {me.tenant.slug}</span>}
+                {effectiveRole && <span>• {roleBadge(effectiveRole)}</span>}
+                {effectiveEmail && <span>• {effectiveEmail}</span>}
               </div>
             )}
 
-            {userEmail && (
-              <button
-                type="button"
-                onClick={toggle}
-                aria-label="Open menu"
-                className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+            {/* Always render burger button */}
+            <button
+              type="button"
+              onClick={toggle}
+              aria-label="Open menu"
+              className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="currentColor"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="currentColor"
-                >
-                  <circle cx="12" cy="5" r="1.5" />
-                  <circle cx="12" cy="12" r="1.5" />
-                  <circle cx="12" cy="19" r="1.5" />
-                </svg>
-              </button>
-            )}
+                <circle cx="12" cy="5" r="1.5" />
+                <circle cx="12" cy="12" r="1.5" />
+                <circle cx="12" cy="19" r="1.5" />
+              </svg>
+            </button>
           </div>
         </nav>
       </header>
@@ -161,10 +178,10 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
               </div>
 
               {/* Mobile identity block */}
-              {(tenantSlug || userRole) && (
+              {identity && (
                 <div className="px-4 py-2 text-xs text-slate-600 border-b">
-                  {tenantSlug && <div>Tenant: {tenantSlug}</div>}
-                  {userRole && <div>Role: {roleBadge(userRole)}</div>}
+                  {me?.tenant?.slug && <div>Tenant: {me.tenant.slug}</div>}
+                  {effectiveRole && <div>Role: {roleBadge(effectiveRole)}</div>}
                 </div>
               )}
 

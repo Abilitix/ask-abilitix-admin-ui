@@ -4,7 +4,8 @@ import { cookies } from 'next/headers';
 export async function GET() {
   try {
     const name = process.env.SESSION_COOKIE_NAME || "abilitix_s";
-    const token = cookies().get(name)?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get(name)?.value;
     
     if (!token) {
       return NextResponse.json({ detail: "No session" }, { status: 401 });

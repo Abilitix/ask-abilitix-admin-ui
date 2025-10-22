@@ -42,7 +42,8 @@ export async function POST(req: Request) {
     }
 
     // Mint cookie on the **UI domain**
-    cookies().set({
+    const cookieStore = await cookies();
+    cookieStore.set({
       name,
       value: token,
       httpOnly: true,

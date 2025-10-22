@@ -25,12 +25,6 @@ export async function GET() {
   const cookieStore = await cookies();
   const token = cookieStore.get(name)?.value;
   
-  console.log('Auth me cookie check:', {
-    cookieName: name,
-    hasToken: !!token,
-    tokenLength: token?.length || 0,
-    allCookies: cookieStore.getAll().map(c => ({ name: c.name, hasValue: !!c.value }))
-  });
   
   if (!token) {
     return NextResponse.json(

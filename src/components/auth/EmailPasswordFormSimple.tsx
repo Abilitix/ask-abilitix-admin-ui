@@ -15,7 +15,6 @@ export default function EmailPasswordFormSimple() {
     setIsLoading(true);
     setError(null);
     
-    console.log('Simple form submitted:', { email, password });
 
     try {
       const response = await fetch('/api/auth/login', {
@@ -28,16 +27,13 @@ export default function EmailPasswordFormSimple() {
       });
 
       const data = await response.json();
-      console.log('API Response:', { status: response.status, data });
 
       if (response.ok) {
-        console.log('Login successful:', data);
         // Success - session cookie is set by the API
         router.push('/admin');
         router.refresh();
       } else {
         // Handle specific error codes
-        console.log('Login failed:', data);
         if (data?.detail?.code === 'INVALID_CREDENTIALS') {
           setError('Invalid email or password');
         } else if (data?.detail?.code === 'EMAIL_NOT_VERIFIED') {

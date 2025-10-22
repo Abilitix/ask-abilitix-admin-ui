@@ -52,7 +52,6 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
         const j = await r.json().catch(() => ({}));
         if (!live) return;
         
-        console.log('TopNav identity fetch:', { status: r.status, data: j });
         
         setMe({
           ok: !!(j.ok ?? j.user),
@@ -61,7 +60,6 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
           role: j.role ?? j.user?.role ?? j.tenant?.role ?? null,
         });
       } catch (err) {
-        console.log('TopNav identity fetch error:', err);
         if (live) setMe(null);
       }
     })();
@@ -73,22 +71,6 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
   const effectiveRole = (me?.role as UserRole) || userRole;
   const effectiveEmail = me?.email || userEmail;
   
-  // Debug: show what we have
-  console.log('TopNav debug:', { 
-    me, 
-    identity, 
-    effectiveRole, 
-    effectiveEmail,
-    hasProps: !!(userEmail || tenantSlug || userRole)
-  });
-  
-  console.log('TopNav identity state:', { 
-    me, 
-    identity, 
-    effectiveRole, 
-    effectiveEmail,
-    props: { userEmail, tenantSlug, userRole }
-  });
   
   // Use role-based navigation filtering
   const items = effectiveRole ? getVisibleNavItems(effectiveRole, false, effectiveEmail) : [];

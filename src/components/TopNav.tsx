@@ -51,13 +51,17 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
         const r = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
         const j = await r.json().catch(() => ({}));
         if (!live) return;
+        
+        console.log('TopNav identity fetch:', { status: r.status, data: j });
+        
         setMe({
           ok: !!(j.ok ?? j.user),
           email: j.email ?? j.user?.email ?? null,
           tenant: j.tenant ?? null,
           role: j.role ?? j.user?.role ?? j.tenant?.role ?? null,
         });
-      } catch {
+      } catch (err) {
+        console.log('TopNav identity fetch error:', err);
         if (live) setMe(null);
       }
     })();
@@ -68,6 +72,23 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
   const identity = me?.email || me?.tenant?.slug || me?.role || userEmail || tenantSlug || userRole;
   const effectiveRole = (me?.role as UserRole) || userRole;
   const effectiveEmail = me?.email || userEmail;
+  
+  // Debug: show what we have
+  console.log('TopNav debug:', { 
+    me, 
+    identity, 
+    effectiveRole, 
+    effectiveEmail,
+    hasProps: !!(userEmail || tenantSlug || userRole)
+  });
+  
+  console.log('TopNav identity state:', { 
+    me, 
+    identity, 
+    effectiveRole, 
+    effectiveEmail,
+    props: { userEmail, tenantSlug, userRole }
+  });
   
   // Use role-based navigation filtering
   const items = effectiveRole ? getVisibleNavItems(effectiveRole, false, effectiveEmail) : [];

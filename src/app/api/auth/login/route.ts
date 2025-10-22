@@ -41,6 +41,7 @@ export async function POST(req: Request) {
   cookieStore.set({
     name: NAME,
     value: token,
+    domain: ".abilitix.com.au",  // 👈 allows sharing with api.abilitix.com.au
     httpOnly: true,
     secure: true,
     sameSite: "lax",

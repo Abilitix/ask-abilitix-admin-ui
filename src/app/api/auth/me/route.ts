@@ -25,7 +25,6 @@ export async function GET() {
   const cookieStore = await cookies();
   const token = cookieStore.get(name)?.value;
   
-  
   if (!token) {
     return NextResponse.json(
       { ok: false, email: null, user: null, tenant: null, role: null, tenants: [] },

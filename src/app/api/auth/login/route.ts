@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
 
@@ -11,9 +12,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get Admin API base URL from environment
-    const adminApiBase = process.env.ADMIN_API_BASE;
-    if (!adminApiBase) {
+    const base = process.env.ADMIN_API_BASE;
+    if (!base) {
       console.error('ADMIN_API_BASE environment variable not set');
       return NextResponse.json(
         { detail: { code: 'CONFIGURATION_ERROR', message: 'Server configuration error - ADMIN_API_BASE not set' } },
@@ -21,76 +21,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Forward the login request to the Admin API
-    const response = await fetch(`${adminApiBase}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const name = process.env.SESSION_COOKIE_NAME || "abilitix_s";
+    const ttl = Number(process.env.SESSION_TTL_MINUTES || "60") * 60;
+
+    // Tell Admin API we're proxying so it returns a JSON token, not Set-Cookie
+    const r = await fetch(`${base}/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-auth-proxy": "1" },
       body: JSON.stringify({ email, password }),
-      credentials: 'include', // Forward credentials to Admin API
     });
 
-    const data = await response.json();
-
-    if (response.ok) {
-      // Success - extract session cookie from Admin API response
-      const sessionCookie = response.headers.get('set-cookie');
-      
-      if (sessionCookie) {
-        // Create response with the session cookie
-        const nextResponse = NextResponse.json(data, { status: 200 });
-        
-        // Parse and set the session cookie
-        const cookieParts = sessionCookie.split(';');
-        const cookieNameValue = cookieParts[0];
-        const cookieOptions: any = {};
-        
-        // Parse cookie options
-        cookieParts.slice(1).forEach(part => {
-          const [key, value] = part.trim().split('=');
-          switch (key.toLowerCase()) {
-            case 'httponly':
-              cookieOptions.httpOnly = true;
-              break;
-            case 'samesite':
-              cookieOptions.sameSite = value?.toLowerCase() || 'lax';
-              break;
-            case 'secure':
-              cookieOptions.secure = true;
-              break;
-            case 'max-age':
-              cookieOptions.maxAge = parseInt(value) || 3600;
-              break;
-            case 'path':
-              cookieOptions.path = value || '/';
-              break;
-          }
-        });
-
-        // Set the session cookie
-        nextResponse.cookies.set('abilitix_s', cookieNameValue.split('=')[1], {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 3600, // 1 hour
-          path: '/',
-          ...cookieOptions
-        });
-
-        return nextResponse;
-      } else {
-        // No session cookie in response - this shouldn't happen
-        console.error('No session cookie received from Admin API');
-        return NextResponse.json(
-          { detail: { code: 'SESSION_ERROR', message: 'Failed to establish session' } },
-          { status: 500 }
-        );
-      }
-    } else {
-      // Forward the error response from Admin API
-      return NextResponse.json(data, { status: response.status });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      return NextResponse.json({ detail: data?.detail || "Invalid credentials" }, { status: r.status });
     }
+
+    const token = data?.session_token;
+    if (!token) {
+      return NextResponse.json({ detail: "Missing session_token from upstream" }, { status: 502 });
+    }
+
+    // Mint cookie on the **UI domain**
+    cookies().set({
+      name,
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: "lax",
+      path: "/",
+      // IMPORTANT: omit domain for preview/staging; add only in prod if you need a parent domain
+      ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
+      maxAge: ttl,
+    });
+
+    return NextResponse.json({ ok: true, user: data.user, tenant: data.tenant, tenants: data.tenants });
   } catch (error) {
     console.error('Login API error:', error);
     return NextResponse.json(

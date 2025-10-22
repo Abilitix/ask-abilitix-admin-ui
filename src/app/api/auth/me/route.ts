@@ -1,56 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const ADMIN_API = process.env.ADMIN_API;
+    const name = process.env.SESSION_COOKIE_NAME || "abilitix_s";
+    const token = cookies().get(name)?.value;
     
-    if (!ADMIN_API) {
-      return NextResponse.json({ error: 'ADMIN_API not configured' }, { status: 500 });
+    if (!token) {
+      return NextResponse.json({ detail: "No session" }, { status: 401 });
     }
 
-    // Get the session cookie specifically
-    const sessionCookie = request.cookies.get('aa_sess')?.value;
-    
-    if (!sessionCookie) {
-      console.log('No session cookie found in /api/auth/me');
-      return NextResponse.json({ error: 'No session cookie' }, { status: 401 });
+    const base = process.env.ADMIN_API_BASE;
+    if (!base) {
+      console.error('ADMIN_API_BASE environment variable not set');
+      return NextResponse.json(
+        { detail: { code: 'CONFIGURATION_ERROR', message: 'Server configuration error' } },
+        { status: 500 }
+      );
     }
 
-    console.log('Forwarding session to Admin API:', {
-      cookieValue: sessionCookie.substring(0, 20) + '...',
-      adminApi: ADMIN_API
+    // Forward the cookie to Admin API
+    const r = await fetch(`${base}/auth/me`, {
+      headers: { cookie: `${name}=${token}` },
+      cache: "no-store",
     });
 
-    // Forward the request to Admin API with the session cookie
-    const response = await fetch(`${ADMIN_API}/auth/me`, {
-      method: 'GET',
-      headers: {
-        'Cookie': `aa_sess=${sessionCookie}`,
-        'Content-Type': 'application/json'
-      },
-      cache: 'no-store',
-    });
-
-    console.log('Admin API response in /api/auth/me:', {
-      status: response.status,
-      ok: response.ok
-    });
-
-    if (response.ok) {
-      const userData = await response.json();
-      const res = NextResponse.json(userData, { status: 200 });
-      res.headers.set("Cache-Control", "no-store");
-      res.headers.set("Vary", "Cookie");
-      return res;
-    }
-    
-    const res = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    res.headers.set("Cache-Control", "no-store");
-    res.headers.set("Vary", "Cookie");
-    return res;
-    
+    const body = await r.json().catch(() => ({}));
+    return NextResponse.json(body, { status: r.status });
   } catch (error) {
-    console.error('Auth me error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Auth me API error:', error);
+    return NextResponse.json(
+      { detail: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
+      { status: 500 }
+    );
   }
 }

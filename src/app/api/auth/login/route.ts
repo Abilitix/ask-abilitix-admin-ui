@@ -1,66 +1,84 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+// src/app/api/auth/login/route.ts
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+
+export const runtime = "nodejs";
+
+function baseUrl() {
+  return process.env.ADMIN_API_BASE || process.env.ADMIN_API;
+}
+
+function pickCookieValue(rawSetCookie: string[] | null, name: string): string | null {
+  if (!rawSetCookie || !rawSetCookie.length) return null;
+  const hit = rawSetCookie.find(c => c.trim().toLowerCase().startsWith(`${name.toLowerCase()}=`));
+  if (!hit) return null;
+  const first = hit.split(";")[0]; // "abilitix_s=VALUE"
+  const eq = first.indexOf("=");
+  return eq > -1 ? first.slice(eq + 1) : null;
+}
 
 export async function POST(req: Request) {
-  try {
-    const { email, password } = await req.json();
+  const { email, password } = await req.json();
+  const base = baseUrl();
+  if (!base) return NextResponse.json({ detail: "ADMIN_API_BASE not configured" }, { status: 500 });
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { detail: { code: 'MISSING_CREDENTIALS', message: 'Email and password are required' } },
-        { status: 400 }
-      );
-    }
+  const name = process.env.SESSION_COOKIE_NAME || "abilitix_s";
+  const ttl = Number(process.env.SESSION_TTL_MINUTES || "60") * 60;
 
-    const base = process.env.ADMIN_API_BASE;
-    if (!base) {
-      console.error('ADMIN_API_BASE environment variable not set');
-      return NextResponse.json(
-        { detail: { code: 'CONFIGURATION_ERROR', message: 'Server configuration error - ADMIN_API_BASE not set' } },
-        { status: 500 }
-      );
-    }
+  const upstream = await fetch(`${base}/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-auth-proxy": "1" }, // proxy hint (optional)
+    body: JSON.stringify({ email, password }),
+    redirect: "manual", // don't lose Set-Cookie on 30x
+  });
 
-    const name = process.env.SESSION_COOKIE_NAME || "abilitix_s";
-    const ttl = Number(process.env.SESSION_TTL_MINUTES || "60") * 60;
-
-    // Tell Admin API we're proxying so it returns a JSON token, not Set-Cookie
-    const r = await fetch(`${base}/auth/login`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-auth-proxy": "1" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      return NextResponse.json({ detail: data?.detail || "Invalid credentials" }, { status: r.status });
-    }
-
-    const token = data?.session_token;
-    if (!token) {
-      return NextResponse.json({ detail: "Missing session_token from upstream" }, { status: 502 });
-    }
-
-    // Mint cookie on the **UI domain**
-    const cookieStore = await cookies();
-    cookieStore.set({
-      name,
-      value: token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: "lax",
-      path: "/",
-      // IMPORTANT: omit domain for preview/staging; add only in prod if you need a parent domain
-      ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
-      maxAge: ttl,
-    });
-
-    return NextResponse.json({ ok: true, user: data.user, tenant: data.tenant, tenants: data.tenants });
-  } catch (error) {
-    console.error('Login API error:', error);
+  // Redirects during login are treated as errors (cookie often dropped in 30x)
+  if (upstream.status >= 300 && upstream.status < 400) {
+    const loc = upstream.headers.get("location") || "";
     return NextResponse.json(
-      { detail: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
-      { status: 500 }
+      { detail: `Upstream redirected during login (${upstream.status}) to ${loc}. Login must return 200.` },
+      { status: 502 },
     );
   }
+
+  let token: string | null = null;
+
+  // Try JSON token first
+  const ct = upstream.headers.get("content-type") || "";
+  if (ct.includes("application/json")) {
+    const data = await upstream.json().catch(() => ({}));
+    token = data?.session_token || null;
+    if (!upstream.ok && !token) {
+      return NextResponse.json({ detail: data?.detail || "Invalid credentials" }, { status: upstream.status });
+    }
+  }
+
+  // Fallback: read upstream Set-Cookie if present
+  // @ts-ignore - getSetCookie is available in Next.js Node runtime
+  const rawSetCookie: string[] | null = upstream.headers.getSetCookie?.() ?? null;
+  if (!token) token = pickCookieValue(rawSetCookie, name);
+
+  if (!token) {
+    const bodyText = upstream.ok ? await upstream.text().catch(() => "") : "";
+    return NextResponse.json(
+      { detail: "Missing session token from upstream", hint: bodyText.slice(0, 200) },
+      { status: upstream.ok ? 502 : upstream.status },
+    );
+  }
+
+  // Mint cookie on UI origin
+  const cookieStore = await cookies();
+  cookieStore.set({
+    name,
+    value: token,
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    // safest: omit domain so it defaults to current host (works on previews too)
+    ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
+    maxAge: ttl,
+  });
+
+  return NextResponse.json({ ok: true });
 }

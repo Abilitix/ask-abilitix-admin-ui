@@ -1,38 +1,27 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+// src/app/api/auth/me/route.ts
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+
+export const runtime = "nodejs";
+
+function baseUrl() {
+  return process.env.ADMIN_API_BASE || process.env.ADMIN_API;
+}
 
 export async function GET() {
-  try {
-    const name = process.env.SESSION_COOKIE_NAME || "abilitix_s";
-    const cookieStore = await cookies();
-    const token = cookieStore.get(name)?.value;
-    
-    if (!token) {
-      return NextResponse.json({ detail: "No session" }, { status: 401 });
-    }
+  const base = baseUrl();
+  const name = process.env.SESSION_COOKIE_NAME || "abilitix_s";
+  if (!base) return NextResponse.json({ detail: "ADMIN_API_BASE not configured" }, { status: 500 });
 
-    const base = process.env.ADMIN_API_BASE;
-    if (!base) {
-      console.error('ADMIN_API_BASE environment variable not set');
-      return NextResponse.json(
-        { detail: { code: 'CONFIGURATION_ERROR', message: 'Server configuration error' } },
-        { status: 500 }
-      );
-    }
+  const cookieStore = await cookies();
+  const token = cookieStore.get(name)?.value;
+  if (!token) return NextResponse.json({ detail: "No session" }, { status: 401 });
 
-    // Forward the cookie to Admin API
-    const r = await fetch(`${base}/auth/me`, {
-      headers: { cookie: `${name}=${token}` },
-      cache: "no-store",
-    });
+  const r = await fetch(`${base}/auth/me`, {
+    headers: { cookie: `${name}=${token}` },
+    cache: "no-store",
+  });
 
-    const body = await r.json().catch(() => ({}));
-    return NextResponse.json(body, { status: r.status });
-  } catch (error) {
-    console.error('Auth me API error:', error);
-    return NextResponse.json(
-      { detail: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
-      { status: 500 }
-    );
-  }
+  const body = await r.json().catch(() => ({}));
+  return NextResponse.json(body, { status: r.status });
 }

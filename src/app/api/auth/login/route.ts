@@ -37,7 +37,8 @@ export async function POST(req: Request) {
   if (!token) return NextResponse.json({ detail: "Missing session cookie" }, { status: 502 });
 
   // ✅ Mint cookie on UI domain
-  cookies().set({
+  const cookieStore = await cookies();
+  cookieStore.set({
     name: NAME,
     value: token,
     httpOnly: true,

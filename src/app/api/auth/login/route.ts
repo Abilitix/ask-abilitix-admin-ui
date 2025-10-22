@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   if (!BASE) return NextResponse.json({ detail: "ADMIN_API_BASE not configured" }, { status: 500 });
   const { email, password } = await req.json();
 
-  const upstream = await fetch(`${BASE}/auth/login`, {
+  const upstream = await fetch(`${BASE}/public/signin`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -31,19 +31,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ detail: err.detail || "Login failed" }, { status: upstream.status });
   }
 
-  // @ts-ignore – Node runtime exposes getSetCookie()
-  const rawSetCookie: string[] | null = upstream.headers.getSetCookie?.() ?? null;
-  const token = pickCookieValue(rawSetCookie, NAME);
-  if (!token) return NextResponse.json({ detail: "Missing session cookie" }, { status: 502 });
-
-  // ✅ Mint cookie on UI domain using raw Set-Cookie header
-  // Bypass Next.js cookie helper to force domain setting
-  const response = NextResponse.json({ ok: true });
+  // Extract cookie from Admin API response
+  const setCookieHeader = upstream.headers.get('set-cookie');
+  if (!setCookieHeader) return NextResponse.json({ detail: "No session cookie from Admin API" }, { status: 502 });
   
-  // Set raw Set-Cookie header to force cross-subdomain access
-  response.headers.set('Set-Cookie', 
-    `${NAME}=${token}; Domain=.abilitix.com.au; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${TTL}`
-  );
+  // Extract cookie value
+  const cookieValue = pickCookieValue([setCookieHeader], NAME);
+  if (!cookieValue) return NextResponse.json({ detail: "Invalid session cookie format" }, { status: 502 });
 
-  return response;
+  // Set cookie on UI domain using Next.js cookies helper
+  const cookieStore = await cookies();
+  cookieStore.set(NAME, cookieValue, {
+    domain: '.abilitix.com.au',
+    path: '/',
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    maxAge: TTL
+  });
+
+  return NextResponse.json({ ok: true });
 }

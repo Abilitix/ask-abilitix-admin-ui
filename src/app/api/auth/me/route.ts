@@ -24,7 +24,20 @@ export async function GET() {
 
   const cookieStore = await cookies();
   const token = cookieStore.get(name)?.value;
-  if (!token) return NextResponse.json({ detail: "No session" }, { status: 401 });
+  
+  console.log('Auth me cookie check:', {
+    cookieName: name,
+    hasToken: !!token,
+    tokenLength: token?.length || 0,
+    allCookies: cookieStore.getAll().map(c => ({ name: c.name, hasValue: !!c.value }))
+  });
+  
+  if (!token) {
+    return NextResponse.json(
+      { ok: false, email: null, user: null, tenant: null, role: null, tenants: [] },
+      { status: 401 }
+    );
+  }
 
   const r = await fetch(`${base}/auth/me`, {
     headers: { cookie: `${name}=${token}` },

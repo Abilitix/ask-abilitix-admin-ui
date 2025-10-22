@@ -156,11 +156,11 @@ function SignInForm() {
                      {/* Magic Link Form */}
                      <form onSubmit={submit} className="space-y-4 md:space-y-6">
                        <div>
-                         <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                         <label htmlFor="email_ml" className="block text-sm font-medium text-gray-700 mb-2">
                            Email Address
                          </label>
                          <input
-                           id="email"
+                           id="email_ml"
                            type="email"
                            value={email}
                            onChange={e => {

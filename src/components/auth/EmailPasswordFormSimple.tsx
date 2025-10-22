@@ -24,6 +24,7 @@ export default function EmailPasswordFormSimple() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        credentials: 'include', // CRITICAL: Allow session cookies
       });
 
       const data = await response.json();
@@ -66,13 +67,13 @@ export default function EmailPasswordFormSimple() {
         </p>
       </div>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="pw-form" onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="email_pw" className="block text-sm font-medium text-gray-700 mb-2">
             Email
           </label>
           <input
-            id="email"
+            id="email_pw"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -83,11 +84,11 @@ export default function EmailPasswordFormSimple() {
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="password_pw" className="block text-sm font-medium text-gray-700 mb-2">
             Password
           </label>
           <input
-            id="password"
+            id="password_pw"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

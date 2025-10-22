@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     if (!adminApiBase) {
       console.error('ADMIN_API_BASE environment variable not set');
       return NextResponse.json(
-        { detail: { code: 'CONFIGURATION_ERROR', message: 'Server configuration error' } },
+        { detail: { code: 'CONFIGURATION_ERROR', message: 'Server configuration error - ADMIN_API_BASE not set' } },
         { status: 500 }
       );
     }
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ email, password }),
+      credentials: 'include', // Forward credentials to Admin API
     });
 
     const data = await response.json();

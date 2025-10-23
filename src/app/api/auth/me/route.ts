@@ -52,5 +52,6 @@ export async function GET() {
   return NextResponse.json({
     ...body,  // Include all fields from Admin API
     tenant_id: body.tenant_id,  // Explicitly include tenant_id
+    tenant: body.tenant_slug ? { slug: body.tenant_slug } : null,  // Map flat to nested structure
   }, { status: r.status });
 }

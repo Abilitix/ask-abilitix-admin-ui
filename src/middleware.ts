@@ -13,7 +13,7 @@ export async function middleware(req: NextRequest) {
 
   // For /admin/* only, do a cheap local cookie presence check
   if (pathname.startsWith("/admin")) {
-    const hasSess = !!req.cookies.get("abilitix_s")?.value;
+    const hasSess = !!req.cookies.get("aa_sess")?.value;
     if (!hasSess) {
       const url = req.nextUrl.clone();
       url.pathname = "/signin";

@@ -19,7 +19,7 @@ function baseUrl() {
 
 export async function GET() {
   const base = baseUrl();
-  const name = process.env.SESSION_COOKIE_NAME || "abilitix_s";
+  const name = process.env.SESSION_COOKIE_NAME || "aa_sess";
   if (!base) return NextResponse.json({ detail: "ADMIN_API_BASE not configured" }, { status: 500 });
 
   const cookieStore = await cookies();

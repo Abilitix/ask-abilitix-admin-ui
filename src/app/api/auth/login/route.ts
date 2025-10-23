@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 export const runtime = "nodejs";
 
 const BASE = process.env.ADMIN_API_BASE || process.env.ADMIN_API;
-const NAME = process.env.SESSION_COOKIE_NAME || "abilitix_s";
+const NAME = process.env.SESSION_COOKIE_NAME || "aa_sess";
 const TTL  = (Number(process.env.SESSION_TTL_MINUTES || "60") * 60) | 0;
 
 function pickCookieValue(raw: string[] | null, name: string): string | null {

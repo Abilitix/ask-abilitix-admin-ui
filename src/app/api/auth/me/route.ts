@@ -9,6 +9,7 @@ type Me = {
   email: string | null;
   user: { id?: string; email: string | null };
   tenant?: { id?: string; slug?: string; role?: string } | null;
+  tenant_id?: string | null;
   tenants?: Array<any>;
   role?: string | null;
 };
@@ -47,15 +48,9 @@ export async function GET() {
     );
   }
   
-  // Normalize successful response shape
-  const normalized: Me = {
-    ok: body.ok ?? !!body.user,
-    email: body.email ?? body.user?.email ?? null,
-    user: body.user ?? { email: body.email ?? null },
-    tenant: body.tenant ?? body.currentTenant ?? null,
-    role: body.role ?? body.user?.role ?? body.tenant?.role ?? null,
-    tenants: body.tenants ?? body.memberships ?? [],
-  };
-
-  return NextResponse.json(normalized, { status: r.status });
+  // Return the Admin API response directly with tenant_id included
+  return NextResponse.json({
+    ...body,  // Include all fields from Admin API
+    tenant_id: body.tenant_id,  // Explicitly include tenant_id
+  }, { status: r.status });
 }

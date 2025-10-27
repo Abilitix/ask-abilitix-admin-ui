@@ -31,7 +31,7 @@ export function DocumentManagementClient() {
   const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/docs', {
+      const response = await fetch('/api/admin/docs?status=all&limit=100', {
         method: 'GET',
         headers: {
           'Cache-Control': 'no-store'

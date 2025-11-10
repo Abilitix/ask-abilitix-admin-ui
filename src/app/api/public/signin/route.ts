@@ -21,14 +21,15 @@ export async function POST(req: NextRequest) {
         : undefined;
 
     if (!next && process.env.VERCEL_ENV === 'preview') {
-      const appUrl = getAppUrl();
-      if (appUrl && appUrl.trim().length > 0) {
-        next = appUrl.endsWith('/') ? appUrl : `${appUrl}/`;
+      const proto = req.headers.get("x-forwarded-proto") ?? "https";
+      const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+      if (host) {
+        const origin = `${proto}://${host}`;
+        next = `${origin}/`;
       } else {
-        const proto = req.headers.get("x-forwarded-proto") ?? "https";
-        const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-        if (host) {
-          next = `${proto}://${host}/`;
+        const appUrl = getAppUrl();
+        if (appUrl && appUrl.trim().length > 0) {
+          next = appUrl.endsWith('/') ? appUrl : `${appUrl}/`;
         }
       }
     }
@@ -38,11 +39,21 @@ export async function POST(req: NextRequest) {
       ...(next ? { next } : {}),
     };
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (process.env.VERCEL_ENV === 'preview') {
+      const proto = req.headers.get("x-forwarded-proto") ?? "https";
+      const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+      if (host) {
+        headers["Origin"] = `${proto}://${host}`;
+      }
+    }
+
     const r = await fetch(`${ADMIN_API}/public/signin`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify(payload),
       cache: "no-store",
     });

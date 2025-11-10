@@ -14,6 +14,13 @@ export async function POST(req: NextRequest) {
     
     const rawBody = await req.json().catch(() => ({}));
     console.log('Signin request body:', rawBody);
+    console.log('Signin environment context:', {
+      vercelEnv: process.env.VERCEL_ENV,
+      xForwardedProto: req.headers.get("x-forwarded-proto"),
+      xForwardedHost: req.headers.get("x-forwarded-host"),
+      host: req.headers.get("host"),
+      appUrl: getAppUrl(),
+    });
 
     let next: string | undefined =
       typeof rawBody?.next === 'string' && rawBody.next.trim().length > 0

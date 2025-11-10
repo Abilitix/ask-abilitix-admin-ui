@@ -132,6 +132,11 @@ export function DocumentManagementClient() {
     return matchesSearch && matchesStatus;
   });
 
+  // Get recent uploads (top 5 by creation date)
+  const recentUploads = documents
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5);
+
 
   const getStatusBadge = (status: string) => {
     const baseClasses = "px-2 py-1 text-xs rounded-full font-medium";
@@ -287,9 +292,35 @@ export function DocumentManagementClient() {
               <CardTitle>Recent Uploads</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-sm text-gray-500">
-                Recent uploads will appear here
-              </div>
+              {recentUploads.length === 0 ? (
+                <div className="text-sm text-gray-500">
+                  Recent uploads will appear here
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {recentUploads.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {doc.title}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(doc.created_at).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit'
+                          })}
+                        </div>
+                      </div>
+                      <span className={getStatusBadge(doc.status)}>
+                        {doc.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

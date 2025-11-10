@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAdminApiBase } from '@/lib/env';
+import { getAdminApiBase, getAppUrl } from '@/lib/env';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,15 +12,38 @@ export async function POST(req: NextRequest) {
       });
     }
     
-    const body = await req.json();
-    console.log('Signin request body:', body);
+    const rawBody = await req.json().catch(() => ({}));
+    console.log('Signin request body:', rawBody);
+
+    let next: string | undefined =
+      typeof rawBody?.next === 'string' && rawBody.next.trim().length > 0
+        ? rawBody.next
+        : undefined;
+
+    if (!next && process.env.VERCEL_ENV === 'preview') {
+      const appUrl = getAppUrl();
+      if (appUrl && appUrl.trim().length > 0) {
+        next = appUrl.endsWith('/') ? appUrl : `${appUrl}/`;
+      } else {
+        const proto = req.headers.get("x-forwarded-proto") ?? "https";
+        const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+        if (host) {
+          next = `${proto}://${host}/`;
+        }
+      }
+    }
+
+    const payload = {
+      ...rawBody,
+      ...(next ? { next } : {}),
+    };
 
     const r = await fetch(`${ADMIN_API}/public/signin`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
       cache: "no-store",
     });
 

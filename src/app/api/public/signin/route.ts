@@ -43,7 +43,12 @@ export async function POST(req: NextRequest) {
 
     const payload = {
       ...rawBody,
-      ...(next ? { next } : {}),
+      ...(next
+        ? {
+            next,
+            next_url: next,
+          }
+        : {}),
     };
 
     const headers: Record<string, string> = {

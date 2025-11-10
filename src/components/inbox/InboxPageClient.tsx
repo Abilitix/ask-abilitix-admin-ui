@@ -127,8 +127,8 @@ function parseListResponse(json: any): { items: InboxListItem[]; nextCursor: str
   }
 
   const items = maybeItems
-    .map((item) => normaliseListItem(item))
-    .filter((item): item is InboxListItem => Boolean(item));
+    .map((item: unknown) => normaliseListItem(item))
+    .filter((item: InboxListItem | null): item is InboxListItem => Boolean(item));
 
   if (items.length === 0) {
     return { items: [], nextCursor: null };

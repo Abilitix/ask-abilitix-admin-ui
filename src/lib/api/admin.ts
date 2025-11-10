@@ -24,12 +24,6 @@ function getCookiesFromRequest(request?: Request): string {
 export async function adminGet<T>(path: string, request?: Request): Promise<T> {
   const cookieHeader = getCookiesFromRequest(request);
   const url = `${ADMIN_API}${path}`;
-  
-  console.log('AdminGet Debug:', {
-    url: url,
-    cookieLength: cookieHeader.length,
-    path: path
-  });
 
   const response = await fetch(url, {
     method: 'GET',
@@ -47,7 +41,11 @@ export async function adminGet<T>(path: string, request?: Request): Promise<T> {
       url: url,
       responseBody: errorText
     });
-    throw new Error(`Admin API GET failed: ${response.status} ${response.statusText}`);
+    const error = new Error(`Admin API GET failed: ${response.status} ${response.statusText}`) as Error & {
+      status?: number;
+    };
+    error.status = response.status;
+    throw error;
   }
 
   return response.json();

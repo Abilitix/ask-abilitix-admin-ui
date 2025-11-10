@@ -41,6 +41,7 @@ function roleBadge(role: UserRole) {
 export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps) {
   const [open, setOpen] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
+  const [inboxEnabled, setInboxEnabled] = useState(false);
   const pathname = usePathname();
 
   // Fetch identity data
@@ -66,6 +67,81 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
     return () => { live = false; };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const response = await fetch('/api/admin/inbox?limit=1', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (!active) return;
+
+        if (response.status === 404) {
+          setInboxEnabled(false);
+          return;
+        }
+
+        const text = await response.text();
+        if (!active) return;
+
+        if (!response.ok) {
+          setInboxEnabled(false);
+          return;
+        }
+
+        let json: any = null;
+        if (text) {
+          try {
+            json = JSON.parse(text);
+          } catch {
+            setInboxEnabled(false);
+            return;
+          }
+        }
+
+        if (json && typeof json === 'object' && json.error) {
+          setInboxEnabled(false);
+          return;
+        }
+
+        const list = Array.isArray(json?.items)
+          ? json.items
+          : Array.isArray(json)
+            ? json
+            : [];
+
+        if (!Array.isArray(list)) {
+          setInboxEnabled(false);
+          return;
+        }
+
+        if (list.length === 0) {
+          setInboxEnabled(true);
+          return;
+        }
+
+        const first = list[0];
+        const looksNew =
+          first &&
+          typeof first === 'object' &&
+          ('dup_count' in first || 'q_hash' in first || 'asked_at' in first || 'tags' in first);
+
+        setInboxEnabled(Boolean(looksNew));
+      } catch {
+        if (active) {
+          setInboxEnabled(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Use fetched identity or fallback to props
   const identity = me?.email || me?.tenant?.slug || me?.role || userEmail || tenantSlug || userRole;
   const effectiveRole = (me?.role as UserRole) || userRole;
@@ -73,7 +149,10 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
   
   
   // Use role-based navigation filtering
-  const items = effectiveRole ? getVisibleNavItems(effectiveRole, false, effectiveEmail) : [];
+  const navItems = effectiveRole ? getVisibleNavItems(effectiveRole, false, effectiveEmail) : [];
+  const filteredNavItems = navItems.filter((it) =>
+    it.href === '/admin/inbox' ? inboxEnabled : true
+  );
 
   const isActive = (href: string) =>
     pathname === href || (pathname && pathname.startsWith(href + "/"));
@@ -189,7 +268,7 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
               )}
 
               <nav className="flex-1 overflow-y-auto px-2 py-2 divide-y divide-slate-200 text-slate-900">
-                {items.map((it) => (
+                {filteredNavItems.map((it) => (
                   <Link
                     key={it.href}
                     href={it.href}

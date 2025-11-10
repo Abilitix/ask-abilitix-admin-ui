@@ -1,8 +1,10 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 
+import { getAdminApiBase } from '@/lib/env';
+
 export async function POST(req: Request) {
-  const ADMIN_API = process.env.ADMIN_API!;
+  const ADMIN_API = getAdminApiBase();
 
   const body = await req.json().catch(() => ({}));
 

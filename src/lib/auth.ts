@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { hasPermission, type UserRole } from './roles';
+import { getAdminApiBase } from '@/lib/env';
 
 export interface User {
   tenant_id: string;
@@ -12,9 +13,26 @@ export interface User {
   expires_at: string;
 }
 
+function parseEmailCsv(list?: string | null): string[] {
+  return list
+    ? list
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0)
+    : [];
+}
+
+function getSuperadminEmails(): string[] {
+  const previewEmails = parseEmailCsv(process.env.PREVIEW_SUPERADMIN_EMAILS);
+  if (previewEmails.length > 0) {
+    return previewEmails;
+  }
+  return parseEmailCsv(process.env.NEXT_PUBLIC_SUPERADMIN_EMAILS);
+}
+
 export async function getAuthUser(h?: Headers): Promise<User | null> {
   try {
-    const adminApi = process.env.ADMIN_API!;
+    const adminApi = getAdminApiBase();
     const cookie = h?.get("cookie") ?? (await (await import("next/headers")).cookies()).toString();
 
     const r = await fetch(`${adminApi}/auth/me`, {
@@ -76,7 +94,7 @@ export async function requireSuperadminAuth(): Promise<User> {
   const user = await requireAuth();
   
   // Check if user email is in superadmin list (server-side)
-  const SUPERADMIN_EMAILS = process.env.NEXT_PUBLIC_SUPERADMIN_EMAILS?.split(',') ?? [];
+  const SUPERADMIN_EMAILS = getSuperadminEmails();
   const isSuperAdmin = SUPERADMIN_EMAILS.includes(user.email);
   
   if (!isSuperAdmin) {
@@ -87,6 +105,6 @@ export async function requireSuperadminAuth(): Promise<User> {
 }
 
 export function isSuperadmin(email: string): boolean {
-  const SUPERADMIN_EMAILS = process.env.NEXT_PUBLIC_SUPERADMIN_EMAILS?.split(',') ?? [];
+  const SUPERADMIN_EMAILS = getSuperadminEmails();
   return SUPERADMIN_EMAILS.includes(email);
 }

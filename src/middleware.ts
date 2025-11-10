@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase } from '@/lib/env';
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -23,7 +24,7 @@ export async function middleware(req: NextRequest) {
     
     // Check user role for viewer access control
     try {
-      const adminApi = process.env.ADMIN_API;
+      const adminApi = getAdminApiBase();
       if (adminApi) {
         const authResponse = await fetch(`${adminApi}/auth/me`, {
           headers: {

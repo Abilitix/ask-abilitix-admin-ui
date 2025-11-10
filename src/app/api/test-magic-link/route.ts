@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase, getAppUrl } from '@/lib/env';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Test Admin API verification directly
-    const adminApiUrl = `${process.env.ADMIN_API}/public/verify?token=${encodeURIComponent(token)}&next=https://app.abilitix.com.au/admin`;
+    const adminApiUrl = `${getAdminApiBase()}/public/verify?token=${encodeURIComponent(token)}&next=${encodeURIComponent(getAppUrl() ?? 'https://app.abilitix.com.au/admin')}`;
     
     console.log('Testing magic link verification:', {
       token: token.substring(0, 10) + '...',

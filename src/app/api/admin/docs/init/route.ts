@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const ADMIN_API_URL = process.env.ADMIN_API;
+    const ADMIN_API_URL = getAdminApiBase();
     const ADMIN_API_TOKEN = process.env.ADMIN_API_TOKEN;
 
     if (!ADMIN_API_URL || !ADMIN_API_TOKEN) {

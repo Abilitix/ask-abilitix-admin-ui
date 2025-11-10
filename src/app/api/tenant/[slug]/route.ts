@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase } from '@/lib/env';
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +16,7 @@ export async function GET(
     }
 
     // Get tenant data from authenticated session
-    const ADMIN_API = process.env.ADMIN_API;
+    const ADMIN_API = getAdminApiBase();
     if (!ADMIN_API) {
       return NextResponse.json({ error: 'Admin API not configured' }, { status: 500 });
     }

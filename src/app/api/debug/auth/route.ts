@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const ADMIN_API = process.env.ADMIN_API || 'https://api.abilitix.com.au';
+    const ADMIN_API = getAdminApiBase();
     const cookieHeader = request.headers.get('cookie') || '';
     
     console.log('Auth debug - Cookie header:', cookieHeader);

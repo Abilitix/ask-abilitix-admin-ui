@@ -290,8 +290,7 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
                 <button
                   onClick={async () => {
                     try {
-                      const api = process.env.NEXT_PUBLIC_ADMIN_API!;
-                      await fetch(`${api}/auth/logout`, {
+                      await fetch(`/api/auth/logout`, {
                         method: "POST",
                         credentials: "include",
                         headers: { "Content-Type": "application/json" },

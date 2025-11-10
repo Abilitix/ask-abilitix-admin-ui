@@ -1,11 +1,9 @@
 // Server-only API helpers for admin endpoints
 // These functions must only be called from server-side code (Route Handlers, Server Actions)
 
-const ADMIN_API = process.env.ADMIN_API;
+import { getAdminApiBase } from '@/lib/env';
 
-if (!ADMIN_API) {
-  throw new Error('Missing required environment variable: ADMIN_API');
-}
+const ADMIN_API = getAdminApiBase();
 
 const defaultHeaders = {
   'Content-Type': 'application/json',
@@ -53,12 +51,6 @@ export async function adminGet<T>(path: string, request?: Request): Promise<T> {
 
 export async function adminPost<T>(path: string, body: unknown, request?: Request): Promise<T> {
   const cookieHeader = getCookiesFromRequest(request);
-  
-  console.log('AdminPost Debug:', {
-    url: `${ADMIN_API}${path}`,
-    cookieLength: cookieHeader.length,
-    bodyKeys: body && typeof body === 'object' ? Object.keys(body) : 'not object'
-  });
 
   const response = await fetch(`${ADMIN_API}${path}`, {
     method: 'POST',

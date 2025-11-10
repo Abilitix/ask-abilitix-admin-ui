@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
 import { sendWelcomeEmail } from "@/lib/email";
+import { getAdminApiBase } from '@/lib/env';
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const ADMIN_API = process.env.ADMIN_API;
+    const ADMIN_API = getAdminApiBase();
     const SIGNUP_KEY = process.env.PUBLIC_SIGNUP_KEY;
     
     console.log('Environment check:', { ADMIN_API, SIGNUP_KEY: SIGNUP_KEY ? 'SET' : 'NOT SET' });

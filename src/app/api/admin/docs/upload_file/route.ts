@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     // Forward cookies for session-based authentication
     const cookieHeader = req.headers.get('cookie') || '';
-    const ADMIN_API = process.env.ADMIN_API;
+    const ADMIN_API = getAdminApiBase();
 
     if (!ADMIN_API) {
       return NextResponse.json({ error: 'ADMIN_API not configured' }, { status: 500 });

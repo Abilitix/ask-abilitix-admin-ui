@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase, getAppUrl } from '@/lib/env';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +16,9 @@ export async function GET(request: NextRequest) {
 
     // Redirect browser directly to Admin API for verification
     // This allows Admin API to set the httpOnly cookie properly
-    const adminApiUrl = `${process.env.NEXT_PUBLIC_ADMIN_API}/public/verify?token=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`;
+    const adminApiBase = process.env.NEXT_PUBLIC_ADMIN_API ?? getAdminApiBase();
+    const nextTarget = next === '/' ? (getAppUrl() ?? next) : next;
+    const adminApiUrl = `${adminApiBase}/public/verify?token=${encodeURIComponent(token)}&next=${encodeURIComponent(nextTarget)}`;
     
     console.log('Redirecting to Admin API:', adminApiUrl);
     return NextResponse.redirect(adminApiUrl);

@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
+import { getAdminApiBase } from '@/lib/env';
 
 export async function POST(req: NextRequest) {
   try {
-    const ADMIN_API = process.env.ADMIN_API;
+    const ADMIN_API = getAdminApiBase();
     
     if (!ADMIN_API) {
       return new Response(JSON.stringify({ error: 'ADMIN_API not configured' }), {

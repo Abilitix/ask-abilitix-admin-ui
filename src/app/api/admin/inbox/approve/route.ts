@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminPost } from '@/lib/api/admin';
+import { getAdminApiBase } from '@/lib/env';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Try to get more info about the Admin API call
-    const ADMIN_API = process.env.ADMIN_API;
+    const ADMIN_API = getAdminApiBase();
     console.log('Calling Admin API:', `${ADMIN_API}/admin/inbox/${body.id}/approve`);
 
     const data = await adminPost(`/admin/inbox/${body.id}/approve`, body, request);

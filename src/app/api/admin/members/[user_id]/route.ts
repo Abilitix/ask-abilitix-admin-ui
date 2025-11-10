@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase } from '@/lib/env';
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ user_id: string }> }
 ) {
   try {
-    const ADMIN_API = process.env.ADMIN_API;
+    const ADMIN_API = getAdminApiBase();
     const { user_id } = await params;
     
     if (!ADMIN_API) {

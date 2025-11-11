@@ -67,6 +67,13 @@ export async function GET(request: NextRequest) {
       headers.set('Content-Type', contentType);
     }
 
+    if (upstream.headers.has('set-cookie')) {
+      const rewritten = rewriteSetCookieForPreview(upstream.headers.get('set-cookie') as string, requestHost);
+      if (rewritten) {
+        headers.set('set-cookie', rewritten);
+      }
+    }
+
     return new NextResponse(responseBody || null, {
       status: upstream.status,
       headers,

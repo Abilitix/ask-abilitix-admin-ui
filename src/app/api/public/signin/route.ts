@@ -13,14 +13,6 @@ export async function POST(req: NextRequest) {
     }
     
     const rawBody = await req.json().catch(() => ({}));
-    console.log('Signin request body:', rawBody);
-    console.log('Signin environment context:', {
-      vercelEnv: process.env.VERCEL_ENV,
-      xForwardedProto: req.headers.get("x-forwarded-proto"),
-      xForwardedHost: req.headers.get("x-forwarded-host"),
-      host: req.headers.get("host"),
-      appUrl: getAppUrl(),
-    });
 
     let next: string | undefined =
       typeof rawBody?.next === 'string' && rawBody.next.trim().length > 0
@@ -51,8 +43,6 @@ export async function POST(req: NextRequest) {
         : {}),
     };
 
-    console.log('Signin forward payload:', payload);
-
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -65,8 +55,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log('Signin forward headers:', headers);
-
     const r = await fetch(`${ADMIN_API}/public/signin`, {
       method: "POST",
       headers,
@@ -74,16 +62,11 @@ export async function POST(req: NextRequest) {
       cache: "no-store",
     });
 
-    console.log('Admin service response status:', r.status);
-    
     const responseText = await r.text();
-    console.log('Admin service response body:', responseText);
     
     if (r.ok) {
-      // Parse Admin API response to get structured data
       const adminApiResponse = JSON.parse(responseText);
       
-      // Return the Admin API response as-is (it now has proper structure)
       return new Response(JSON.stringify(adminApiResponse), {
         status: 200,
         headers: {
@@ -101,7 +84,6 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Signin API error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ error: 'Internal server error', details: errorMessage }), {
       status: 500,

@@ -43,9 +43,10 @@ export function getCookieDomain(hostname: string): string | undefined {
 
   if (previewDomain && previewDomain.length > 0) {
     if (!domainMatchesHost(previewDomain, lowerHost)) {
-      throw new Error(
-        `PREVIEW_COOKIE_DOMAIN "${previewDomain}" must correspond to the preview host "${hostname}".`
+      console.warn(
+        `PREVIEW_COOKIE_DOMAIN "${previewDomain}" does not match host "${hostname}". Falling back to host-only cookie.`
       );
+      return hostname;
     }
 
     const barePreview = previewDomain.startsWith('.') ? previewDomain.slice(1) : previewDomain;

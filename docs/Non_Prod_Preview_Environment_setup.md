@@ -14,6 +14,7 @@ All preview-specific values live alongside the existing production variables in 
 | `PREVIEW_APP_URL` | Canonical URL for the preview UI, used for post-login redirects | `https://ask-abilitix-admin-ui.vercel.app` |
 | `PREVIEW_COOKIE_DOMAIN` | Cookie domain for preview sessions (host-only) | `ask-abilitix-admin-ui.vercel.app` |
 | `PREVIEW_SUPERADMIN_EMAILS` _(optional)_ | Override list of superadmin accounts for preview | `alice@abilitix.com.au,bob@abilitix.com.au` |
+| `PREVIEW_LOGIN_PROXY` | Enable `/api/public/verify` cookie proxy for preview deployments | `1` |
 
 The existing production keys (`ADMIN_API`, `NEXT_PUBLIC_APP_URL`, `COOKIE_DOMAIN`, etc.) remain untouched and continue to power the production environment.
 

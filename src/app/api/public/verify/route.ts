@@ -19,7 +19,12 @@ export async function GET(request: NextRequest) {
     const adminApiUrl = `${adminApiBase}/public/verify?token=${encodeURIComponent(token)}&next=${encodeURIComponent(nextTarget)}`;
 
     const requestHost = request.nextUrl.hostname;
-    const isPreviewHost = process.env.VERCEL_ENV === 'preview' || requestHost.includes('vercel.app');
+    const previewFlag =
+      process.env.PREVIEW_LOGIN_PROXY === '1' ||
+      process.env.PREVIEW_LOGIN_PROXY === 'true';
+
+    const isPreviewHost =
+      previewFlag && (process.env.VERCEL_ENV === 'preview' || requestHost.includes('vercel.app'));
 
     if (!isPreviewHost) {
       console.log('Redirecting to Admin API (prod mode):', adminApiUrl);
@@ -39,10 +44,31 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const locationHeader = upstream.headers.get('location') ?? nextTarget ?? '/';
+    const upstreamLocation = upstream.headers.get('location');
+    let redirectTarget = nextTarget ?? '/';
+
+    if (upstreamLocation) {
+      try {
+        const parsed = new URL(upstreamLocation, adminApiBase);
+        if (parsed.hostname === requestHost) {
+          redirectTarget = parsed.toString();
+        } else {
+          const previewUrl = new URL(nextTarget ?? '/', request.url);
+          // Preserve upstream path/search but keep preview host
+          previewUrl.pathname = parsed.pathname;
+          previewUrl.search = parsed.search;
+          redirectTarget = previewUrl.toString();
+        }
+      } catch (error) {
+        console.warn('Preview verify: failed to parse upstream location, using nextTarget', {
+          upstreamLocation,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    }
 
     if (upstream.status >= 300 && upstream.status < 400) {
-      const response = NextResponse.redirect(locationHeader);
+      const response = NextResponse.redirect(redirectTarget);
 
       const setCookieHeader = upstream.headers.get('set-cookie');
       if (setCookieHeader) {
@@ -56,6 +82,13 @@ export async function GET(request: NextRequest) {
           response.headers.set('set-cookie', setCookieHeader);
         }
       }
+
+      console.log('Preview verify redirect response:', {
+        upstreamStatus: upstream.status,
+        upstreamLocation,
+        redirectTarget,
+        hasSetCookie: Boolean(setCookieHeader),
+      });
 
       return response;
     }

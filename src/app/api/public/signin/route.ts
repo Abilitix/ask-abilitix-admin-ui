@@ -51,6 +51,8 @@ export async function POST(req: NextRequest) {
         : {}),
     };
 
+    console.log('Signin forward payload:', payload);
+
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -62,6 +64,8 @@ export async function POST(req: NextRequest) {
         headers["Origin"] = `${proto}://${host}`;
       }
     }
+
+    console.log('Signin forward headers:', headers);
 
     const r = await fetch(`${ADMIN_API}/public/signin`, {
       method: "POST",

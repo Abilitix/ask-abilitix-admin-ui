@@ -1,531 +1,391 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { InboxList } from './InboxList';
-import { InboxDetailPanel } from './InboxDetailPanel';
-import { toast } from 'sonner';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { LegacyInboxPageClient } from './LegacyInboxPageClient';
+import { ModernInboxClient, ModernInboxActions } from './ModernInboxClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { InitialInboxFlags } from '@/lib/server/adminSettings';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { Filter, Settings2, Sparkles, FlaskConical, ShieldAlert } from 'lucide-react';
 
-const DEFAULT_LIMIT = 25;
+type ReviewMode = 'legacy' | 'modern';
+type ModeSource = 'tenant' | 'override';
 
-type Filters = {
-  ref: string;
-  tag: string;
-  qHash: string;
+type InboxPageClientProps = {
+  initialFlags: InitialInboxFlags;
+  tenantId?: string;
+  tenantSlug?: string;
+  userRole?: string;
 };
 
-export type InboxListItem = {
-  id: string;
-  qHash: string | null;
-  askedAt: string | null;
-  channel: string | null;
-  tags: string[];
-  dupCount: number;
+const FLAG_KEY_MAP = {
+  adminInboxApiEnabled: 'ADMIN_INBOX_API',
+  enableReviewPromote: 'ENABLE_REVIEW_PROMOTE',
+  allowEmptyCitations: 'ALLOW_EMPTY_CITATIONS',
+} as const;
+
+const FLAG_LABELS: Record<keyof InitialInboxFlags, string> = {
+  adminInboxApiEnabled: 'Structured inbox',
+  enableReviewPromote: 'Attach & Promote',
+  allowEmptyCitations: 'Allow empty citations',
 };
 
-export type InboxTopScore = {
-  docId: string;
-  score: number;
-  title?: string | null;
+const FLAG_HINTS: Record<keyof InitialInboxFlags, string> = {
+  adminInboxApiEnabled: 'Enables the new inbox list with filters and detail drawer.',
+  enableReviewPromote: 'Requires the structured inbox. Unlocks attach source & promote actions.',
+  allowEmptyCitations: 'When enabled, SMEs can promote without attaching citations.',
 };
 
-export type InboxDetail = InboxListItem & {
-  question?: string | null;
-  topScores: InboxTopScore[] | null;
+const FLAG_DEPENDENCIES: Partial<Record<keyof InitialInboxFlags, keyof InitialInboxFlags>> = {
+  enableReviewPromote: 'adminInboxApiEnabled',
 };
 
-function normaliseListItem(raw: any): InboxListItem | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const idValue = raw.id ?? raw.ref_id;
-  if (!idValue) return null;
+export function InboxPageClient({
+  initialFlags,
+  tenantId,
+  tenantSlug,
+  userRole,
+}: InboxPageClientProps) {
+  const [flags, setFlags] = useState<InitialInboxFlags>(initialFlags);
+  const flagsRef = useRef(initialFlags);
+  const [mode, setMode] = useState<ReviewMode>(initialFlags.adminInboxApiEnabled ? 'modern' : 'legacy');
+  const [modeSource, setModeSource] = useState<ModeSource>('tenant');
+  const [flagPanelOpen, setFlagPanelOpen] = useState(false);
+  const [updatingKey, setUpdatingKey] = useState<keyof InitialInboxFlags | null>(null);
+  const [modernActions, setModernActions] = useState<ModernInboxActions | null>(null);
+  const pendingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingRequestRef = useRef<{
+    key: keyof InitialInboxFlags;
+    prevFlags: InitialInboxFlags;
+    nextFlags: InitialInboxFlags;
+  } | null>(null);
 
-  const tags = Array.isArray(raw.tags) ? raw.tags.filter((tag: unknown) => typeof tag === 'string') : [];
-  const qHash =
-    typeof raw.q_hash === 'string'
-      ? raw.q_hash
-      : typeof raw.question_hash === 'string'
-        ? raw.question_hash
-        : null;
+  const storageKey = useMemo(() => {
+    const suffix = tenantId ?? tenantSlug ?? 'default';
+    return `inbox-review-mode:${suffix}`;
+  }, [tenantId, tenantSlug]);
 
-  const askedAt =
-    typeof raw.asked_at === 'string'
-      ? raw.asked_at
-      : typeof raw.created_at === 'string'
-        ? raw.created_at
-        : null;
+  const canUseModern = !!flags.adminInboxApiEnabled;
+  const canModerate = Boolean(userRole && ['owner', 'admin', 'curator'].includes(userRole));
+  const allowReviewPromote =
+    Boolean((flags as unknown as Record<string, any>).enableReviewPromote) && canModerate;
+  const defaultMode: ReviewMode = canUseModern ? 'modern' : 'legacy';
+  const resolvedMode: ReviewMode = canUseModern ? mode : 'legacy';
+  const canManageFlags = (userRole && ['owner', 'admin', 'curator'].includes(userRole)) ?? false;
+  const canTestAsk = canManageFlags;
 
-  const channel = typeof raw.channel === 'string' ? raw.channel : null;
+  useEffect(() => {
+    flagsRef.current = flags;
+  }, [flags]);
 
-  const dupCountRaw =
-    typeof raw.dup_count === 'number'
-      ? raw.dup_count
-      : typeof raw.duplicate_count === 'number'
-        ? raw.duplicate_count
-        : null;
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
 
-  return {
-    id: String(idValue),
-    qHash,
-    askedAt,
-    channel,
-    tags,
-    dupCount: dupCountRaw && dupCountRaw >= 1 ? dupCountRaw : 1,
-  };
-}
-
-function normaliseDetail(raw: any): InboxDetail | null {
-  const base = normaliseListItem(raw);
-  if (!base) return null;
-
-  let topScores: InboxTopScore[] | null = null;
-  if (Array.isArray(raw.top_scores)) {
-    const scores = raw.top_scores
-      .map((entry: any) => {
-        if (!entry || typeof entry !== 'object') return null;
-        const docId = entry.doc_id;
-        const score = entry.score;
-        if (!docId || typeof docId !== 'string') return null;
-        if (typeof score !== 'number') return null;
-        return {
-          docId,
-          score,
-          title: typeof entry.title === 'string' ? entry.title : null,
-        };
-      })
-      .filter(Boolean) as InboxTopScore[];
-
-    topScores = scores.length > 0 ? scores : [];
-  }
-
-  return {
-    ...base,
-    question: typeof raw.question === 'string' ? raw.question : null,
-    topScores,
-  };
-}
-
-function parseListResponse(json: any): { items: InboxListItem[]; nextCursor: string | null } | null {
-  if (!json) return null;
-
-  const maybeItems = Array.isArray(json.items) ? json.items : Array.isArray(json) ? json : null;
-  if (!maybeItems) return null;
-
-  // Detect legacy payload by checking for answer/question fields without dup_count/q_hash
-  const first = maybeItems[0];
-  const looksLegacy =
-    first &&
-    typeof first === 'object' &&
-    ('answer' in first || 'question' in first) &&
-    !('dup_count' in first) &&
-    !('q_hash' in first);
-
-  if (looksLegacy) {
-    return null;
-  }
-
-  const items = maybeItems
-    .map((item: unknown) => normaliseListItem(item))
-    .filter((item: InboxListItem | null): item is InboxListItem => Boolean(item));
-
-  if (items.length === 0) {
-    return { items: [], nextCursor: null };
-  }
-
-  const nextCursor =
-    typeof json.next_cursor === 'string' && json.next_cursor.length > 0
-      ? json.next_cursor
-      : null;
-
-  return { items, nextCursor };
-}
-
-const DEFAULT_FILTERS: Filters = {
-  ref: '',
-  tag: 'no_source',
-  qHash: '',
-};
-
-export function InboxPageClient() {
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
-  const [draftFilters, setDraftFilters] = useState<Filters>(DEFAULT_FILTERS);
-  const [items, setItems] = useState<InboxListItem[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<InboxDetail | null>(null);
-  const [detailError, setDetailError] = useState<string | null>(null);
-  const [detailLoading, setDetailLoading] = useState<boolean>(false);
-  const [isInitialised, setIsInitialised] = useState<boolean>(false);
-  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const resetRefreshTimer = useCallback(() => {
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current);
-      refreshTimeoutRef.current = null;
+    if (!canUseModern) {
+      setMode('legacy');
+      setModeSource('tenant');
+      window.localStorage.removeItem(storageKey);
+      return;
     }
-  }, []);
 
-  const loadList = useCallback(
-    async (opts: { cursor?: string | null; append?: boolean } = {}) => {
+    const stored = window.localStorage.getItem(storageKey);
+    if (stored === 'legacy' || stored === 'modern') {
+      setMode(stored as ReviewMode);
+      setModeSource('override');
+    } else {
+      setMode(defaultMode);
+      setModeSource('tenant');
+    }
+  }, [canUseModern, defaultMode, storageKey]);
+
+  useEffect(() => {
+    if (!flags.adminInboxApiEnabled) {
+      setMode('legacy');
+      setModeSource('tenant');
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(storageKey);
+      }
+    } else if (modeSource === 'tenant') {
+      setMode('modern');
+    }
+  }, [flags.adminInboxApiEnabled, modeSource, storageKey]);
+
+  const changeMode = (next: ReviewMode) => {
+    if (next === 'modern' && !canUseModern) return;
+    setMode(next);
+    if (typeof window !== 'undefined') {
+      if (next === defaultMode) {
+        window.localStorage.removeItem(storageKey);
+        setModeSource('tenant');
+      } else {
+        window.localStorage.setItem(storageKey, next);
+        setModeSource('override');
+      }
+    }
+  };
+
+  const handleNoSourceFilter = () => {
+    if (!modernActions) {
+      toast.info('Switch to Attach & Promote mode to filter.');
+      return;
+    }
+    modernActions.applyNoSourceFilter();
+  };
+
+  const handleTestAsk = async () => {
+    if (!canTestAsk) return;
+    if (!modernActions) {
+      toast.info('Select an item in Attach & Promote mode first.');
+      return;
+    }
+    const { id, detail } = modernActions.getCurrentDetail();
+    if (!id || !detail?.question) {
+      toast.info('Select an item with a question to test.');
+      return;
+    }
+    try {
+      const response = await fetch('/api/admin/test-ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: detail.question,
+          tenantSlug,
+          refId: id,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const data = await response.json().catch(() => null);
+      toast.success('Ask service responded', {
+        description: data?.source_detail ? `source_detail=${data.source_detail}` : 'See console for full payload.',
+      });
+      console.info('[test-ask]', data);
+    } catch (error) {
+      console.error('[test-ask] failed', error);
+      toast.error('Test ask failed. Check logs for details.');
+    }
+  };
+
+  const updateFlag = (key: keyof InitialInboxFlags, nextValue: boolean) => {
+    if (pendingTimerRef.current) {
+      clearTimeout(pendingTimerRef.current);
+      pendingTimerRef.current = null;
+    }
+
+    const prevFlags = flagsRef.current;
+    if (prevFlags[key] === nextValue) {
+      return;
+    }
+
+    const nextFlags = { ...prevFlags, [key]: nextValue };
+    setFlags(nextFlags);
+    setUpdatingKey(key);
+    pendingRequestRef.current = { key, prevFlags, nextFlags };
+
+    pendingTimerRef.current = setTimeout(async () => {
       try {
-        setLoading(true);
-        setError(null);
-
-        const params = new URLSearchParams();
-        params.set('limit', String(DEFAULT_LIMIT));
-
-        if (opts.cursor) {
-          params.set('cursor', opts.cursor);
-        }
-
-        if (filters.tag) {
-          params.set('tag', filters.tag);
-        }
-
-        if (filters.ref) {
-          params.set('ref', filters.ref);
-        }
-
-        if (filters.qHash) {
-          params.set('q_hash', filters.qHash);
-        }
-
-        const query = params.toString();
-        const response = await fetch(`/api/admin/inbox${query ? `?${query}` : ''}`, {
-          method: 'GET',
-          credentials: 'include',
-          cache: 'no-store',
+        const backendKey = FLAG_KEY_MAP[key];
+        const response = await fetch('/api/admin/tenant-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: backendKey,
+            value: { value: nextValue ? 1 : 0 },
+            ...(tenantId ? { tenant_id: tenantId } : tenantSlug ? { tenant_slug: tenantSlug } : {}),
+          }),
         });
-
-        const text = await response.text();
-        let json: any = null;
-        if (text) {
-          try {
-            json = JSON.parse(text);
-          } catch {
-            throw new Error('Invalid JSON response from Admin API');
-          }
-        }
-
-        if (response.status === 404) {
-          setIsAvailable(false);
-          setItems([]);
-          setNextCursor(null);
-          setError(null);
-          return;
-        }
 
         if (!response.ok) {
-          const message =
-            (json && typeof json === 'object' && (json.details || json.error)) ||
-            `Admin inbox request failed (${response.status})`;
-          throw new Error(message);
+          throw new Error(await response.text());
         }
 
-        if (json && typeof json === 'object' && json.error) {
-          throw new Error(json.details || json.error);
+        if (typeof window !== 'undefined' && (window as any).gtag) {
+          (window as any).gtag('event', 'ui.flags.toggle', {
+            key: backendKey,
+            old: prevFlags[key] ? 1 : 0,
+            new: nextValue ? 1 : 0,
+            tenant_id: tenantId ?? tenantSlug ?? 'unknown',
+          });
         }
 
-        const parsed = parseListResponse(json);
-
-        if (!parsed) {
-          setIsAvailable(false);
-          setItems([]);
-          setNextCursor(null);
-          setError(null);
-          return;
-        }
-
-        setIsAvailable(true);
-        setNextCursor(parsed.nextCursor);
-
-        let updatedItems: InboxListItem[] = [];
-        setItems((prev) => {
-          if (opts.append) {
-            const existingIds = new Set(prev.map((item) => item.id));
-            const merged = [...prev];
-            for (const item of parsed.items) {
-              if (!existingIds.has(item.id)) {
-                merged.push(item);
-                existingIds.add(item.id);
-              }
-            }
-            updatedItems = merged;
-            return merged;
-          }
-          updatedItems = parsed.items;
-          return parsed.items;
-        });
-
-        setSelectedId((prev) => {
-          if (!prev) return prev;
-          return updatedItems.some((item) => item.id === prev) ? prev : null;
-        });
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : 'Failed to load inbox items';
-        setError(message);
-        toast.error(message);
-      } finally {
-        setLoading(false);
-        setIsInitialised(true);
+        setUpdatingKey(null);
+        pendingTimerRef.current = null;
+        pendingRequestRef.current = null;
+        toast.success(`${FLAG_LABELS[key]} ${nextValue ? 'enabled' : 'disabled'}.`);
+      } catch (error) {
+        console.error('[flag-toggle] failed', error);
+        const prev = pendingRequestRef.current?.prevFlags ?? flagsRef.current;
+        setFlags(prev);
+        flagsRef.current = prev;
+        setUpdatingKey(null);
+        pendingTimerRef.current = null;
+        pendingRequestRef.current = null;
+        toast.error(
+          `Reverted ${FLAG_LABELS[key]} to ${prev[key] ? 'enabled' : 'disabled'} after an error.`
+        );
       }
-    },
-    [filters]
-  );
+    }, 300);
+  };
 
-  const loadDetail = useCallback(async (id: string) => {
-    try {
-      setDetailLoading(true);
-      setDetailError(null);
-      setDetail(null);
-
-      const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}`, {
-        method: 'GET',
-        credentials: 'include',
-        cache: 'no-store',
-      });
-
-      if (response.status === 404) {
-        setDetailError('Not found or disabled');
-        return;
-      }
-
-      const json = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        const message =
-          (json && typeof json === 'object' && (json.details || json.error)) ||
-          `Failed to load inbox detail (${response.status})`;
-        throw new Error(message);
-      }
-
-      const normalised = normaliseDetail(json);
-      if (!normalised) {
-        setDetailError('Unable to parse inbox detail payload.');
-        return;
-      }
-
-      setDetail(normalised);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to load inbox detail';
-      setDetailError(message);
-      toast.error(message);
-    } finally {
-      setDetailLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadList();
-    return () => resetRefreshTimer();
-  }, [loadList, resetRefreshTimer]);
-
-  const handleApplyFilters = useCallback(() => {
-    const next = {
-      ref: draftFilters.ref.trim(),
-      tag: draftFilters.tag,
-      qHash: draftFilters.qHash.trim(),
-    };
-
-    const changed =
-      filters.ref !== next.ref ||
-      filters.tag !== next.tag ||
-      filters.qHash !== next.qHash;
-
-    if (!changed) {
-      loadList({ append: false });
-      return;
-    }
-
-    setFilters(next);
-    setSelectedId(null);
-    setDetail(null);
-    setDetailError(null);
-  }, [draftFilters, filters, loadList]);
-
-  const handleResetFilters = useCallback(() => {
-    const alreadyDefault =
-      filters.ref === DEFAULT_FILTERS.ref &&
-      filters.tag === DEFAULT_FILTERS.tag &&
-      filters.qHash === DEFAULT_FILTERS.qHash;
-
-    setDraftFilters(DEFAULT_FILTERS);
-    if (alreadyDefault) {
-      loadList({ append: false });
-      return;
-    }
-
-    setFilters(DEFAULT_FILTERS);
-    setSelectedId(null);
-    setDetail(null);
-    setDetailError(null);
-  }, [filters, loadList]);
-
-  const handleRefresh = useCallback(() => {
-    if (refreshTimeoutRef.current) return;
-
-    refreshTimeoutRef.current = setTimeout(() => {
-      loadList({ append: false });
-      resetRefreshTimer();
-    }, 350);
-  }, [loadList, resetRefreshTimer]);
-
-  const handleLoadMore = useCallback(() => {
-    if (!nextCursor) return;
-    loadList({ cursor: nextCursor, append: true });
-  }, [loadList, nextCursor]);
-
-  const handleSelect = useCallback(
-    (id: string) => {
-      setSelectedId(id);
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (!selectedId) {
-      setDetail(null);
-      setDetailError(null);
-      return;
-    }
-    loadDetail(selectedId);
-  }, [selectedId, loadDetail]);
-
-  const filtersApplied = useMemo(() => {
-    return {
-      ref: filters.ref,
-      tag: filters.tag,
-      qHash: filters.qHash,
-    };
-  }, [filters]);
+  const modeSourceLabel = modeSource === 'tenant' ? 'Default via tenant flags' : 'User override';
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-6 lg:px-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Inbox</h1>
         <p className="text-sm text-muted-foreground">
-          Read-only queue of blocked asks. Open an item to review full context.
+          Manage blocked questions, attach citations, and promote verified answers.
         </p>
       </div>
 
-      {isAvailable === false ? (
+      <Card>
+        <CardContent className="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-md border border-input p-1">
+              <Button
+                size="sm"
+                variant={resolvedMode === 'legacy' ? 'default' : 'ghost'}
+                onClick={() => changeMode('legacy')}
+                className="rounded-sm"
+              >
+                Legacy review
+              </Button>
+              <Button
+                size="sm"
+                variant={resolvedMode === 'modern' ? 'default' : 'ghost'}
+                onClick={() => changeMode('modern')}
+                disabled={!canUseModern}
+                className="rounded-sm"
+              >
+                Attach &amp; Promote
+              </Button>
+            </div>
+            <Badge variant="outline">{modeSourceLabel}</Badge>
+            <Badge variant={flags.allowEmptyCitations ? 'outline' : 'secondary'}>
+              {flags.allowEmptyCitations ? 'Citations optional' : 'Citations required'}
+            </Badge>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleNoSourceFilter}
+              disabled={resolvedMode !== 'modern'}
+            >
+              <Filter className="mr-2 h-4 w-4" />
+              no_source
+            </Button>
+            {canTestAsk && (
+              <Button type="button" size="sm" variant="outline" onClick={handleTestAsk}>
+                <FlaskConical className="mr-2 h-4 w-4" />
+                Test ask
+              </Button>
+            )}
+            {canManageFlags && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setFlagPanelOpen((prev) => !prev)}
+              >
+                <Settings2 className="mr-2 h-4 w-4" />
+                Feature controls
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {flagPanelOpen && canManageFlags && (
         <Card>
           <CardHeader>
-            <CardTitle>Inbox unavailable</CardTitle>
+            <CardTitle className="text-base">Tenant flags</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              The inbox feature is not enabled for this tenant. Enable the{' '}
-              <span className="font-medium">ADMIN_INBOX_API</span> flag to
-              surface no-source asks.
-            </p>
+          <CardContent className="space-y-4">
+            {(Object.keys(flags) as (keyof InitialInboxFlags)[]).map((key) => {
+              const dependency = FLAG_DEPENDENCIES[key];
+              const dependencyMet = dependency ? flags[dependency] : true;
+              const disabled = !dependencyMet || updatingKey === key;
+              const tooltipText = !dependencyMet
+                ? `Requires ${FLAG_LABELS[dependency!]}`
+                : updatingKey === key
+                  ? 'Updating…'
+                  : undefined;
+              return (
+                <div key={key} className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{FLAG_LABELS[key]}</p>
+                      <p className="text-xs text-muted-foreground">{FLAG_HINTS[key]}</p>
+                    </div>
+                    <div className="inline-flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={flags[key] ? 'default' : 'outline'}
+                        onClick={() => updateFlag(key, true)}
+                        disabled={disabled || flags[key]}
+                        title={tooltipText}
+                      >
+                        On
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={!flags[key] ? 'default' : 'outline'}
+                        onClick={() => updateFlag(key, false)}
+                        disabled={disabled || !flags[key]}
+                        title={tooltipText}
+                      >
+                        Off
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
-      ) : (
+      )}
+
+      {resolvedMode === 'modern' ? (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Filters</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form
-                className="grid gap-4 md:grid-cols-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  handleApplyFilters();
-                }}
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="inbox-ref-filter">Ref</Label>
-                  <Input
-                    id="inbox-ref-filter"
-                    placeholder="UUID..."
-                    value={draftFilters.ref}
-                    onChange={(event) =>
-                      setDraftFilters((prev) => ({
-                        ...prev,
-                        ref: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="inbox-tag-filter">Tag</Label>
-                  <select
-                    id="inbox-tag-filter"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={draftFilters.tag}
-                    onChange={(event) =>
-                      setDraftFilters((prev) => ({
-                        ...prev,
-                        tag: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">All</option>
-                    <option value="no_source">no_source</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="inbox-qhash-filter">Hash</Label>
-                  <Input
-                    id="inbox-qhash-filter"
-                    placeholder="q_hash..."
-                    value={draftFilters.qHash}
-                    onChange={(event) =>
-                      setDraftFilters((prev) => ({
-                        ...prev,
-                        qHash: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="flex items-end gap-2">
-                  <Button type="submit" size="sm" className="w-24">
-                    Apply
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={handleResetFilters}
-                  >
-                    Reset
-                  </Button>
-                </div>
-              </form>
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="flex flex-col gap-3 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-2 text-amber-900">
+                <Sparkles className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  Citations-only mode: blocked questions appear here. Select an item to attach
+                  sources or promote from the detail panel.
+                </span>
+              </div>
             </CardContent>
           </Card>
-
-          <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-            <InboxList
-              items={items}
-              loading={loading && !isInitialised}
-              refreshing={loading && isInitialised}
-              error={error}
-              filters={filtersApplied}
-              selectedId={selectedId}
-              onSelect={handleSelect}
-              onRefresh={handleRefresh}
-              onLoadMore={handleLoadMore}
-              nextCursor={nextCursor}
-            />
-
-            <InboxDetailPanel
-              loading={detailLoading}
-              error={detailError}
-              detail={detail}
-              selectedId={selectedId}
-            />
-          </div>
+          <ModernInboxClient
+            allowActions={!!allowReviewPromote}
+            allowEmptyCitations={flags.allowEmptyCitations === true}
+            tenantId={tenantId}
+            reviewFlagEnabled={flags.enableReviewPromote === true}
+            hasReviewerAccess={canModerate}
+            modeKey={resolvedMode}
+            onRegisterActions={setModernActions}
+          />
         </>
+      ) : (
+        <LegacyInboxPageClient />
+      )}
+
+      {!flags.adminInboxApiEnabled && (
+        <Card className="bg-muted">
+          <CardContent className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+            <ShieldAlert className="h-4 w-4" />
+            Structured inbox is disabled by tenant flags. Toggle “Structured inbox” in Feature
+            Controls to preview the new experience.
+          </CardContent>
+        </Card>
       )}
     </div>
   );

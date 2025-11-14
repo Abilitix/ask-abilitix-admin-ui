@@ -82,3 +82,21 @@ Document any anomalies before promoting the preview build to `main`.
 
 With this setup, the preview environment is isolated from production, and the PR2 changes can be safely validated end-to-end.
 
+---
+
+## Appendix – Local Cleanup (Nov 13 2025)
+
+During preparation for PR3 we reverted a handful of preview-login refactors that were never deployed. The following files were explicitly reset to match `origin/preview`:
+
+- `src/app/api/ask/stream/route.ts`
+- `src/app/api/auth/login/route.ts`
+- `src/app/api/auth/me/route.ts`
+- `src/app/api/superadmin/budgets/today/route.ts`
+- `src/app/api/superadmin/metrics/rollup/route.ts`
+- `src/app/api/superadmin/metrics/summary/route.ts`
+- `src/app/api/superadmin/metrics/tenants/route.ts`
+- `src/app/api/superadmin/violations/route.ts`
+- `src/app/verify/page.tsx`
+
+If preview login regresses, re-apply the `getAdminApiBase()`/cookie-domain adjustments to these paths and redeploy before re-testing.
+

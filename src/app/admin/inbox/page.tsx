@@ -18,19 +18,36 @@ async function probeInboxApiShape(): Promise<boolean> {
     if (!baseUrl) return false;
 
     const probeUrl = `${baseUrl}/api/admin/inbox?limit=1`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
     const response = await fetch(probeUrl, {
       headers: {
         Cookie: cookieHeader,
       },
       cache: 'no-store',
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) return false;
 
-    const data = await response.json().catch(() => null);
+    const text = await response.text().catch(() => '');
+    if (!text || text.trim().length === 0) return false;
+
+    let data: any = null;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return false;
+    }
+
     // Accept both {items:[...]} and [...] (defensive)
     return Array.isArray(data?.items) || Array.isArray(data);
-  } catch {
+  } catch (err) {
+    // Silently fail - fall back to legacy UI
+    console.warn('[inbox-probe] Failed to probe API shape, using legacy fallback:', err);
     return false;
   }
 }

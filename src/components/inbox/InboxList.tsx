@@ -90,12 +90,15 @@ export function InboxList({
   onRefresh,
   onLoadMore,
 }: InboxListProps) {
+  // Ensure items is always an array
+  const safeItems = Array.isArray(items) ? items : [];
+
   const hasFilters = useMemo(
     () => Boolean(filters.ref || filters.tag || filters.qHash),
     [filters]
   );
 
-  if (loading && !items.length) {
+  if (loading && !safeItems.length) {
     return (
       <Card className="h-full">
         <CardHeader>
@@ -135,7 +138,7 @@ export function InboxList({
     );
   }
 
-  if (!items.length) {
+  if (!safeItems.length) {
     return (
       <Card className="h-full">
         <CardHeader>
@@ -191,9 +194,10 @@ export function InboxList({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item) => {
+              {safeItems.map((item) => {
                 const when = formatRelativeTime(item.askedAt);
                 const isSelected = selectedId === item.id;
+                const safeTags = Array.isArray(item.tags) ? item.tags : [];
                 return (
                   <TableRow
                     key={item.id}
@@ -208,7 +212,7 @@ export function InboxList({
                       {item.qHash ?? '—'}
                     </TableCell>
                     <TableCell className="space-x-1 whitespace-nowrap">
-                      {item.tags.length ? item.tags.map(renderTag) : '—'}
+                      {safeTags.length ? safeTags.map(renderTag) : '—'}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="text-xs">

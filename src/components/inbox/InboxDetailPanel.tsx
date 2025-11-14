@@ -308,6 +308,11 @@ export function InboxDetailPanel({
 
   useEffect(() => {
     if (!detail) return;
+    const sourceCitations: Citation[] = Array.isArray(detail.suggestedCitations)
+      ? detail.suggestedCitations
+      : Array.isArray((detail as any).promotedCitations)
+        ? ((detail as any).promotedCitations as Citation[])
+        : [];
     const next =
       sourceCitations.length > 0
         ? sourceCitations.map((citation) => toEditableCitation(citation))

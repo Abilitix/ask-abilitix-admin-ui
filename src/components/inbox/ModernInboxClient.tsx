@@ -515,10 +515,12 @@ export function ModernInboxClient({
 
         let updatedItems: InboxListItem[] = [];
         setItems((prev) => {
+          const safePrev = Array.isArray(prev) ? prev : [];
+          const safeItems = Array.isArray(parsed.items) ? parsed.items : [];
           if (opts.append) {
-            const existingIds = new Set(prev.map((item) => item.id));
-            const merged = [...prev];
-            for (const item of parsed.items) {
+            const existingIds = new Set(safePrev.map((item) => item.id));
+            const merged = [...safePrev];
+            for (const item of safeItems) {
               if (!existingIds.has(item.id)) {
                 merged.push(item);
                 existingIds.add(item.id);
@@ -527,8 +529,8 @@ export function ModernInboxClient({
             updatedItems = merged;
             return merged;
           }
-          updatedItems = parsed.items;
-          return parsed.items;
+          updatedItems = safeItems;
+          return safeItems;
         });
 
         setSelectedId((prev) => {
@@ -788,7 +790,7 @@ export function ModernInboxClient({
                 }
               : prev
           );
-          setItems((prev) => prev.filter((item) => item.id !== selectedId));
+          setItems((prev) => (Array.isArray(prev) ? prev : []).filter((item) => item.id !== selectedId));
           await loadList({ append: false });
           if (qaPairId && onPromoteSuccess) {
             onPromoteSuccess();

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  Citation,
   CitationFieldErrors,
   InboxDetail,
   PreparedCitation,
@@ -308,8 +309,8 @@ export function InboxDetailPanel({
   useEffect(() => {
     if (!detail) return;
     const next =
-      detail.suggestedCitations.length > 0
-        ? detail.suggestedCitations.map((citation) => toEditableCitation(citation))
+      sourceCitations.length > 0
+        ? sourceCitations.map((citation) => toEditableCitation(citation))
         : [EMPTY_CITATION];
     setCitations(next);
     setClientErrors(next.map(() => ({})));
@@ -330,13 +331,15 @@ export function InboxDetailPanel({
     [citations, allowEmptyCitations]
   );
 
+  const safeFieldErrors = Array.isArray(fieldErrors) ? fieldErrors : [];
+
   const combinedRowErrors = useMemo(() => {
-    const length = Math.max(citations.length, fieldErrors.length, clientErrors.length);
+    const length = Math.max(citations.length, safeFieldErrors.length, clientErrors.length);
     return Array.from({ length }, (_, index) => ({
       ...(showErrors ? clientErrors[index] ?? {} : {}),
-      ...(fieldErrors[index] ?? {}),
+      ...(safeFieldErrors[index] ?? {}),
     }));
-  }, [citations.length, fieldErrors, clientErrors, showErrors]);
+  }, [citations, safeFieldErrors, clientErrors, showErrors]);
 
   const handleCitationsChange = useCallback(
     (next: EditableCitation[]) => {
@@ -479,7 +482,15 @@ export function InboxDetailPanel({
   }
 
   const when = formatRelativeTime(detail.askedAt);
-  const showNoSource = detail.tags.includes('no_source');
+  const tags = Array.isArray(detail.tags) ? detail.tags : [];
+  const topScores = Array.isArray(detail.topScores) ? detail.topScores : [];
+  const sourceCitations: Citation[] = Array.isArray(detail.suggestedCitations)
+    ? detail.suggestedCitations
+    : Array.isArray((detail as any).promotedCitations)
+      ? ((detail as any).promotedCitations as Citation[])
+      : [];
+
+  const showNoSource = tags.includes('no_source');
   const isPromoted = Boolean(detail.promotedPairId);
 
   let actionsDisabledReason: 'promoted' | 'flag' | 'permission' | null = null;
@@ -581,7 +592,7 @@ export function InboxDetailPanel({
           </div>
           <div>
             <dt className="text-muted-foreground">Tags</dt>
-            <dd className="mt-1 flex flex-wrap gap-1">{renderTags(detail.tags)}</dd>
+            <dd className="mt-1 flex flex-wrap gap-1">{renderTags(tags)}</dd>
           </div>
         </dl>
 
@@ -700,11 +711,11 @@ export function InboxDetailPanel({
             <p className="text-xs text-muted-foreground">
               Evidence snapshot not yet available.
             </p>
-          ) : detail.topScores.length === 0 ? (
+          ) : topScores.length === 0 ? (
             <p className="text-xs text-muted-foreground">No scores recorded.</p>
           ) : (
             <ul className="space-y-2 text-xs">
-              {detail.topScores.map((score) => (
+              {topScores.map((score) => (
                 <li
                   key={score.docId}
                   className="rounded-md border border-slate-200 bg-slate-50 p-2"

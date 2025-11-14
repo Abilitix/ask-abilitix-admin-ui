@@ -51,9 +51,11 @@ export function CitationsEditor({
   maxCount = 3,
 }: CitationsEditorProps) {
   const canEdit = !readOnly && !disabled;
+  const safeValue = Array.isArray(value) ? value : [];
+  const safeErrors = Array.isArray(errors) ? errors : [];
 
   const updateCitation = (index: number, partial: Partial<EditableCitation>) => {
-    const next = value.map((entry, idx) =>
+    const next = safeValue.map((entry, idx) =>
       idx === index ? { ...entry, ...partial } : entry
     );
     onChange(next);
@@ -61,23 +63,23 @@ export function CitationsEditor({
 
   const removeCitation = (index: number) => {
     if (!canEdit) return;
-    const next = value.filter((_, idx) => idx !== index);
+    const next = safeValue.filter((_, idx) => idx !== index);
     onChange(next.length ? next : [EMPTY_CITATION]);
   };
 
   const addCitation = () => {
     if (!canEdit) return;
-    if (value.length >= maxCount) return;
-    onChange([...value, { ...EMPTY_CITATION }]);
+    if (safeValue.length >= maxCount) return;
+    onChange([...safeValue, { ...EMPTY_CITATION }]);
   };
 
-  const effectiveValue = value.length > 0 ? value : [EMPTY_CITATION];
+  const effectiveValue = safeValue.length > 0 ? safeValue : [EMPTY_CITATION];
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
         {effectiveValue.map((citation, index) => {
-          const rowErrors = errors[index] ?? {};
+          const rowErrors = safeErrors[index] ?? {};
           const showRemove = canEdit && effectiveValue.length > 1;
 
           return (

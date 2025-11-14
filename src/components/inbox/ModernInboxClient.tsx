@@ -234,8 +234,16 @@ function normaliseDetail(raw: any): InboxDetail | null {
 function parseListResponse(json: any): { items: InboxListItem[]; nextCursor: string | null } | null {
   if (!json) return null;
 
-  const maybeItems = Array.isArray(json.items) ? json.items : Array.isArray(json) ? json : null;
-  if (!maybeItems) return null;
+  const maybeItems = Array.isArray(json.items)
+    ? json.items
+    : Array.isArray(json.data?.items)
+      ? json.data.items
+      : Array.isArray(json)
+        ? json
+        : null;
+  if (!maybeItems) {
+    return { items: [], nextCursor: null };
+  }
 
   // Detect legacy payload by checking for answer/question fields without dup_count/q_hash
   const first = maybeItems[0];
@@ -446,6 +454,8 @@ export function ModernInboxClient({
           params.set('tag', activeFilters.tag);
         }
 
+        params.set('status', 'pending');
+
         if (activeFilters.ref) {
           params.set('ref', activeFilters.ref);
         }
@@ -571,7 +581,10 @@ export function ModernInboxClient({
       }
 
       setDetail(normalised);
-      setCitationFieldErrors(normalised.suggestedCitations.map(() => ({})));
+      const citationCount = Array.isArray(normalised.suggestedCitations)
+        ? normalised.suggestedCitations.length
+        : 0;
+      setCitationFieldErrors(createEmptyFieldErrors(citationCount));
       setActionError(null);
       setPermissionError(false);
       setPromoteConflict(null);

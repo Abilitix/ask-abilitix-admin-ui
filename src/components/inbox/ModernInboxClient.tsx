@@ -473,11 +473,14 @@ export function ModernInboxClient({
 
         const text = await response.text();
         let json: any = null;
-        if (text) {
+        
+        // Defensive JSON parsing - don't throw on parse error, just use empty object
+        if (text && text.trim().length > 0) {
           try {
             json = JSON.parse(text);
           } catch {
-            throw new Error('Invalid JSON response from Admin API');
+            // If JSON parse fails, treat as empty response
+            json = {};
           }
         }
 
@@ -500,7 +503,9 @@ export function ModernInboxClient({
           throw new Error(json.details || json.error);
         }
 
-        const parsed = parseListResponse(json);
+        // Defensive: accept both {items:[...]} and [...] (legacy fallback)
+        const safeJson = json || {};
+        const parsed = parseListResponse(safeJson);
 
         if (!parsed) {
           setIsAvailable(false);

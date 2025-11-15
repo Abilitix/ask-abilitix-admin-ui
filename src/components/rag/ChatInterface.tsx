@@ -255,7 +255,9 @@ export default function ChatInterface({
     }
 
     try {
-      await navigator.clipboard.writeText(text);
+      // Strip markdown formatting before copying
+      const plainText = stripMarkdown(text);
+      await navigator.clipboard.writeText(plainText);
       toast.success('Copied to clipboard');
     } catch (err) {
       console.error('Failed to copy text:', err);

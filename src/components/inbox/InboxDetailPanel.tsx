@@ -56,10 +56,11 @@ function formatRelativeTime(value: string | null) {
 }
 
 function renderTags(tags: string[]) {
-  if (!tags.length) return <span className="text-xs text-muted-foreground">—</span>;
+  const safeTags = Array.isArray(tags) ? tags : [];
+  if (!safeTags.length) return <span className="text-xs text-muted-foreground">—</span>;
   return (
     <div className="flex flex-wrap gap-1">
-      {tags.map((tag) => (
+      {safeTags.map((tag) => (
         <Badge
           key={tag}
           className={tag === 'no_source' ? 'bg-amber-100 text-amber-900 text-[11px]' : 'text-[11px]'}
@@ -109,11 +110,12 @@ function validateCitations(
   citations: EditableCitation[],
   allowEmpty: boolean
 ): ValidationResult {
-  const rowErrors: CitationRowError[] = citations.map(() => ({}));
-  const parsed: Array<ParsedCitation | null> = citations.map(() => null);
+  const safeCitations = Array.isArray(citations) ? citations : [];
+  const rowErrors: CitationRowError[] = safeCitations.map(() => ({}));
+  const parsed: Array<ParsedCitation | null> = safeCitations.map(() => null);
   const seenDocIds = new Map<string, number[]>();
 
-  citations.forEach((citation, index) => {
+  safeCitations.forEach((citation, index) => {
     const docId = citation.docId.trim();
     const page = citation.page.trim();
     const spanStart = citation.spanStart.trim();
@@ -326,30 +328,35 @@ export function InboxDetailPanel({
 
   useEffect(() => {
     setClientErrors((prev) => {
-      if (prev.length === citations.length) return prev;
-      return citations.map(() => ({}));
+      const safePrev = Array.isArray(prev) ? prev : [];
+      const safeCitations = Array.isArray(citations) ? citations : [EMPTY_CITATION];
+      if (safePrev.length === safeCitations.length) return safePrev;
+      return safeCitations.map(() => ({}));
     });
   }, [citations]);
 
-  const validationPreview = useMemo(
-    () => validateCitations(citations, allowEmptyCitations),
-    [citations, allowEmptyCitations]
-  );
+  const validationPreview = useMemo(() => {
+    const safeCitations = Array.isArray(citations) ? citations : [EMPTY_CITATION];
+    return validateCitations(safeCitations, allowEmptyCitations);
+  }, [citations, allowEmptyCitations]);
 
   const safeFieldErrors = Array.isArray(fieldErrors) ? fieldErrors : [];
 
   const combinedRowErrors = useMemo(() => {
-    const length = Math.max(citations.length, safeFieldErrors.length, clientErrors.length);
+    const safeCitations = Array.isArray(citations) ? citations : [EMPTY_CITATION];
+    const safeClientErrors = Array.isArray(clientErrors) ? clientErrors : [];
+    const length = Math.max(safeCitations.length, safeFieldErrors.length, safeClientErrors.length);
     return Array.from({ length }, (_, index) => ({
-      ...(showErrors ? clientErrors[index] ?? {} : {}),
+      ...(showErrors ? safeClientErrors[index] ?? {} : {}),
       ...(safeFieldErrors[index] ?? {}),
     }));
   }, [citations, safeFieldErrors, clientErrors, showErrors]);
 
   const handleCitationsChange = useCallback(
     (next: EditableCitation[]) => {
-      setCitations(next);
-      setClientErrors(next.map(() => ({})));
+      const safeNext = Array.isArray(next) ? next : [EMPTY_CITATION];
+      setCitations(safeNext);
+      setClientErrors(safeNext.map(() => ({})));
       setShowErrors(false);
       setGeneralError(null);
       onClearFieldErrors();
@@ -359,7 +366,8 @@ export function InboxDetailPanel({
 
   const handleAttachClick = useCallback(async () => {
     if (!detail) return;
-    const validation = validateCitations(citations, allowEmptyCitations);
+    const safeCitations = Array.isArray(citations) ? citations : [EMPTY_CITATION];
+    const validation = validateCitations(safeCitations, allowEmptyCitations);
     if (!validation.isValid) {
       setClientErrors(validation.rowErrors);
       setGeneralError(validation.generalError ?? null);
@@ -388,7 +396,8 @@ export function InboxDetailPanel({
 
   const handlePromoteClick = useCallback(async () => {
     if (!detail) return;
-    const validation = validateCitations(citations, allowEmptyCitations);
+    const safeCitations = Array.isArray(citations) ? citations : [EMPTY_CITATION];
+    const validation = validateCitations(safeCitations, allowEmptyCitations);
     if (!validation.isValid) {
       setClientErrors(validation.rowErrors);
       setGeneralError(validation.generalError ?? null);

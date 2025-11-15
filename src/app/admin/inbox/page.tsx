@@ -61,9 +61,21 @@ export default async function AdminInboxPage() {
   ]);
   const { flags, tenantId } = mapSettingsToFlags(settings);
 
+  // TEMPORARY: Disable probe to test if it's causing the crash
   // Safety-belt: only render modern inbox if API probe confirms expected shape
-  const probeOk = flags.adminInboxApiEnabled ? await probeInboxApiShape() : false;
-  const shouldRenderModern = flags.adminInboxApiEnabled && probeOk;
+  // If probe fails, fall back to legacy to prevent crashes
+  let shouldRenderModern = flags.adminInboxApiEnabled;
+  
+  // Uncomment below to re-enable probe check
+  // if (flags.adminInboxApiEnabled) {
+  //   try {
+  //     const probeOk = await probeInboxApiShape();
+  //     shouldRenderModern = probeOk;
+  //   } catch (err) {
+  //     console.error('Inbox API probe failed, falling back to legacy:', err);
+  //     shouldRenderModern = false;
+  //   }
+  // }
 
   return (
     <>

@@ -232,8 +232,9 @@ function normaliseDetail(raw: any): InboxDetail | null {
 }
 
 function parseListResponse(json: any): { items: InboxListItem[]; nextCursor: string | null } | null {
-  if (!json) return null;
+  if (!json || typeof json !== 'object') return null;
 
+  // Defensive: accept both {items:[...]} and [...] (legacy fallback)
   const maybeItems = Array.isArray(json.items)
     ? json.items
     : Array.isArray(json.data?.items)
@@ -241,7 +242,9 @@ function parseListResponse(json: any): { items: InboxListItem[]; nextCursor: str
       : Array.isArray(json)
         ? json
         : null;
-  if (!maybeItems) {
+  
+  // Always return a safe shape, never null items
+  if (!maybeItems || !Array.isArray(maybeItems)) {
     return { items: [], nextCursor: null };
   }
 
@@ -255,23 +258,25 @@ function parseListResponse(json: any): { items: InboxListItem[]; nextCursor: str
     !('q_hash' in first);
 
   if (looksLegacy) {
-    return null;
+    return { items: [], nextCursor: null }; // Return empty instead of null
+  }
+
+  // Guard: ensure maybeItems is still an array before mapping
+  if (!Array.isArray(maybeItems)) {
+    return { items: [], nextCursor: null };
   }
 
   const items = maybeItems
     .map((item: unknown) => normaliseListItem(item))
     .filter((item: InboxListItem | null): item is InboxListItem => Boolean(item));
 
-  if (items.length === 0) {
-    return { items: [], nextCursor: null };
-  }
-
+  // Always return an array, even if empty
   const nextCursor =
     typeof json.next_cursor === 'string' && json.next_cursor.length > 0
       ? json.next_cursor
       : null;
 
-  return { items, nextCursor };
+  return { items: Array.isArray(items) ? items : [], nextCursor };
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -493,6 +498,9 @@ export function ModernInboxClient({
         }
 
         if (!response.ok) {
+          // Ensure items is always an array even on error
+          setItems([]);
+          setNextCursor(null);
           const message =
             (json && typeof json === 'object' && (json.details || json.error)) ||
             `Admin inbox request failed (${response.status})`;
@@ -500,6 +508,9 @@ export function ModernInboxClient({
         }
 
         if (json && typeof json === 'object' && json.error) {
+          // Ensure items is always an array even on error
+          setItems([]);
+          setNextCursor(null);
           throw new Error(json.details || json.error);
         }
 
@@ -515,8 +526,17 @@ export function ModernInboxClient({
           return;
         }
 
+        // Double-check parsed.items exists and is an array
+        if (!parsed || !Array.isArray(parsed.items)) {
+          setIsAvailable(false);
+          setItems([]);
+          setNextCursor(null);
+          setError(null);
+          return;
+        }
+
         setIsAvailable(true);
-        setNextCursor(parsed.nextCursor);
+        setNextCursor(parsed.nextCursor || null);
 
         let updatedItems: InboxListItem[] = [];
         setItems((prev) => {
@@ -540,7 +560,8 @@ export function ModernInboxClient({
 
         setSelectedId((prev) => {
           if (!prev) return prev;
-          return updatedItems.some((item) => item.id === prev) ? prev : null;
+          const safeUpdatedItems = Array.isArray(updatedItems) ? updatedItems : [];
+          return safeUpdatedItems.some((item) => item && item.id === prev) ? prev : null;
         });
       } catch (err) {
         const message =
@@ -1108,7 +1129,7 @@ export function ModernInboxClient({
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <InboxList
-          items={items}
+          items={Array.isArray(items) ? items : []}
           loading={loading && !isInitialised}
           refreshing={loading && isInitialised}
           error={error}

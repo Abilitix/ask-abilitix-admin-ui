@@ -6,6 +6,8 @@ import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import { stripMarkdown } from "@/lib/text/markdown";
 import { RENDER_MD } from "@/lib/text/flags";
+import { toast } from "sonner";
+import { Copy, Trash2 } from "lucide-react";
 
 // Token sync utility function
 function getTokenLimitForRagTopK(ragTopK: number): number {
@@ -40,6 +42,16 @@ type ChatMsg = {
   sources?: Source[];
 };
 
+type StoredChat = {
+  messages: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    ts?: string;
+  }>;
+  lastUpdatedAt: string;
+  tenantSlug?: string;
+};
+
 type Props = {
   documentTitle?: string;
   uploadHref?: string;
@@ -64,6 +76,63 @@ const normalizeSources = (raw: any): Source[] => {
   }
   return [];
 };
+
+// localStorage helpers for sticky chat
+function getStorageKey(tenantSlug?: string): string {
+  const slug = tenantSlug || process.env.NEXT_PUBLIC_TENANT_SLUG || 'default';
+  return `ask_abilitix_chat_${slug}`;
+}
+
+function loadChatFromStorage(tenantSlug?: string): StoredChat | null {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const key = getStorageKey(tenantSlug);
+    const stored = window.localStorage.getItem(key);
+    if (!stored) return null;
+    
+    const parsed = JSON.parse(stored) as StoredChat;
+    // Validate structure
+    if (parsed && Array.isArray(parsed.messages) && typeof parsed.lastUpdatedAt === 'string') {
+      return parsed;
+    }
+    return null;
+  } catch (err) {
+    console.warn('[ChatInterface] Failed to load chat from localStorage:', err);
+    return null;
+  }
+}
+
+function saveChatToStorage(messages: ChatMsg[], tenantSlug?: string): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const key = getStorageKey(tenantSlug);
+    const stored: StoredChat = {
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: m.text,
+        ts: m.time,
+      })),
+      lastUpdatedAt: new Date().toISOString(),
+      tenantSlug: tenantSlug || process.env.NEXT_PUBLIC_TENANT_SLUG,
+    };
+    window.localStorage.setItem(key, JSON.stringify(stored));
+  } catch (err) {
+    console.warn('[ChatInterface] Failed to save chat to localStorage:', err);
+  }
+}
+
+function clearChatStorage(tenantSlug?: string): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const key = getStorageKey(tenantSlug);
+    window.localStorage.removeItem(key);
+  } catch (err) {
+    console.warn('[ChatInterface] Failed to clear chat from localStorage:', err);
+  }
+}
 
 /** Try hard to extract a text token from many possible payload shapes */
 function extractToken(payload: any, currentEvent: string): string | undefined {
@@ -111,9 +180,25 @@ export default function ChatInterface({
     console.log('ChatInterface Debug - Session ID generated:', sessionId);
   }, [sessionId]);
 
-  const [messages, setMessages] = React.useState<ChatMsg[]>([
-    { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
-  ]);
+  // Initialize messages from localStorage or default
+  const [messages, setMessages] = React.useState<ChatMsg[]>(() => {
+    // Try to load from localStorage on initial mount
+    const stored = loadChatFromStorage();
+    if (stored && Array.isArray(stored.messages) && stored.messages.length > 0) {
+      // Convert stored format back to ChatMsg format
+      return stored.messages.map((m, idx) => ({
+        id: `m${idx}`,
+        role: m.role as ChatRole,
+        text: m.content,
+        time: m.ts,
+        sources: [], // Sources not persisted
+      }));
+    }
+    // Default initial message
+    return [
+      { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
+    ];
+  });
 
   // Fetch tenant settings on mount (additive enhancement)
   React.useEffect(() => {
@@ -142,6 +227,53 @@ export default function ChatInterface({
     const cappedTokens = Math.min(bufferTokens, 1200); // Max 1200 tokens
     setSessionMaxTokens(cappedTokens);
   }, [topK]);
+
+  // Auto-save messages to localStorage whenever they change
+  React.useEffect(() => {
+    if (messages.length > 0) {
+      saveChatToStorage(messages);
+    }
+  }, [messages]);
+
+  // Clear chat handler
+  const handleClearChat = React.useCallback(() => {
+    if (typeof window === 'undefined') return;
+    
+    if (window.confirm('Are you sure you want to clear this conversation?')) {
+      clearChatStorage();
+      setMessages([
+        { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
+      ]);
+    }
+  }, []);
+
+  // Copy latest assistant message handler
+  const handleCopyLatestAssistant = React.useCallback(async (text: string) => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) {
+      toast.error('Clipboard not available');
+      return;
+    }
+
+    try {
+      // Strip markdown formatting before copying
+      const plainText = stripMarkdown(text);
+      await navigator.clipboard.writeText(plainText);
+      toast.success('Copied to clipboard');
+    } catch (err) {
+      console.error('Failed to copy text:', err);
+      toast.error('Failed to copy');
+    }
+  }, []);
+
+  // Find the latest assistant message index
+  const latestAssistantIndex = React.useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') {
+        return i;
+      }
+    }
+    return -1;
+  }, [messages]);
 
   const chatRef = React.useRef<HTMLDivElement | null>(null);
   const scrollToBottom = React.useCallback(() => {
@@ -315,12 +447,23 @@ export default function ChatInterface({
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="font-semibold">{documentTitle}</div>
-        <a
-          href={uploadHref}
-          className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-        >
-          ⬆ Upload docs
-        </a>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleClearChat}
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            title="Clear chat"
+            aria-label="Clear chat"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear chat
+          </button>
+          <a
+            href={uploadHref}
+            className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+          >
+            ⬆ Upload docs
+          </a>
+        </div>
       </div>
 
       {/* Chat body */}
@@ -332,8 +475,9 @@ export default function ChatInterface({
               Asking your AI Assistant...
             </div>
           )}
-          {messages.map((m) => {
+          {messages.map((m, idx) => {
             const isUser = m.role === "user";
+            const isLatestAssistant = !isUser && idx === latestAssistantIndex;
             const displayContent = isUser ? (
               m.text
             ) : RENDER_MD ? (
@@ -352,7 +496,7 @@ export default function ChatInterface({
               <div key={m.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
                 <div
                   className={[
-                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words",
+                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words relative",
                     isUser ? "bg-blue-600 text-white whitespace-pre-wrap" : "bg-slate-100 text-slate-900",
                   ].join(" ")}
                 >
@@ -375,16 +519,30 @@ export default function ChatInterface({
                     </div>
                   )}
 
-                  {m.time && (
-                    <div
-                      className={[
-                        "mt-1.5 text-[11px]",
-                        isUser ? "text-blue-100/80" : "text-slate-500",
-                      ].join(" ")}
-                    >
-                      {m.time}
-                    </div>
-                  )}
+                  {/* Footer with timestamp and copy button */}
+                  <div className="mt-1.5 flex items-center gap-2">
+                    {/* Copy button for latest assistant message - bottom left */}
+                    {isLatestAssistant && (
+                      <button
+                        onClick={() => handleCopyLatestAssistant(m.text)}
+                        className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                        title="Copy message"
+                        aria-label="Copy message"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {m.time && (
+                      <div
+                        className={[
+                          "text-[11px]",
+                          isUser ? "text-blue-100/80" : "text-slate-500",
+                        ].join(" ")}
+                      >
+                        {m.time}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );

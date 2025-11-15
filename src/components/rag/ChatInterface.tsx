@@ -498,18 +498,7 @@ export default function ChatInterface({
                     isUser ? "bg-blue-600 text-white whitespace-pre-wrap" : "bg-slate-100 text-slate-900",
                   ].join(" ")}
                 >
-                  {/* Copy button for latest assistant message */}
-                  {isLatestAssistant && (
-                    <button
-                      onClick={() => handleCopyLatestAssistant(m.text)}
-                      className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
-                      title="Copy message"
-                      aria-label="Copy message"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  <div className={isLatestAssistant ? "pr-8" : ""}>{displayContent}</div>
+                  <div>{displayContent}</div>
 
                   {!isUser && m.sources && m.sources.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -528,16 +517,30 @@ export default function ChatInterface({
                     </div>
                   )}
 
-                  {m.time && (
-                    <div
-                      className={[
-                        "mt-1.5 text-[11px]",
-                        isUser ? "text-blue-100/80" : "text-slate-500",
-                      ].join(" ")}
-                    >
-                      {m.time}
-                    </div>
-                  )}
+                  {/* Footer with timestamp and copy button */}
+                  <div className="mt-1.5 flex items-center gap-2">
+                    {/* Copy button for latest assistant message - bottom left */}
+                    {isLatestAssistant && (
+                      <button
+                        onClick={() => handleCopyLatestAssistant(m.text)}
+                        className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                        title="Copy message"
+                        aria-label="Copy message"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {m.time && (
+                      <div
+                        className={[
+                          "text-[11px]",
+                          isUser ? "text-blue-100/80" : "text-slate-500",
+                        ].join(" ")}
+                      >
+                        {m.time}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );

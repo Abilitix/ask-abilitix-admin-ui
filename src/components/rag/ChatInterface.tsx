@@ -40,6 +40,9 @@ type ChatMsg = {
   text: string;
   time?: string;
   sources?: Source[];
+  // Optional metadata about where the answer came from (docs RAG vs FAQ/db)
+  source?: string;
+  sourceDetail?: string;
 };
 
 type StoredChat = {
@@ -192,6 +195,9 @@ export default function ChatInterface({
         text: m.content,
         time: m.ts,
         sources: [], // Sources not persisted
+        // Source metadata is not persisted; treated as undefined on reload
+        source: undefined,
+        sourceDetail: undefined,
       }));
     }
     // Default initial message
@@ -296,16 +302,36 @@ export default function ChatInterface({
     let buffer = "";
     let citations: Source[] = [];
     let sawContent = false;
+    let answerSource: string | undefined;
+    let answerSourceDetail: string | undefined;
 
     const updateAssistant = (text: string, src?: Source[]) => {
       setMessages((prev) =>
-        prev.map((m) => (m.id === assistantId ? { ...m, text, sources: src ?? m.sources } : m))
+        prev.map((m) =>
+          m.id === assistantId
+            ? {
+                ...m,
+                text,
+                sources: src ?? m.sources,
+                source: answerSource ?? m.source,
+                sourceDetail: answerSourceDetail ?? m.sourceDetail,
+              }
+            : m
+        )
       );
     };
 
     setMessages((prev) => [
       ...prev,
-      { id: assistantId, role: "assistant", text: "", time: nowHHMM(), sources: [] },
+      {
+        id: assistantId,
+        role: "assistant",
+        text: "",
+        time: nowHHMM(),
+        sources: [],
+        source: undefined,
+        sourceDetail: undefined,
+      },
     ]);
 
     // Non-stream fallback
@@ -326,6 +352,9 @@ export default function ChatInterface({
       });
       if (!res.ok) throw new Error(`Ask (non-stream) failed: ${res.status}`);
       const json = await res.json();
+      // Capture source metadata from non-streaming response
+      answerSource = json?.source;
+      answerSourceDetail = json?.source_detail;
       const answer =
         json?.answer ??
         json?.content ??
@@ -397,6 +426,16 @@ export default function ChatInterface({
             const maybeSources = payload?.citations ?? payload?.sources;
             if (maybeSources) {
               citations = normalizeSources(maybeSources);
+            }
+
+            // Capture source metadata when present
+            if (payload && typeof payload === 'object') {
+              if (typeof payload.source === 'string') {
+                answerSource = payload.source;
+              }
+              if (typeof payload.source_detail === 'string') {
+                answerSourceDetail = payload.source_detail;
+              }
             }
 
             const token = extractToken(payload, currentEvent);
@@ -478,6 +517,8 @@ export default function ChatInterface({
           {messages.map((m, idx) => {
             const isUser = m.role === "user";
             const isLatestAssistant = !isUser && idx === latestAssistantIndex;
+            const isApprovedFaqMsg =
+              !isUser && (m.source === 'db' || m.sourceDetail === 'qa_pair');
             const displayContent = isUser ? (
               m.text
             ) : RENDER_MD ? (
@@ -500,6 +541,11 @@ export default function ChatInterface({
                     isUser ? "bg-blue-600 text-white whitespace-pre-wrap" : "bg-slate-100 text-slate-900",
                   ].join(" ")}
                 >
+                  {!isUser && isApprovedFaqMsg && (
+                    <div className="mb-1 text-[11px] font-medium text-emerald-700">
+                      Answer type: Approved FAQ
+                    </div>
+                  )}
                   <div>{displayContent}</div>
 
                   {!isUser && m.sources && m.sources.length > 0 && (

@@ -174,6 +174,8 @@ export default function ChatInterface({
   const [tenantSettings, setTenantSettings] = React.useState<{RAG_TOPK: number} | null>(null);
   const [input, setInput] = React.useState("");
   const [sending, setSending] = React.useState(false);
+  // Tenant slug for localStorage isolation (critical for multi-tenant security)
+  const [tenantSlug, setTenantSlug] = React.useState<string | undefined>(undefined);
   
   // Generate unique session ID for conversation memory (additive enhancement)
   const [sessionId] = React.useState(() => `ai-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -185,26 +187,44 @@ export default function ChatInterface({
 
   // Initialize messages from localStorage or default
   const [messages, setMessages] = React.useState<ChatMsg[]>(() => {
-    // Try to load from localStorage on initial mount
-    const stored = loadChatFromStorage();
-    if (stored && Array.isArray(stored.messages) && stored.messages.length > 0) {
-      // Convert stored format back to ChatMsg format
-      return stored.messages.map((m, idx) => ({
-        id: `m${idx}`,
-        role: m.role as ChatRole,
-        text: m.content,
-        time: m.ts,
-        sources: [], // Sources not persisted
-        // Source metadata is not persisted; treated as undefined on reload
-        source: undefined,
-        sourceDetail: undefined,
-      }));
-    }
-    // Default initial message
+    // Start with default message; will reload from storage once tenant slug is known
     return [
       { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
     ];
   });
+
+  // Fetch tenant info and settings on mount (critical for tenant isolation)
+  React.useEffect(() => {
+    const fetchTenantInfo = async () => {
+      try {
+        const response = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (response.ok) {
+          const data = await response.json();
+          // Extract tenant slug from response (supports both nested and flat structures)
+          const slug = data?.tenant?.slug || data?.tenant_slug || data?.tenant?.id || undefined;
+          if (slug) {
+            setTenantSlug(slug);
+            // Load chat history for this specific tenant
+            const stored = loadChatFromStorage(slug);
+            if (stored && Array.isArray(stored.messages) && stored.messages.length > 0) {
+              setMessages(stored.messages.map((m, idx) => ({
+                id: `m${idx}`,
+                role: m.role as ChatRole,
+                text: m.content,
+                time: m.ts,
+                sources: [], // Sources not persisted
+                source: undefined,
+                sourceDetail: undefined,
+              })));
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('[ChatInterface] Failed to fetch tenant info:', error);
+      }
+    };
+    fetchTenantInfo();
+  }, []);
 
   // Fetch tenant settings on mount (additive enhancement)
   React.useEffect(() => {
@@ -234,24 +254,24 @@ export default function ChatInterface({
     setSessionMaxTokens(cappedTokens);
   }, [topK]);
 
-  // Auto-save messages to localStorage whenever they change
+  // Auto-save messages to localStorage whenever they change (only if tenant slug is known)
   React.useEffect(() => {
-    if (messages.length > 0) {
-      saveChatToStorage(messages);
+    if (messages.length > 0 && tenantSlug) {
+      saveChatToStorage(messages, tenantSlug);
     }
-  }, [messages]);
+  }, [messages, tenantSlug]);
 
   // Clear chat handler
   const handleClearChat = React.useCallback(() => {
     if (typeof window === 'undefined') return;
     
     if (window.confirm('Are you sure you want to clear this conversation?')) {
-      clearChatStorage();
+      clearChatStorage(tenantSlug);
       setMessages([
         { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
       ]);
     }
-  }, []);
+  }, [tenantSlug]);
 
   // Copy latest assistant message handler
   const handleCopyLatestAssistant = React.useCallback(async (text: string) => {

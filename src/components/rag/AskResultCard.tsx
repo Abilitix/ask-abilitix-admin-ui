@@ -18,9 +18,11 @@ export function AskResultCard({ data, loading, error, streamingAnswer, isStreami
   const [documentNames, setDocumentNames] = useState<Record<string, string>>({});
   const matchSourceDetail = (data as any)?.match?.source_detail as string | undefined;
   const topLevelSourceDetail = (data as any)?.source_detail as string | undefined;
-  // Treat as Approved FAQ when runtime flags qa_pair at either top level or in match
+  // Treat as Approved FAQ when runtime flags qa_pair or uses the FAQ db source
   const isApprovedFaq =
-    matchSourceDetail === 'qa_pair' || topLevelSourceDetail === 'qa_pair';
+    matchSourceDetail === 'qa_pair' ||
+    topLevelSourceDetail === 'qa_pair' ||
+    data?.source === 'db';
 
   // Fetch document names when citations are available
   useEffect(() => {

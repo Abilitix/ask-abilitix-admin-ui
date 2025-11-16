@@ -16,6 +16,8 @@ type Props = {
 
 export function AskResultCard({ data, loading, error, streamingAnswer, isStreaming }: Props) {
   const [documentNames, setDocumentNames] = useState<Record<string, string>>({});
+  const matchSourceDetail = (data as any)?.match?.source_detail as string | undefined;
+  const isApprovedFaq = matchSourceDetail === 'qa_pair';
 
   // Fetch document names when citations are available
   useEffect(() => {
@@ -160,6 +162,11 @@ export function AskResultCard({ data, loading, error, streamingAnswer, isStreami
               📋 Copy
             </button>
           </div>
+          {isApprovedFaq && (
+            <div className="mb-1 text-[11px] font-medium text-emerald-700">
+              Answer type: Approved FAQ
+            </div>
+          )}
           <div className="text-sm leading-relaxed bg-muted/50 p-3 rounded-md">
             {streamingAnswer || data?.answer || ''}
             {isStreaming && <span className="animate-pulse">|</span>}

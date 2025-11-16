@@ -9,9 +9,21 @@ if (!ASK_BASE) {
 
 export type AskResponse = {
   answer: string;
-  source: 'docs.rag' | 'qa.model' | 'model+inbox_pending';
-  citations?: Array<{doc_id: string; chunk_idx: number; score: number}>;
-  match?: { matched: boolean; id: string | null; similarity?: number };
+  source: 'docs.rag' | 'qa.model' | 'model+inbox_pending' | 'db';
+  /**
+   * More detailed source info from runtime, e.g.:
+   * - "docs"    → document RAG answer
+   * - "qa_pair" → approved FAQ / KB answer
+   */
+  source_detail?: string;
+  citations?: Array<{ doc_id: string; chunk_idx: number; score: number }>;
+  match?: {
+    matched: boolean;
+    id: string | null;
+    similarity?: number;
+    /** Mirrors runtime match.source_detail, e.g. "docs" or "qa_pair". */
+    source_detail?: string;
+  };
   inbox_id?: string;
 };
 

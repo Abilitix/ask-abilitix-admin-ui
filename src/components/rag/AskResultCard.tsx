@@ -17,7 +17,10 @@ type Props = {
 export function AskResultCard({ data, loading, error, streamingAnswer, isStreaming }: Props) {
   const [documentNames, setDocumentNames] = useState<Record<string, string>>({});
   const matchSourceDetail = (data as any)?.match?.source_detail as string | undefined;
-  const isApprovedFaq = matchSourceDetail === 'qa_pair';
+  const topLevelSourceDetail = (data as any)?.source_detail as string | undefined;
+  // Treat as Approved FAQ when runtime flags qa_pair at either top level or in match
+  const isApprovedFaq =
+    matchSourceDetail === 'qa_pair' || topLevelSourceDetail === 'qa_pair';
 
   // Fetch document names when citations are available
   useEffect(() => {

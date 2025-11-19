@@ -20,11 +20,19 @@ function getAnswerTypeLabel(
   sourceDetail?: string,
   match?: { matched: boolean; source_detail?: string }
 ): { label: string; color: string } | null {
-  // FAQ fast path hit: REQUIRES match.matched === true AND match.source_detail === 'qa_pair'
-  // If match data is missing or doesn't indicate FAQ hit, treat as regular QA pair
-  // This is critical: answer cache hits may not have match data or may have stale data
+  // CRITICAL ISSUE: Runtime sends stale match data for cached answers
+  // When FAQ fast path misses but answer comes from cache, runtime still sends:
+  // match: { matched: true, source_detail: 'qa_pair' } (stale from original FAQ hit)
+  // 
+  // Since we can't distinguish fresh FAQ hits from cached answers with stale match data,
+  // we default to "Approved QA Pair" for all db/qa_pair answers unless we have strong
+  // confidence it's a fresh FAQ hit. The runtime needs to fix stale match data issue.
+  //
+  // For now: Only show "Approved FAQ" if match data exists AND indicates FAQ hit.
+  // If match is missing or doesn't clearly indicate FAQ, default to "Approved QA Pair".
+  const hasMatchData = match !== undefined;
   const isFaqHit = 
-    match !== undefined &&  // Match data must exist
+    hasMatchData &&
     match.matched === true && 
     match.source_detail === 'qa_pair';
 
@@ -34,13 +42,17 @@ function getAnswerTypeLabel(
       source,
       sourceDetail,
       match,
+      hasMatchData,
       isFaqHit,
       willShowFaq: isFaqHit,
-      willShowQaPair: !isFaqHit
+      willShowQaPair: !isFaqHit,
+      note: 'Runtime may send stale match data for cached answers - defaulting to QA Pair if uncertain'
     });
   }
 
-  // FAQ fast path hit: only show "Approved FAQ" when explicitly matched with fresh match data
+  // FAQ fast path hit: only show "Approved FAQ" when match data clearly indicates FAQ hit
+  // NOTE: This may incorrectly label cached answers with stale match data as FAQ
+  // The real fix requires runtime to not send stale match data for cached answers
   if (
     (source === 'db' || sourceDetail === 'qa_pair') &&
     isFaqHit
@@ -49,7 +61,8 @@ function getAnswerTypeLabel(
   }
 
   // Regular QA pair (non-FAQ): source === 'db' BUT NOT FAQ fast path
-  // This includes: answer cache hits (match missing), regular QA pairs, FAQ misses
+  // This includes: answer cache hits (match missing or stale), regular QA pairs, FAQ misses
+  // Default to "Approved QA Pair" when uncertain (conservative approach)
   if (
     (source === 'db' || sourceDetail === 'qa_pair') &&
     !isFaqHit  // Explicitly not FAQ hit (match missing, matched=false, or source_detail !== 'qa_pair')

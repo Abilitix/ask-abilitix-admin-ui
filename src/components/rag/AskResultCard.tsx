@@ -22,11 +22,25 @@ function getAnswerTypeLabel(
 ): { label: string; color: string } | null {
   // FAQ fast path hit: REQUIRES match.matched === true AND match.source_detail === 'qa_pair'
   // If match data is missing or doesn't indicate FAQ hit, treat as regular QA pair
+  // This is critical: answer cache hits may not have match data or may have stale data
   const isFaqHit = 
-    match?.matched === true && 
-    match?.source_detail === 'qa_pair';
+    match !== undefined &&  // Match data must exist
+    match.matched === true && 
+    match.source_detail === 'qa_pair';
 
-  // FAQ fast path hit: only show "Approved FAQ" when explicitly matched
+  // Debug logging to see what we're evaluating
+  if (source === 'db' || sourceDetail === 'qa_pair') {
+    console.log('[getAnswerTypeLabel] Evaluating QA pair:', {
+      source,
+      sourceDetail,
+      match,
+      isFaqHit,
+      willShowFaq: isFaqHit,
+      willShowQaPair: !isFaqHit
+    });
+  }
+
+  // FAQ fast path hit: only show "Approved FAQ" when explicitly matched with fresh match data
   if (
     (source === 'db' || sourceDetail === 'qa_pair') &&
     isFaqHit
@@ -35,7 +49,7 @@ function getAnswerTypeLabel(
   }
 
   // Regular QA pair (non-FAQ): source === 'db' BUT NOT FAQ fast path
-  // This includes: answer cache hits, regular QA pairs, FAQ misses
+  // This includes: answer cache hits (match missing), regular QA pairs, FAQ misses
   if (
     (source === 'db' || sourceDetail === 'qa_pair') &&
     !isFaqHit  // Explicitly not FAQ hit (match missing, matched=false, or source_detail !== 'qa_pair')

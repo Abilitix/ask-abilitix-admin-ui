@@ -43,6 +43,11 @@ type ChatMsg = {
   // Optional metadata about where the answer came from (docs RAG vs FAQ/db)
   source?: string;
   sourceDetail?: string;
+  // Match information for determining answer type label
+  match?: {
+    matched: boolean;
+    source_detail?: string;
+  };
 };
 
 type StoredChat = {
@@ -79,6 +84,38 @@ const normalizeSources = (raw: any): Source[] => {
   }
   return [];
 };
+
+// Determine answer type label based on source and match information
+function getAnswerTypeLabel(
+  source?: string,
+  sourceDetail?: string,
+  match?: { matched: boolean; source_detail?: string }
+): { label: string; color: string } | null {
+  // FAQ fast path hit: match.matched === true AND match.source_detail === 'qa_pair'
+  if (
+    (source === 'db' || sourceDetail === 'qa_pair') &&
+    match?.matched === true &&
+    match?.source_detail === 'qa_pair'
+  ) {
+    return { label: 'Approved FAQ', color: 'text-emerald-700' };
+  }
+
+  // Regular QA pair (non-FAQ): source === 'db' BUT NOT FAQ fast path
+  if (
+    (source === 'db' || sourceDetail === 'qa_pair') &&
+    (!match?.matched || match?.source_detail !== 'qa_pair')
+  ) {
+    return { label: 'Approved QA Pair', color: 'text-blue-700' };
+  }
+
+  // Document RAG: source === 'docs.rag' OR sourceDetail === 'docs'
+  if (source === 'docs.rag' || sourceDetail === 'docs') {
+    return { label: 'Document Search', color: 'text-green-700' };
+  }
+
+  // Model-generated or other: no label
+  return null;
+}
 
 // localStorage helpers for sticky chat
 function getStorageKey(tenantSlug?: string): string {
@@ -215,6 +252,7 @@ export default function ChatInterface({
                 sources: [], // Sources not persisted
                 source: undefined,
                 sourceDetail: undefined,
+                match: undefined, // Match data not persisted
               })));
             }
           }
@@ -325,6 +363,7 @@ export default function ChatInterface({
     // Metadata about answer origin (FAQ/db vs docs RAG)
     let answerSource: string | undefined;
     let answerSourceDetail: string | undefined;
+    let answerMatch: { matched: boolean; source_detail?: string } | undefined;
 
     const updateAssistant = (text: string, src?: Source[]) => {
       setMessages((prev) =>
@@ -337,6 +376,7 @@ export default function ChatInterface({
                 // Attach any known source metadata from runtime
                 source: answerSource ?? m.source,
                 sourceDetail: answerSourceDetail ?? m.sourceDetail,
+                match: answerMatch ?? m.match,
               }
             : m
         )
@@ -353,6 +393,7 @@ export default function ChatInterface({
         sources: [],
         source: undefined,
         sourceDetail: undefined,
+        match: undefined,
       },
     ]);
 
@@ -381,6 +422,13 @@ export default function ChatInterface({
         }
         if (typeof json.source_detail === 'string') {
           answerSourceDetail = json.source_detail;
+        }
+        // Capture match information for answer type labeling
+        if (json.match && typeof json.match === 'object') {
+          answerMatch = {
+            matched: Boolean(json.match.matched),
+            source_detail: typeof json.match.source_detail === 'string' ? json.match.source_detail : undefined,
+          };
         }
       }
       const answer =
@@ -464,10 +512,19 @@ export default function ChatInterface({
               if (typeof payload.source_detail === 'string') {
                 answerSourceDetail = payload.source_detail;
               }
-              // Some runtimes nest source_detail under match
-              const matchDetail = (payload as any)?.match?.source_detail;
-              if (typeof matchDetail === 'string') {
-                answerSourceDetail = matchDetail;
+              // Capture match information for answer type labeling
+              if (payload.match && typeof payload.match === 'object') {
+                answerMatch = {
+                  matched: Boolean((payload.match as any).matched),
+                  source_detail: typeof (payload.match as any).source_detail === 'string' 
+                    ? (payload.match as any).source_detail 
+                    : undefined,
+                };
+                // Some runtimes nest source_detail under match
+                const matchDetail = (payload.match as any)?.source_detail;
+                if (typeof matchDetail === 'string') {
+                  answerSourceDetail = matchDetail;
+                }
               }
             }
 
@@ -550,8 +607,10 @@ export default function ChatInterface({
           {messages.map((m, idx) => {
             const isUser = m.role === "user";
             const isLatestAssistant = !isUser && idx === latestAssistantIndex;
-            const isApprovedFaqMsg =
-              !isUser && (m.source === 'db' || m.sourceDetail === 'qa_pair');
+            // Determine answer type label for assistant messages
+            const answerType = !isUser
+              ? getAnswerTypeLabel(m.source, m.sourceDetail, m.match)
+              : null;
             const displayContent = isUser ? (
               m.text
             ) : RENDER_MD ? (
@@ -574,10 +633,10 @@ export default function ChatInterface({
                     isUser ? "bg-blue-600 text-white whitespace-pre-wrap" : "bg-slate-100 text-slate-900",
                   ].join(" ")}
                 >
-                  {/* FAQ label: only for assistant messages flagged as db/qa_pair; RAG sources unchanged */}
-                  {!isUser && isApprovedFaqMsg && (
-                    <div className="mb-1 text-[11px] font-medium text-emerald-700">
-                      Answer type: Approved FAQ
+                  {/* Answer type label: shows appropriate label based on source and match */}
+                  {answerType && (
+                    <div className={`mb-1 text-[11px] font-medium ${answerType.color}`}>
+                      Answer type: {answerType.label}
                     </div>
                   )}
                   <div>{displayContent}</div>

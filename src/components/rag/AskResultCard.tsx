@@ -20,19 +20,25 @@ function getAnswerTypeLabel(
   sourceDetail?: string,
   match?: { matched: boolean; source_detail?: string }
 ): { label: string; color: string } | null {
-  // FAQ fast path hit: match.matched === true AND match.source_detail === 'qa_pair'
+  // FAQ fast path hit: REQUIRES match.matched === true AND match.source_detail === 'qa_pair'
+  // If match data is missing or doesn't indicate FAQ hit, treat as regular QA pair
+  const isFaqHit = 
+    match?.matched === true && 
+    match?.source_detail === 'qa_pair';
+
+  // FAQ fast path hit: only show "Approved FAQ" when explicitly matched
   if (
     (source === 'db' || sourceDetail === 'qa_pair') &&
-    match?.matched === true &&
-    match?.source_detail === 'qa_pair'
+    isFaqHit
   ) {
     return { label: 'Approved FAQ', color: 'text-emerald-700' };
   }
 
   // Regular QA pair (non-FAQ): source === 'db' BUT NOT FAQ fast path
+  // This includes: answer cache hits, regular QA pairs, FAQ misses
   if (
     (source === 'db' || sourceDetail === 'qa_pair') &&
-    (!match?.matched || match?.source_detail !== 'qa_pair')
+    !isFaqHit  // Explicitly not FAQ hit (match missing, matched=false, or source_detail !== 'qa_pair')
   ) {
     return { label: 'Approved QA Pair', color: 'text-blue-700' };
   }

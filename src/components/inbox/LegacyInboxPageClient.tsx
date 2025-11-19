@@ -55,14 +55,13 @@ export function LegacyInboxPageClient({ disabled }: LegacyInboxPageClientProps) 
 
   const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true) => {
     try {
-      const response = await fetch('/api/admin/inbox/approve', {
+      // Use /promote endpoint instead of /approve to support is_faq parameter
+      const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/promote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id,
-          reembed: true,
           ...(editedAnswer && { answer: editedAnswer }),
           is_faq: isFaq,
         }),

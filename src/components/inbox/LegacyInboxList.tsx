@@ -24,7 +24,7 @@ type LegacyInboxListProps = {
   items: LegacyInboxItem[];
   loading: boolean;
   error: string | null;
-  onApprove: (id: string, editedAnswer?: string) => void;
+  onApprove: (id: string, editedAnswer?: string, isFaq?: boolean) => void;
   onReject: (id: string) => void;
   onRefresh: () => void;
 };
@@ -39,6 +39,7 @@ export function LegacyInboxList({
 }: LegacyInboxListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
+  const [faqSelections, setFaqSelections] = useState<Record<string, boolean>>({});
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
 
@@ -67,7 +68,8 @@ export function LegacyInboxList({
 
   const handleApprove = (id: string) => {
     const editedAnswer = editedAnswers[id];
-    onApprove(id, editedAnswer);
+    const isFaq = faqSelections[id] ?? true;
+    onApprove(id, editedAnswer, isFaq);
   };
 
   if (loading) {
@@ -244,26 +246,43 @@ export function LegacyInboxList({
                     )}
                   </TableCell>
                   <TableCell className="w-[150px]">
-                    <div className="flex space-x-2">
-                      <Button
-                        onClick={() => handleApprove(item.id)}
-                        size="sm"
-                        className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
-                        disabled={editingId === item.id}
-                        title="Approve and automatically generate embeddings"
-                      >
-                        <Check className="h-4 w-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        onClick={() => onReject(item.id)}
-                        size="sm"
-                        variant="destructive"
-                        disabled={editingId === item.id}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
+                    <div className="flex flex-col gap-2">
+                      <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                          checked={faqSelections[item.id] ?? true}
+                          disabled={editingId === item.id}
+                          onChange={(event) =>
+                            setFaqSelections((prev) => ({
+                              ...prev,
+                              [item.id]: event.target.checked,
+                            }))
+                          }
+                        />
+                        <span>Create as FAQ</span>
+                      </label>
+                      <div className="flex space-x-2">
+                        <Button
+                          onClick={() => handleApprove(item.id)}
+                          size="sm"
+                          className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
+                          disabled={editingId === item.id}
+                          title="Approve and automatically generate embeddings"
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          onClick={() => onReject(item.id)}
+                          size="sm"
+                          variant="destructive"
+                          disabled={editingId === item.id}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -275,5 +294,6 @@ export function LegacyInboxList({
     </Card>
   );
 }
+
 
 

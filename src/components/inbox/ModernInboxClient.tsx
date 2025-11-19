@@ -736,10 +736,12 @@ export function ModernInboxClient({
       citations,
       answer,
       title,
+      isFaq,
     }: {
       citations?: PreparedCitation[];
       answer?: string | null;
       title?: string | null;
+      isFaq?: boolean;
     }) => {
       if (!selectedId) {
         return false;
@@ -765,6 +767,9 @@ export function ModernInboxClient({
       }
       if (typeof title === 'string' && title.trim().length > 0) {
         body.title = title.trim();
+      }
+      if (typeof isFaq === 'boolean') {
+        body.is_faq = isFaq;
       }
 
       sendTelemetry('ui.promote.click', {

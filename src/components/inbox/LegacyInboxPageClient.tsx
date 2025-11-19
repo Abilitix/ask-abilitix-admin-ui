@@ -53,7 +53,7 @@ export function LegacyInboxPageClient({ disabled }: LegacyInboxPageClientProps) 
     }
   }, [disabled]);
 
-  const handleApprove = useCallback(async (id: string, editedAnswer?: string) => {
+  const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true) => {
     try {
       const response = await fetch('/api/admin/inbox/approve', {
         method: 'POST',
@@ -64,6 +64,7 @@ export function LegacyInboxPageClient({ disabled }: LegacyInboxPageClientProps) 
           id,
           reembed: true,
           ...(editedAnswer && { answer: editedAnswer }),
+          is_faq: isFaq,
         }),
       });
 
@@ -133,5 +134,6 @@ export function LegacyInboxPageClient({ disabled }: LegacyInboxPageClientProps) 
     </div>
   );
 }
+
 
 

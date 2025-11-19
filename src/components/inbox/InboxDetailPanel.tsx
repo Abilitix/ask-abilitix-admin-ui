@@ -277,6 +277,7 @@ type InboxDetailPanelProps = {
     citations?: PreparedCitation[];
     answer?: string | null;
     title?: string | null;
+    isFaq?: boolean;
   }) => Promise<boolean>;
   onClearFieldErrors: () => void;
   onClearAlerts: () => void;
@@ -307,6 +308,7 @@ export function InboxDetailPanel({
   const [clientErrors, setClientErrors] = useState<CitationRowError[]>([]);
   const [showErrors, setShowErrors] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const [createAsFaq, setCreateAsFaq] = useState(true);
 
   useEffect(() => {
     if (!detail) return;
@@ -323,6 +325,7 @@ export function InboxDetailPanel({
     setClientErrors(next.map(() => ({})));
     setShowErrors(false);
     setGeneralError(null);
+    setCreateAsFaq(true);
     onClearFieldErrors();
   }, [detail, onClearFieldErrors]);
 
@@ -414,6 +417,7 @@ export function InboxDetailPanel({
     const payload: {
       citations?: PreparedCitation[];
       answer?: string | null;
+      isFaq?: boolean;
     } = {};
 
     if (validation.apiCitations.length > 0) {
@@ -425,6 +429,7 @@ export function InboxDetailPanel({
     if (detail.answerDraft) {
       payload.answer = detail.answerDraft;
     }
+    payload.isFaq = createAsFaq;
 
     const success = await onPromote(payload);
     if (!success) {
@@ -437,6 +442,7 @@ export function InboxDetailPanel({
     onPromote,
     onClearAlerts,
     onClearFieldErrors,
+    createAsFaq,
   ]);
 
   if (!selectedId) {
@@ -684,6 +690,17 @@ export function InboxDetailPanel({
               </span>
             </div>
           )}
+
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              checked={createAsFaq}
+              onChange={(event) => setCreateAsFaq(event.target.checked)}
+              disabled={baseActionsDisabled}
+            />
+            <span>Create as FAQ (default)</span>
+          </label>
 
           <div className="flex flex-wrap gap-2">
             <Button

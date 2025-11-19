@@ -14,68 +14,43 @@ type Props = {
   isStreaming?: boolean;
 };
 
-// Determine answer type label based on source and match information
+// Determine answer type label based on runtime metadata
 function getAnswerTypeLabel(
   source?: string,
   sourceDetail?: string,
-  match?: { matched: boolean; source_detail?: string }
+  match?: { matched: boolean; source_detail?: string },
+  isFaq?: boolean
 ): { label: string; color: string } | null {
-  // CRITICAL ISSUE: Runtime sends stale match data for cached answers
-  // When FAQ fast path misses but answer comes from cache, runtime still sends:
-  // match: { matched: true, source_detail: 'qa_pair' } (stale from original FAQ hit)
-  // 
-  // Since we can't distinguish fresh FAQ hits from cached answers with stale match data,
-  // we default to "Approved QA Pair" for all db/qa_pair answers unless we have strong
-  // confidence it's a fresh FAQ hit. The runtime needs to fix stale match data issue.
-  //
-  // For now: Only show "Approved FAQ" if match data exists AND indicates FAQ hit.
-  // If match is missing or doesn't clearly indicate FAQ, default to "Approved QA Pair".
+  if (isFaq === true) {
+    return { label: 'Approved FAQ', color: 'text-purple-700' };
+  }
+
+  if (isFaq === false && (source === 'db' || sourceDetail === 'qa_pair')) {
+    return { label: 'Approved QA Pair', color: 'text-blue-600' };
+  }
+
   const hasMatchData = match !== undefined;
   const isFaqHit = 
     hasMatchData &&
     match.matched === true && 
     match.source_detail === 'qa_pair';
 
-  // Debug logging to see what we're evaluating
-  if (source === 'db' || sourceDetail === 'qa_pair') {
-    console.log('[getAnswerTypeLabel] Evaluating QA pair:', {
-      source,
-      sourceDetail,
-      match,
-      hasMatchData,
-      isFaqHit,
-      willShowFaq: isFaqHit,
-      willShowQaPair: !isFaqHit,
-      note: 'Runtime may send stale match data for cached answers - defaulting to QA Pair if uncertain'
-    });
-  }
-
-  // FAQ fast path hit: only show "Approved FAQ" when match data clearly indicates FAQ hit
-  // NOTE: This may incorrectly label cached answers with stale match data as FAQ
-  // The real fix requires runtime to not send stale match data for cached answers
   if (
+    isFaq === undefined &&
     (source === 'db' || sourceDetail === 'qa_pair') &&
     isFaqHit
   ) {
-    return { label: 'Approved FAQ', color: 'text-emerald-700' };
+    return { label: 'Approved FAQ', color: 'text-purple-700' };
   }
 
-  // Regular QA pair (non-FAQ): source === 'db' BUT NOT FAQ fast path
-  // This includes: answer cache hits (match missing or stale), regular QA pairs, FAQ misses
-  // Default to "Approved QA Pair" when uncertain (conservative approach)
-  if (
-    (source === 'db' || sourceDetail === 'qa_pair') &&
-    !isFaqHit  // Explicitly not FAQ hit (match missing, matched=false, or source_detail !== 'qa_pair')
-  ) {
-    return { label: 'Approved QA Pair', color: 'text-blue-700' };
+  if (source === 'db' || sourceDetail === 'qa_pair') {
+    return { label: 'Approved QA Pair', color: 'text-blue-600' };
   }
 
-  // Document RAG: source === 'docs.rag' OR sourceDetail === 'docs'
   if (source === 'docs.rag' || sourceDetail === 'docs') {
-    return { label: 'Document Search', color: 'text-green-700' };
+    return { label: 'Document Search', color: 'text-green-600' };
   }
 
-  // Model-generated or other: no label
   return null;
 }
 
@@ -87,7 +62,8 @@ export function AskResultCard({ data, loading, error, streamingAnswer, isStreami
   const answerType = getAnswerTypeLabel(
     data?.source,
     topLevelSourceDetail || matchSourceDetail,
-    data?.match
+    data?.match,
+    data?.is_faq
   );
 
   // Fetch document names when citations are available

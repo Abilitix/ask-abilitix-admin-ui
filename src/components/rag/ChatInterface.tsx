@@ -48,6 +48,8 @@ type ChatMsg = {
     matched: boolean;
     source_detail?: string;
   };
+  // Runtime-provided flag once available
+  isFaq?: boolean;
 };
 
 type StoredChat = {
@@ -85,68 +87,45 @@ const normalizeSources = (raw: any): Source[] => {
   return [];
 };
 
-// Determine answer type label based on source and match information
+// Determine answer type label based on runtime metadata
 function getAnswerTypeLabel(
   source?: string,
   sourceDetail?: string,
-  match?: { matched: boolean; source_detail?: string }
+  match?: { matched: boolean; source_detail?: string },
+  isFaq?: boolean
 ): { label: string; color: string } | null {
-  // CRITICAL ISSUE: Runtime sends stale match data for cached answers
-  // When FAQ fast path misses but answer comes from cache, runtime still sends:
-  // match: { matched: true, source_detail: 'qa_pair' } (stale from original FAQ hit)
-  // 
-  // Since we can't distinguish fresh FAQ hits from cached answers with stale match data,
-  // we default to "Approved QA Pair" for all db/qa_pair answers unless we have strong
-  // confidence it's a fresh FAQ hit. The runtime needs to fix stale match data issue.
-  //
-  // For now: Only show "Approved FAQ" if match data exists AND indicates FAQ hit.
-  // If match is missing or doesn't clearly indicate FAQ, default to "Approved QA Pair".
-  const hasMatchData = match !== undefined;
-  const isFaqHit = 
-    hasMatchData &&
-    match.matched === true && 
-    match.source_detail === 'qa_pair';
-
-  // Debug logging to see what we're evaluating
-  if (source === 'db' || sourceDetail === 'qa_pair') {
-    console.log('[getAnswerTypeLabel] Evaluating QA pair:', {
-      source,
-      sourceDetail,
-      match,
-      hasMatchData,
-      isFaqHit,
-      willShowFaq: isFaqHit,
-      willShowQaPair: !isFaqHit,
-      note: 'Runtime may send stale match data for cached answers - defaulting to QA Pair if uncertain'
-    });
+  // Preferred path: runtime now sends is_faq explicitly
+  if (isFaq === true) {
+    return { label: "Approved FAQ", color: "text-purple-700" };
   }
 
-  // FAQ fast path hit: only show "Approved FAQ" when match data clearly indicates FAQ hit
-  // NOTE: This may incorrectly label cached answers with stale match data as FAQ
-  // The real fix requires runtime to not send stale match data for cached answers
+  if (isFaq === false && (source === "db" || sourceDetail === "qa_pair")) {
+    return { label: "Approved QA Pair", color: "text-blue-600" };
+  }
+
+  // Back-compat fallback until is_faq is universally available
+  const hasMatchData = match !== undefined;
+  const isFaqHit =
+    hasMatchData &&
+    match.matched === true &&
+    match.source_detail === "qa_pair";
+
   if (
-    (source === 'db' || sourceDetail === 'qa_pair') &&
+    isFaq === undefined &&
+    (source === "db" || sourceDetail === "qa_pair") &&
     isFaqHit
   ) {
-    return { label: 'Approved FAQ', color: 'text-emerald-700' };
+    return { label: "Approved FAQ", color: "text-purple-700" };
   }
 
-  // Regular QA pair (non-FAQ): source === 'db' BUT NOT FAQ fast path
-  // This includes: answer cache hits (match missing or stale), regular QA pairs, FAQ misses
-  // Default to "Approved QA Pair" when uncertain (conservative approach)
-  if (
-    (source === 'db' || sourceDetail === 'qa_pair') &&
-    !isFaqHit  // Explicitly not FAQ hit (match missing, matched=false, or source_detail !== 'qa_pair')
-  ) {
-    return { label: 'Approved QA Pair', color: 'text-blue-700' };
+  if (source === "db" || sourceDetail === "qa_pair") {
+    return { label: "Approved QA Pair", color: "text-blue-600" };
   }
 
-  // Document RAG: source === 'docs.rag' OR sourceDetail === 'docs'
-  if (source === 'docs.rag' || sourceDetail === 'docs') {
-    return { label: 'Document Search', color: 'text-green-700' };
+  if (source === "docs.rag" || sourceDetail === "docs") {
+    return { label: "Document Search", color: "text-green-600" };
   }
 
-  // Model-generated or other: no label
   return null;
 }
 
@@ -259,7 +238,7 @@ export default function ChatInterface({
   const [messages, setMessages] = React.useState<ChatMsg[]>(() => {
     // Start with default message; will reload from storage once tenant slug is known
     return [
-      { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
+      { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM(), isFaq: undefined },
     ];
   });
 
@@ -286,6 +265,7 @@ export default function ChatInterface({
                 source: undefined,
                 sourceDetail: undefined,
                 match: undefined, // Match data not persisted
+                isFaq: undefined,
               })));
             }
           }
@@ -339,7 +319,7 @@ export default function ChatInterface({
     if (window.confirm('Are you sure you want to clear this conversation?')) {
       clearChatStorage(tenantSlug);
       setMessages([
-        { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM() },
+        { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM(), isFaq: undefined },
       ]);
     }
   }, [tenantSlug]);
@@ -397,6 +377,7 @@ export default function ChatInterface({
     let answerSource: string | undefined;
     let answerSourceDetail: string | undefined;
     let answerMatch: { matched: boolean; source_detail?: string } | undefined;
+    let answerIsFaq: boolean | undefined;
 
     const updateAssistant = (text: string, src?: Source[]) => {
       setMessages((prev) =>
@@ -410,6 +391,7 @@ export default function ChatInterface({
                 source: answerSource ?? m.source,
                 sourceDetail: answerSourceDetail ?? m.sourceDetail,
                 match: answerMatch ?? m.match,
+                isFaq: answerIsFaq ?? m.isFaq,
               }
             : m
         )
@@ -427,6 +409,7 @@ export default function ChatInterface({
         source: undefined,
         sourceDetail: undefined,
         match: undefined,
+        isFaq: undefined,
       },
     ]);
 
@@ -455,6 +438,9 @@ export default function ChatInterface({
         }
         if (typeof json.source_detail === 'string') {
           answerSourceDetail = json.source_detail;
+        }
+        if (typeof json.is_faq === 'boolean') {
+          answerIsFaq = json.is_faq;
         }
         // Capture match information for answer type labeling
         if (json.match && typeof json.match === 'object') {
@@ -558,6 +544,9 @@ export default function ChatInterface({
               }
               if (typeof payload.source_detail === 'string') {
                 answerSourceDetail = payload.source_detail;
+              }
+              if (typeof payload.is_faq === 'boolean') {
+                answerIsFaq = payload.is_faq;
               }
               // Capture match information for answer type labeling
               if (payload.match && typeof payload.match === 'object') {
@@ -670,7 +659,7 @@ export default function ChatInterface({
             const isLatestAssistant = !isUser && idx === latestAssistantIndex;
             // Determine answer type label for assistant messages
             const answerType = !isUser
-              ? getAnswerTypeLabel(m.source, m.sourceDetail, m.match)
+              ? getAnswerTypeLabel(m.source, m.sourceDetail, m.match, m.isFaq)
               : null;
             const displayContent = isUser ? (
               m.text

@@ -55,30 +55,46 @@ export function LegacyInboxPageClient({ disabled }: LegacyInboxPageClientProps) 
 
   const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true) => {
     try {
-      // Use /promote endpoint instead of /approve to support is_faq parameter
-      const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/promote`, {
+      // Use /promote endpoint for FAQ creation (requires ENABLE_REVIEW_PROMOTE=1)
+      // For regular QA pairs without FAQ, use /approve endpoint (legacy)
+      const endpoint = isFaq 
+        ? `/api/admin/inbox/${encodeURIComponent(id)}/promote`
+        : '/api/admin/inbox/approve';
+      
+      const body = isFaq
+        ? {
+            ...(editedAnswer && { answer: editedAnswer }),
+            is_faq: true,
+          }
+        : {
+            id,
+            reembed: true,
+            ...(editedAnswer && { answer: editedAnswer }),
+          };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...(editedAnswer && { answer: editedAnswer }),
-          is_faq: isFaq,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
 
       if (!response.ok || data.error) {
-        throw new Error(data.details || data.error || `Failed to approve: ${response.status}`);
+        throw new Error(data.details || data.error || `Failed to ${isFaq ? 'promote' : 'approve'}: ${response.status}`);
       }
 
-      toast.success('Item approved ✓ (embeddings generated automatically)');
+      toast.success(isFaq 
+        ? 'Item promoted as FAQ ✓ (embeddings generated automatically)'
+        : 'Item approved ✓ (embeddings generated automatically)'
+      );
       setItems((prev) => prev.filter((item) => item.id !== id));
       setRefreshSignal((prev) => prev + 1);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to approve item';
-      toast.error(`Approval failed: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : `Failed to ${isFaq ? 'promote' : 'approve'} item`;
+      toast.error(`${isFaq ? 'Promotion' : 'Approval'} failed: ${errorMessage}`);
     }
   }, []);
 

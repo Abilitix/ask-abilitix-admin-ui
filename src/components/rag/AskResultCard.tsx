@@ -14,8 +14,57 @@ type Props = {
   isStreaming?: boolean;
 };
 
+// Determine answer type label based on runtime metadata
+function getAnswerTypeLabel(
+  source?: string,
+  sourceDetail?: string,
+  match?: { matched: boolean; source_detail?: string },
+  isFaq?: boolean
+): { label: string; color: string } | null {
+  if (isFaq === true) {
+    return { label: 'Approved FAQ', color: 'text-purple-700' };
+  }
+
+  if (isFaq === false && (source === 'db' || sourceDetail === 'qa_pair')) {
+    return { label: 'Approved QA Pair', color: 'text-blue-600' };
+  }
+
+  const hasMatchData = match !== undefined;
+  const isFaqHit = 
+    hasMatchData &&
+    match.matched === true && 
+    match.source_detail === 'qa_pair';
+
+  if (
+    isFaq === undefined &&
+    (source === 'db' || sourceDetail === 'qa_pair') &&
+    isFaqHit
+  ) {
+    return { label: 'Approved FAQ', color: 'text-purple-700' };
+  }
+
+  if (source === 'db' || sourceDetail === 'qa_pair') {
+    return { label: 'Approved QA Pair', color: 'text-blue-600' };
+  }
+
+  if (source === 'docs.rag' || sourceDetail === 'docs') {
+    return { label: 'Document Search', color: 'text-green-600' };
+  }
+
+  return null;
+}
+
 export function AskResultCard({ data, loading, error, streamingAnswer, isStreaming }: Props) {
   const [documentNames, setDocumentNames] = useState<Record<string, string>>({});
+  const matchSourceDetail = (data as any)?.match?.source_detail as string | undefined;
+  const topLevelSourceDetail = (data as any)?.source_detail as string | undefined;
+  // Determine answer type label using enhanced logic
+  const answerType = getAnswerTypeLabel(
+    data?.source,
+    topLevelSourceDetail || matchSourceDetail,
+    data?.match,
+    data?.is_faq
+  );
 
   // Fetch document names when citations are available
   useEffect(() => {
@@ -160,6 +209,11 @@ export function AskResultCard({ data, loading, error, streamingAnswer, isStreami
               📋 Copy
             </button>
           </div>
+          {answerType && (
+            <div className={`mb-1 text-[11px] font-medium ${answerType.color}`}>
+              Answer type: {answerType.label}
+            </div>
+          )}
           <div className="text-sm leading-relaxed bg-muted/50 p-3 rounded-md">
             {streamingAnswer || data?.answer || ''}
             {isStreaming && <span className="animate-pulse">|</span>}

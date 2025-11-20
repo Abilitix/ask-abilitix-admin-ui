@@ -34,7 +34,39 @@ type LegacyInboxListProps = {
   onReject: (id: string) => void;
   onAttachCitations: (id: string, citations: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => Promise<void>;
   onRefresh: () => void;
+  docTitles?: Record<string, string>;
+  docLoading?: boolean;
 };
+
+function renderDocBadges(
+  item: LegacyInboxItem,
+  docTitles?: Record<string, string>
+) {
+  if (!item.suggested_citations || item.suggested_citations.length === 0) {
+    return '—';
+  }
+
+  return item.suggested_citations.slice(0, 2).map((cite) => {
+    const docId = cite.doc_id;
+    const title =
+      (docId && docTitles && docTitles[docId]) ||
+      cite.title ||
+      docId ||
+      'Document';
+    const label =
+      title && title.length > 24 ? `${title.slice(0, 24).trim()}…` : title;
+    return (
+      <Badge
+        key={`${item.id}-${docId}`}
+        variant="outline"
+        className="mr-1 text-[11px]"
+        title={title}
+      >
+        {label || 'Document'}
+      </Badge>
+    );
+  });
+}
 
 export function LegacyInboxList({
   items,
@@ -46,6 +78,8 @@ export function LegacyInboxList({
   onReject,
   onAttachCitations,
   onRefresh,
+  docTitles,
+  docLoading,
 }: LegacyInboxListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
@@ -282,6 +316,7 @@ export function LegacyInboxList({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[200px]">Question</TableHead>
+                <TableHead className="w-[200px]">Document</TableHead>
                 <TableHead className="w-[300px]">Answer</TableHead>
                 <TableHead className="w-[120px]">Created</TableHead>
                 <TableHead className="w-[100px]">PII</TableHead>
@@ -302,6 +337,9 @@ export function LegacyInboxList({
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+                  </TableCell>
+                  <TableCell className="w-[200px] text-xs text-muted-foreground align-top">
+                    {docLoading ? 'Loading…' : renderDocBadges(item, docTitles)}
                   </TableCell>
                   <TableCell className="w-[300px]">
                     {editingId === item.id ? (

@@ -15,6 +15,7 @@ export type LegacyInboxItem = {
   status: 'pending' | 'approved' | 'rejected';
   suggested_citations?: Array<{
     doc_id: string;
+    title?: string;
     page?: number;
     span?: { start?: number; end?: number; text?: string };
   }>;
@@ -31,6 +32,8 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshSignal, setRefreshSignal] = useState(0);
+  const [docTitles, setDocTitles] = useState<Record<string, string>>({});
+  const [docLoading, setDocLoading] = useState(false);
 
   const fetchItems = useCallback(async () => {
     if (disabled) return;
@@ -250,6 +253,52 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
     fetchItems();
   }, [fetchItems]);
 
+  useEffect(() => {
+    let active = true;
+    const loadDocs = async () => {
+      try {
+        setDocLoading(true);
+        const response = await fetch('/api/admin/docs?status=active&limit=200');
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(
+            (data && (data.details || data.error)) || 'Failed to load documents'
+          );
+        }
+        if (!active) return;
+        const docsSource =
+          (Array.isArray(data?.docs) && data.docs) ||
+          (Array.isArray(data?.documents) && data.documents) ||
+          [];
+        const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
+          (acc: Record<string, string>, doc: any) => {
+            if (!doc || typeof doc !== 'object') return acc;
+            const id = doc.id;
+            if (!id || typeof id !== 'string') return acc;
+            const title =
+              typeof doc.title === 'string' && doc.title.trim().length > 0
+                ? doc.title.trim()
+                : id;
+            acc[id] = title;
+            return acc;
+          },
+          {}
+        );
+        setDocTitles(mapped);
+      } catch (err) {
+        console.error('Failed to load documents for legacy inbox:', err);
+      } finally {
+        if (active) {
+          setDocLoading(false);
+        }
+      }
+    };
+    loadDocs();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <LegacyInboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
@@ -264,6 +313,8 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         onReject={handleReject}
         onAttachCitations={handleAttachCitations}
         onRefresh={fetchItems}
+        docTitles={docTitles}
+        docLoading={docLoading}
       />
     </div>
   );

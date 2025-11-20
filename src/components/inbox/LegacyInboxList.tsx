@@ -40,32 +40,50 @@ type LegacyInboxListProps = {
 
 function renderDocBadges(
   item: LegacyInboxItem,
-  docTitles?: Record<string, string>
+  docTitles?: Record<string, string>,
+  docLoading?: boolean
 ) {
   if (!item.suggested_citations || item.suggested_citations.length === 0) {
     return '—';
   }
 
-  return item.suggested_citations.slice(0, 2).map((cite) => {
-    const docId = cite.doc_id;
-    const title =
-      (docId && docTitles && docTitles[docId]) ||
-      cite.title ||
-      docId ||
-      'Document';
-    const label =
-      title && title.length > 24 ? `${title.slice(0, 24).trim()}…` : title;
-    return (
-      <Badge
-        key={`${item.id}-${docId}`}
-        variant="outline"
-        className="mr-1 text-[11px]"
-        title={title}
-      >
-        {label || 'Document'}
-      </Badge>
-    );
-  });
+  return (
+    <div className="flex flex-wrap gap-1">
+      {item.suggested_citations.slice(0, 2).map((cite, idx) => {
+        const docId = cite.doc_id;
+        if (!docId) return null;
+        
+        // Try to get title from docTitles mapping first, then cite.title, then fallback to docId
+        const title =
+          (docTitles && docTitles[docId]) ||
+          cite.title ||
+          docId;
+        
+        // If we still have a UUID (long string with dashes) and we're loading or haven't found it yet, show loading
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(title);
+        const displayTitle = (isUuid && (docLoading || !docTitles || !docTitles[docId])) 
+          ? 'Loading…' 
+          : title;
+        
+        const label =
+          displayTitle && displayTitle.length > 24 
+            ? `${displayTitle.slice(0, 24).trim()}…` 
+            : displayTitle;
+        
+        return (
+          <Badge
+            key={`${item.id}-${docId}-${idx}`}
+            variant="outline"
+            className="text-[11px]"
+            title={title !== 'Loading…' ? title : undefined}
+          >
+            {label || 'Document'}
+            {cite.page && <span className="ml-1 text-muted-foreground">p.{cite.page}</span>}
+          </Badge>
+        );
+      })}
+    </div>
+  );
 }
 
 export function LegacyInboxList({
@@ -339,7 +357,7 @@ export function LegacyInboxList({
                     </TooltipProvider>
                   </TableCell>
                   <TableCell className="w-[200px] text-xs text-muted-foreground align-top">
-                    {docLoading ? 'Loading…' : renderDocBadges(item, docTitles)}
+                    {renderDocBadges(item, docTitles, docLoading)}
                   </TableCell>
                   <TableCell className="w-[300px]">
                     {editingId === item.id ? (

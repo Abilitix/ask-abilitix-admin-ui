@@ -254,10 +254,31 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
   }, [fetchItems]);
 
   useEffect(() => {
+    if (items.length === 0) return;
+    
     let active = true;
-    const loadDocs = async () => {
+    const loadDocTitles = async () => {
       try {
         setDocLoading(true);
+        
+        // Collect all unique doc IDs from suggested_citations
+        const docIds = new Set<string>();
+        items.forEach((item) => {
+          if (item.suggested_citations) {
+            item.suggested_citations.forEach((cite) => {
+              if (cite.doc_id) {
+                docIds.add(cite.doc_id);
+              }
+            });
+          }
+        });
+        
+        if (docIds.size === 0) {
+          setDocLoading(false);
+          return;
+        }
+        
+        // Fetch all active documents to get titles
         const response = await fetch('/api/admin/docs?status=active&limit=200');
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -266,38 +287,46 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
           );
         }
         if (!active) return;
+        
         const docsSource =
           (Array.isArray(data?.docs) && data.docs) ||
           (Array.isArray(data?.documents) && data.documents) ||
           [];
+        
+        // Map document IDs to titles
         const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
           (acc: Record<string, string>, doc: any) => {
             if (!doc || typeof doc !== 'object') return acc;
             const id = doc.id;
             if (!id || typeof id !== 'string') return acc;
-            const title =
-              typeof doc.title === 'string' && doc.title.trim().length > 0
-                ? doc.title.trim()
-                : id;
-            acc[id] = title;
+            // Only include documents that are in our citations
+            if (docIds.has(id)) {
+              const title =
+                typeof doc.title === 'string' && doc.title.trim().length > 0
+                  ? doc.title.trim()
+                  : id;
+              acc[id] = title;
+            }
             return acc;
           },
           {}
         );
-        setDocTitles(mapped);
+        
+        setDocTitles((prev) => ({ ...prev, ...mapped }));
       } catch (err) {
-        console.error('Failed to load documents for legacy inbox:', err);
+        console.error('Failed to load document titles for legacy inbox:', err);
       } finally {
         if (active) {
           setDocLoading(false);
         }
       }
     };
-    loadDocs();
+    
+    loadDocTitles();
     return () => {
       active = false;
     };
-  }, []);
+  }, [items]);
 
   return (
     <div className="space-y-6">

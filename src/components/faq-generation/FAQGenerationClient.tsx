@@ -70,7 +70,18 @@ export function FAQGenerationClient() {
         const response = await fetch(`/api/admin/jobs/${job.job_id}`);
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch job status: ${response.status}`);
+          // Try to parse error response
+          let errorMessage = `Failed to fetch job status: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.detail?.message || errorData.message || errorMessage;
+          } catch {
+            // If not JSON, use status text
+            errorMessage = `${errorMessage} ${response.statusText}`;
+          }
+          console.error('Poll job status error:', errorMessage);
+          // Don't show toast on polling errors (might be temporary network issue)
+          return;
         }
 
         const updatedJob: FAQGenerationJob = await response.json();
@@ -88,9 +99,15 @@ export function FAQGenerationClient() {
             }
           );
         } else if (updatedJob.status === 'failed') {
-          toast.error(
-            `Generation failed: ${updatedJob.error_message || 'Unknown error'}`
-          );
+          const errorMsg = updatedJob.error_message || 'Unknown error';
+          // Show user-friendly message for common backend errors
+          let userMessage = errorMsg;
+          if (errorMsg.includes('Event loop is closed')) {
+            userMessage = 'Backend service error. Please try again or contact support if the issue persists.';
+          }
+          toast.error(`Generation failed: ${userMessage}`, {
+            duration: 10000, // Show longer for errors
+          });
         }
       } catch (err) {
         console.error('Poll job status error:', err);
@@ -124,7 +141,17 @@ export function FAQGenerationClient() {
       );
 
       if (!response.ok) {
-        const error: ErrorResponse = await response.json();
+        // Try to parse error response
+        let error: ErrorResponse;
+        try {
+          error = await response.json();
+        } catch {
+          // If response is not JSON, create a generic error
+          const errorText = await response.text();
+          toast.error(`Generation failed: ${response.status} ${response.statusText}. ${errorText || 'Unknown error'}`);
+          return;
+        }
+        
         const errorCode = error.detail?.error || error.error;
         const errorMessage = error.detail?.message || error.message || 'Unknown error';
         
@@ -140,10 +167,19 @@ export function FAQGenerationClient() {
             toast.error(`Invalid confidence threshold: ${errorMessage}`);
             break;
           case 'generation_failed':
-            toast.error(`Generation failed: ${errorMessage}`);
+            // Check for common backend errors
+            let userMessage = errorMessage;
+            if (errorMessage.includes('Event loop is closed') || errorMessage.includes('RuntimeError')) {
+              userMessage = 'Backend service error. Please try again or contact support if the issue persists.';
+            }
+            toast.error(`Generation failed: ${userMessage}`, {
+              duration: 10000, // Show longer for errors
+            });
             break;
           default:
-            toast.error(`Error: ${errorMessage}`);
+            toast.error(`Error: ${errorMessage}`, {
+              duration: 10000,
+            });
         }
         return;
       }

@@ -2,6 +2,9 @@ import { requireAuth, canManageDocs } from '@/lib/auth';
 import { DocsStatsCard } from '@/components/docs/DocsStatsCard';
 import { DocumentManagementClient } from '@/components/docs/DocumentManagementClient';
 import { ReembedButton } from '@/components/docs/ReembedButton';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Sparkles } from 'lucide-react';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -14,8 +17,21 @@ export default async function AdminDocsPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Documents</h1>
-        <div className="text-sm text-slate-600">
-          Signed in as {user.email} ({user.role})
+        <div className="flex items-center gap-4">
+          {canManage && (
+            <Link href="/admin/docs/generate-faqs">
+              <Button 
+                variant="default" 
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+              >
+                <Sparkles className="h-4 w-4" />
+                Generate FAQs
+              </Button>
+            </Link>
+          )}
+          <div className="text-sm text-slate-600">
+            Signed in as {user.email} ({user.role})
+          </div>
         </div>
       </div>
       

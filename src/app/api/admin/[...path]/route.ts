@@ -48,11 +48,11 @@ async function handleRequest(
       );
     }
 
-    const path = `/${pathSegments.join('/')}`;
+    // Prepend /admin to the path since all Admin API endpoints are under /admin
+    const path = `/admin/${pathSegments.join('/')}`;
     const url = new URL(request.url);
     const searchParams = url.searchParams.toString();
-    // Add /admin prefix for Admin API endpoints
-    const fullPath = `/admin${path}${searchParams ? `?${searchParams}` : ''}`;
+    const fullPath = `${path}${searchParams ? `?${searchParams}` : ''}`;
     
     const targetUrl = `${ADMIN_API}${fullPath}`;
     

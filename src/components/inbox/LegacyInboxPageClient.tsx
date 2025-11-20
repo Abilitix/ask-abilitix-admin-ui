@@ -278,6 +278,8 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
           return;
         }
         
+        console.log('[LegacyInbox] Loading document titles for doc IDs:', Array.from(docIds));
+        
         // Fetch all active documents to get titles
         const response = await fetch('/api/admin/docs?status=active&limit=200');
         const data = await response.json().catch(() => ({}));
@@ -293,28 +295,32 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
           (Array.isArray(data?.documents) && data.documents) ||
           [];
         
-        // Map document IDs to titles
+        console.log('[LegacyInbox] Fetched documents:', docsSource.length, 'total');
+        
+        // Map document IDs to titles - include ALL documents, not just those in citations
+        // This ensures we have a complete mapping
         const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
           (acc: Record<string, string>, doc: any) => {
             if (!doc || typeof doc !== 'object') return acc;
             const id = doc.id;
             if (!id || typeof id !== 'string') return acc;
-            // Only include documents that are in our citations
-            if (docIds.has(id)) {
-              const title =
-                typeof doc.title === 'string' && doc.title.trim().length > 0
-                  ? doc.title.trim()
-                  : id;
-              acc[id] = title;
-            }
+            const title =
+              typeof doc.title === 'string' && doc.title.trim().length > 0
+                ? doc.title.trim()
+                : id;
+            acc[id] = title;
             return acc;
           },
           {}
         );
         
-        setDocTitles((prev) => ({ ...prev, ...mapped }));
+        console.log('[LegacyInbox] Mapped document titles:', Object.keys(mapped).length, 'documents');
+        console.log('[LegacyInbox] Looking for:', Array.from(docIds));
+        console.log('[LegacyInbox] Found titles:', Array.from(docIds).map(id => ({ id, title: mapped[id] || 'NOT FOUND' })));
+        
+        setDocTitles(mapped);
       } catch (err) {
-        console.error('Failed to load document titles for legacy inbox:', err);
+        console.error('[LegacyInbox] Failed to load document titles:', err);
       } finally {
         if (active) {
           setDocLoading(false);

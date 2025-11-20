@@ -47,6 +47,11 @@ function renderDocBadges(
     return '—';
   }
 
+  // If we're still loading and don't have any titles yet, show loading
+  if (docLoading && (!docTitles || Object.keys(docTitles).length === 0)) {
+    return <span className="text-xs text-muted-foreground">Loading…</span>;
+  }
+
   return (
     <div className="flex flex-wrap gap-1">
       {item.suggested_citations.slice(0, 2).map((cite, idx) => {
@@ -59,9 +64,10 @@ function renderDocBadges(
           cite.title ||
           docId;
         
-        // If we still have a UUID (long string with dashes) and we're loading or haven't found it yet, show loading
+        // Only show "Loading…" if we're actively loading AND haven't found the title yet
+        // Once loading is complete, show the title (even if it's a UUID)
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(title);
-        const displayTitle = (isUuid && (docLoading || !docTitles || !docTitles[docId])) 
+        const displayTitle = (isUuid && docLoading && (!docTitles || !docTitles[docId])) 
           ? 'Loading…' 
           : title;
         

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -321,7 +322,7 @@ export function LegacyInboxList({
                     )}
                   </TableCell>
                   <TableCell className="w-[150px]">
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1.5">
                       {enableFaqCreation && (
                         <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
                           <input
@@ -345,13 +346,13 @@ export function LegacyInboxList({
                           <div className="text-[10px] text-muted-foreground font-medium">Citations (auto-used):</div>
                           <div className="flex flex-wrap gap-1">
                             {item.suggested_citations.slice(0, 2).map((cite, idx) => (
-                              <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0">
-                                {cite.doc_id.substring(0, 8)}...
-                                {cite.page && ` p.${cite.page}`}
+                              <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0.5 bg-muted/50">
+                                {cite.doc_id.substring(0, 12)}...
+                                {cite.page && <span className="ml-1 text-muted-foreground">p.{cite.page}</span>}
                               </Badge>
                             ))}
                             {item.suggested_citations.length > 2 && (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-muted/50">
                                 +{item.suggested_citations.length - 2}
                               </Badge>
                             )}
@@ -361,7 +362,7 @@ export function LegacyInboxList({
                             size="sm"
                             variant="ghost"
                             disabled={editingId === item.id}
-                            className="text-[10px] h-6 px-2"
+                            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                           >
                             <Edit2 className="h-3 w-3 mr-1" />
                             Edit
@@ -371,12 +372,12 @@ export function LegacyInboxList({
                         <Button
                           onClick={() => handleOpenAttachModal(item.id)}
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           disabled={editingId === item.id}
-                          className="text-xs"
+                          className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                         >
                           <Paperclip className="h-3 w-3 mr-1" />
-                          Attach citations
+                          Attach
                         </Button>
                       )}
                       <div className="flex space-x-2">
@@ -417,16 +418,16 @@ export function LegacyInboxList({
           </Table>
         </div>
       </CardContent>
-      {attachModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={handleCloseAttachModal}>
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
-            <CardHeader>
+      {attachModalOpen && typeof window !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleCloseAttachModal}>
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col m-4 bg-background shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <CardHeader className="flex-shrink-0">
               <CardTitle>Attach Citations</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Add document citations for this inbox item. At least one citation with a document ID is required.
               </p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 overflow-y-auto flex-1">
               <CitationsEditor
                 value={attachCitations}
                 onChange={setAttachCitations}
@@ -436,7 +437,7 @@ export function LegacyInboxList({
                 maxCount={3}
               />
             </CardContent>
-            <div className="flex justify-end gap-2 p-4 border-t">
+            <div className="flex justify-end gap-2 p-4 border-t flex-shrink-0">
               <Button variant="outline" onClick={handleCloseAttachModal} disabled={attachLoading}>
                 Cancel
               </Button>
@@ -455,7 +456,8 @@ export function LegacyInboxList({
               </Button>
             </div>
           </Card>
-        </div>
+        </div>,
+        document.body
       )}
     </Card>
   );

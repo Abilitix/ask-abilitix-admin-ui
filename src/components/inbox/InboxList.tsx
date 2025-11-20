@@ -5,13 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { InboxListItem } from './ModernInboxClient';
+import { InboxListItem, InboxTopScore } from './ModernInboxClient';
 import { ArrowDownCircle, Inbox as InboxIcon, Loader2, RefreshCw } from 'lucide-react';
 
 type AppliedFilters = {
   ref: string;
   tag: string;
   qHash: string;
+  docId: string;
 };
 
 type InboxListProps = {
@@ -78,6 +79,30 @@ function renderTag(tag: string) {
   );
 }
 
+function renderDocBadges(matches?: InboxTopScore[] | null) {
+  if (!matches || matches.length === 0) {
+    return '—';
+  }
+
+  return matches.slice(0, 2).map((match) => {
+    const label = match.title
+      ? match.title.length > 24
+        ? `${match.title.slice(0, 24)}…`
+        : match.title
+      : match.docId.slice(0, 8);
+    return (
+      <Badge
+        key={match.docId}
+        variant="outline"
+        className="mr-1 text-[11px]"
+        title={match.title || match.docId}
+      >
+        {label}
+      </Badge>
+    );
+  });
+}
+
 export function InboxList({
   items,
   loading,
@@ -94,7 +119,7 @@ export function InboxList({
   const safeItems = Array.isArray(items) ? items : [];
 
   const hasFilters = useMemo(
-    () => Boolean(filters.ref || filters.tag || filters.qHash),
+    () => Boolean(filters.ref || filters.tag || filters.qHash || filters.docId),
     [filters]
   );
 
@@ -188,6 +213,7 @@ export function InboxList({
                 <TableHead className="w-[24ch]">Ref</TableHead>
                 <TableHead className="w-[18ch]">Hash</TableHead>
                 <TableHead>Tags</TableHead>
+              <TableHead className="w-[22ch]">Documents</TableHead>
                 <TableHead className="w-[16ch]">Dup Count</TableHead>
                 <TableHead className="w-[22ch]">Asked</TableHead>
                 <TableHead className="w-[16ch]">Channel</TableHead>
@@ -213,6 +239,9 @@ export function InboxList({
                     </TableCell>
                     <TableCell className="space-x-1 whitespace-nowrap">
                       {safeTags.length ? safeTags.map(renderTag) : '—'}
+                    </TableCell>
+                    <TableCell className="space-x-1">
+                      {renderDocBadges(item.docMatches)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="text-xs">

@@ -50,6 +50,7 @@ type Filters = {
   ref: string;
   tag: string;
   qHash: string;
+  docId: string;
 };
 
 export type InboxListItem = {
@@ -59,6 +60,7 @@ export type InboxListItem = {
   channel: string | null;
   tags: string[];
   dupCount: number;
+  docMatches: InboxTopScore[] | null;
 };
 
 export type InboxTopScore = {
@@ -131,6 +133,25 @@ function normaliseCitation(raw: any): Citation | null {
   };
 }
 
+function parseTopScores(raw: any): InboxTopScore[] | null {
+  if (!Array.isArray(raw)) return null;
+  const scores = raw
+    .map((entry: any) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const docId = entry.doc_id;
+      const score = entry.score;
+      if (!docId || typeof docId !== 'string') return null;
+      if (typeof score !== 'number') return null;
+      return {
+        docId,
+        score,
+        title: typeof entry.title === 'string' ? entry.title : null,
+      };
+    })
+    .filter(Boolean) as InboxTopScore[];
+  return scores.length > 0 ? scores : null;
+}
+
 function normaliseListItem(raw: any): InboxListItem | null {
   if (!raw || typeof raw !== 'object') return null;
   const idValue = raw.id ?? raw.ref_id;
@@ -167,6 +188,7 @@ function normaliseListItem(raw: any): InboxListItem | null {
     channel,
     tags,
     dupCount: dupCountRaw && dupCountRaw >= 1 ? dupCountRaw : 1,
+    docMatches: parseTopScores(raw.top_scores),
   };
 }
 
@@ -174,25 +196,7 @@ function normaliseDetail(raw: any): InboxDetail | null {
   const base = normaliseListItem(raw);
   if (!base) return null;
 
-  let topScores: InboxTopScore[] | null = null;
-  if (Array.isArray(raw.top_scores)) {
-    const scores = raw.top_scores
-      .map((entry: any) => {
-        if (!entry || typeof entry !== 'object') return null;
-        const docId = entry.doc_id;
-        const score = entry.score;
-        if (!docId || typeof docId !== 'string') return null;
-        if (typeof score !== 'number') return null;
-        return {
-          docId,
-          score,
-          title: typeof entry.title === 'string' ? entry.title : null,
-        };
-      })
-      .filter(Boolean) as InboxTopScore[];
-
-    topScores = scores.length > 0 ? scores : [];
-  }
+  const topScores = parseTopScores(raw.top_scores) ?? base.docMatches;
 
   return {
     ...base,
@@ -283,6 +287,7 @@ const DEFAULT_FILTERS: Filters = {
   ref: '',
   tag: 'no_source',
   qHash: '',
+  docId: '',
 };
 
 function createEmptyFieldErrors(count: number): CitationFieldErrors[] {
@@ -433,8 +438,59 @@ export function ModernInboxClient({
   const [citationFieldErrors, setCitationFieldErrors] = useState<CitationFieldErrors[]>([]);
   const [permissionError, setPermissionError] = useState<boolean>(false);
   const [promoteConflict, setPromoteConflict] = useState<PromoteConflict | null>(null);
+  const [docOptions, setDocOptions] = useState<{ id: string; title: string }[]>([]);
+  const [docOptionsLoading, setDocOptionsLoading] = useState<boolean>(false);
 
   const filtersRef = useRef<Filters>(DEFAULT_FILTERS);
+
+  useEffect(() => {
+    let active = true;
+    const loadDocs = async () => {
+      try {
+        setDocOptionsLoading(true);
+        const response = await fetch('/api/admin/docs?status=active&limit=200', {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'include',
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(
+            (data && (data.details || data.error)) || 'Failed to load documents'
+          );
+        }
+        if (!active) return;
+        const docsSource =
+          (Array.isArray(data?.docs) && data.docs) ||
+          (Array.isArray(data?.documents) && data.documents) ||
+          [];
+        const mapped = (Array.isArray(docsSource) ? docsSource : [])
+          .map((doc: any) => {
+            if (!doc || typeof doc !== 'object') return null;
+            const id = doc.id;
+            if (!id || typeof id !== 'string') return null;
+            const title =
+              typeof doc.title === 'string' && doc.title.trim().length > 0
+                ? doc.title.trim()
+                : id;
+            return { id, title };
+          })
+          .filter(Boolean) as { id: string; title: string }[];
+        setDocOptions(mapped);
+      } catch (err) {
+        console.error('Failed to load documents for inbox filter:', err);
+      } finally {
+        if (active) {
+          setDocOptionsLoading(false);
+        }
+      }
+    };
+
+    loadDocs();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const resetRefreshTimer = useCallback(() => {
     if (refreshTimeoutRef.current) {
@@ -980,12 +1036,14 @@ export function ModernInboxClient({
       ref: draftFilters.ref.trim(),
       tag: draftFilters.tag,
       qHash: draftFilters.qHash.trim(),
+      docId: draftFilters.docId,
     };
 
     const changed =
       filtersRef.current.ref !== next.ref ||
       filtersRef.current.tag !== next.tag ||
-      filtersRef.current.qHash !== next.qHash;
+      filtersRef.current.qHash !== next.qHash ||
+      filtersRef.current.docId !== next.docId;
 
     filtersRef.current = next;
     setFilters(next);
@@ -1004,7 +1062,8 @@ export function ModernInboxClient({
     const alreadyDefault =
       filtersRef.current.ref === DEFAULT_FILTERS.ref &&
       filtersRef.current.tag === DEFAULT_FILTERS.tag &&
-      filtersRef.current.qHash === DEFAULT_FILTERS.qHash;
+      filtersRef.current.qHash === DEFAULT_FILTERS.qHash &&
+      filtersRef.current.docId === DEFAULT_FILTERS.docId;
 
     setDraftFilters(DEFAULT_FILTERS);
     filtersRef.current = DEFAULT_FILTERS;
@@ -1062,6 +1121,7 @@ export function ModernInboxClient({
       ref: filtersRef.current.ref,
       tag: filtersRef.current.tag,
       qHash: filtersRef.current.qHash,
+      docId: filtersRef.current.docId,
     };
   }, [filters]);
 
@@ -1074,7 +1134,7 @@ export function ModernInboxClient({
 
     const actions: ModernInboxActions = {
       applyNoSourceFilter: () => {
-        const next: Filters = { ref: '', tag: 'no_source', qHash: '' };
+        const next: Filters = { ref: '', tag: 'no_source', qHash: '', docId: '' };
         setDraftFilters(next);
         filtersRef.current = next;
         setFilters(next);
@@ -1100,6 +1160,27 @@ export function ModernInboxClient({
     onRegisterActions(actions);
   }, [detail, loadDetail, loadList, onRegisterActions, selectedId]);
 
+  const displayItems = useMemo(() => {
+    if (!filters.docId) {
+      return items;
+    }
+    return items.filter((item) =>
+      Array.isArray(item.docMatches)
+        ? item.docMatches.some((match) => match.docId === filters.docId)
+        : false
+    );
+  }, [items, filters.docId]);
+
+  useEffect(() => {
+    if (!filters.docId || !selectedId) {
+      return;
+    }
+    const stillVisible = displayItems.some((item) => item.id === selectedId);
+    if (!stillVisible) {
+      setSelectedId(null);
+    }
+  }, [displayItems, filters.docId, selectedId]);
+
   return (
     <div className="space-y-6" key={`${modeKey}:${selectedId ?? 'none'}`}>
       <Card>
@@ -1108,7 +1189,7 @@ export function ModernInboxClient({
         </CardHeader>
         <CardContent>
           <form
-            className="grid gap-4 md:grid-cols-4"
+            className="grid gap-4 md:grid-cols-5"
             onSubmit={(event) => {
               event.preventDefault();
               handleApplyFilters();
@@ -1146,6 +1227,30 @@ export function ModernInboxClient({
               </select>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="inbox-doc-filter">Document</Label>
+              <select
+                id="inbox-doc-filter"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={draftFilters.docId}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({
+                    ...prev,
+                    docId: event.target.value,
+                  }))
+                }
+              >
+                <option value="">All documents</option>
+                {docOptions.map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.title}
+                  </option>
+                ))}
+              </select>
+              {docOptionsLoading && (
+                <p className="text-[11px] text-muted-foreground">Loading…</p>
+              )}
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="inbox-qhash-filter">Hash</Label>
               <Input
                 id="inbox-qhash-filter"
@@ -1178,7 +1283,7 @@ export function ModernInboxClient({
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <InboxList
-          items={Array.isArray(items) ? items : []}
+          items={Array.isArray(displayItems) ? displayItems : []}
           loading={loading && !isInitialised}
           refreshing={loading && isInitialised}
           error={error}

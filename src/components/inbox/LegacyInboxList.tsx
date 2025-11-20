@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
+import { CitationsEditor, EditableCitation } from '@/components/inbox/CitationsEditor';
 import { LegacyInboxItem } from './LegacyInboxPageClient';
 import {
   Check,
@@ -18,6 +19,7 @@ import {
   Edit2,
   Save,
   RotateCcw,
+  Paperclip,
 } from 'lucide-react';
 
 type LegacyInboxListProps = {
@@ -25,8 +27,10 @@ type LegacyInboxListProps = {
   loading: boolean;
   error: string | null;
   enableFaqCreation: boolean;
+  allowEmptyCitations: boolean;
   onApprove: (id: string, editedAnswer?: string, isFaq?: boolean) => void;
   onReject: (id: string) => void;
+  onAttachCitations: (id: string, citations: Array<{ doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => Promise<void>;
   onRefresh: () => void;
 };
 
@@ -35,13 +39,18 @@ export function LegacyInboxList({
   loading,
   error,
   enableFaqCreation,
+  allowEmptyCitations,
   onApprove,
   onReject,
+  onAttachCitations,
   onRefresh,
 }: LegacyInboxListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
   const [faqSelections, setFaqSelections] = useState<Record<string, boolean>>({});
+  const [attachModalOpen, setAttachModalOpen] = useState<string | null>(null);
+  const [attachCitations, setAttachCitations] = useState<EditableCitation[]>([{ docId: '', page: '', spanStart: '', spanEnd: '', spanText: '' }]);
+  const [attachLoading, setAttachLoading] = useState(false);
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
 
@@ -72,6 +81,70 @@ export function LegacyInboxList({
     const editedAnswer = editedAnswers[id];
     const isFaq = faqSelections[id] ?? true;
     onApprove(id, editedAnswer, isFaq);
+  };
+
+  const handleOpenAttachModal = (id: string) => {
+    setAttachModalOpen(id);
+    const item = items.find((i) => i.id === id);
+    // Pre-populate with suggested_citations if available, otherwise start empty
+    if (item?.suggested_citations && item.suggested_citations.length > 0) {
+      setAttachCitations(
+        item.suggested_citations.map((cite) => ({
+          docId: cite.doc_id,
+          page: cite.page?.toString() || '',
+          spanStart: cite.span?.start?.toString() || '',
+          spanEnd: cite.span?.end?.toString() || '',
+          spanText: cite.span?.text || '',
+        }))
+      );
+    } else {
+      setAttachCitations([{ docId: '', page: '', spanStart: '', spanEnd: '', spanText: '' }]);
+    }
+  };
+
+  const handleCloseAttachModal = () => {
+    setAttachModalOpen(null);
+    setAttachCitations([{ docId: '', page: '', spanStart: '', spanEnd: '', spanText: '' }]);
+  };
+
+  const handleAttachSubmit = async () => {
+    if (!attachModalOpen) return;
+
+    // Validate citations
+    const validCitations = attachCitations
+      .filter((c) => c.docId.trim().length > 0)
+      .map((c) => {
+        const citation: { doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } } = {
+          doc_id: c.docId.trim(),
+        };
+        const pageNum = c.page.trim() ? parseInt(c.page.trim(), 10) : undefined;
+        if (pageNum && !isNaN(pageNum)) {
+          citation.page = pageNum;
+        }
+        const spanStart = c.spanStart.trim() ? parseInt(c.spanStart.trim(), 10) : undefined;
+        const spanEnd = c.spanEnd.trim() ? parseInt(c.spanEnd.trim(), 10) : undefined;
+        if (spanStart !== undefined || spanEnd !== undefined || c.spanText.trim()) {
+          citation.span = {};
+          if (spanStart !== undefined && !isNaN(spanStart)) citation.span.start = spanStart;
+          if (spanEnd !== undefined && !isNaN(spanEnd)) citation.span.end = spanEnd;
+          if (c.spanText.trim()) citation.span.text = c.spanText.trim();
+        }
+        return citation;
+      });
+
+    if (validCitations.length === 0) {
+      return; // Should show error, but for now just return
+    }
+
+    setAttachLoading(true);
+    try {
+      await onAttachCitations(attachModalOpen, validCitations);
+      handleCloseAttachModal();
+    } catch (err) {
+      // Error already shown by onAttachCitations
+    } finally {
+      setAttachLoading(false);
+    }
   };
 
   if (loading) {
@@ -266,13 +339,62 @@ export function LegacyInboxList({
                           <span>Create as FAQ</span>
                         </label>
                       )}
+                      {/* Citations preview or attach button */}
+                      {item.suggested_citations && item.suggested_citations.length > 0 ? (
+                        <div className="space-y-1">
+                          <div className="text-[10px] text-muted-foreground font-medium">Citations (auto-used):</div>
+                          <div className="flex flex-wrap gap-1">
+                            {item.suggested_citations.slice(0, 2).map((cite, idx) => (
+                              <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0">
+                                {cite.doc_id.substring(0, 8)}...
+                                {cite.page && ` p.${cite.page}`}
+                              </Badge>
+                            ))}
+                            {item.suggested_citations.length > 2 && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                +{item.suggested_citations.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            onClick={() => handleOpenAttachModal(item.id)}
+                            size="sm"
+                            variant="ghost"
+                            disabled={editingId === item.id}
+                            className="text-[10px] h-6 px-2"
+                          >
+                            <Edit2 className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => handleOpenAttachModal(item.id)}
+                          size="sm"
+                          variant="outline"
+                          disabled={editingId === item.id}
+                          className="text-xs"
+                        >
+                          <Paperclip className="h-3 w-3 mr-1" />
+                          Attach citations
+                        </Button>
+                      )}
                       <div className="flex space-x-2">
                         <Button
                           onClick={() => handleApprove(item.id)}
                           size="sm"
                           className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
-                          disabled={editingId === item.id}
-                          title="Approve and automatically generate embeddings"
+                          disabled={
+                            editingId === item.id ||
+                            (!allowEmptyCitations &&
+                              (!item.suggested_citations || item.suggested_citations.length === 0))
+                          }
+                          title={
+                            !allowEmptyCitations &&
+                            (!item.suggested_citations || item.suggested_citations.length === 0)
+                              ? 'Attach citations first'
+                              : 'Approve and automatically generate embeddings'
+                          }
                         >
                           <Check className="h-4 w-4 mr-1" />
                           Approve
@@ -295,6 +417,46 @@ export function LegacyInboxList({
           </Table>
         </div>
       </CardContent>
+      {attachModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={handleCloseAttachModal}>
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <CardTitle>Attach Citations</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Add document citations for this inbox item. At least one citation with a document ID is required.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <CitationsEditor
+                value={attachCitations}
+                onChange={setAttachCitations}
+                errors={[]}
+                readOnly={false}
+                disabled={attachLoading}
+                maxCount={3}
+              />
+            </CardContent>
+            <div className="flex justify-end gap-2 p-4 border-t">
+              <Button variant="outline" onClick={handleCloseAttachModal} disabled={attachLoading}>
+                Cancel
+              </Button>
+              <Button onClick={handleAttachSubmit} disabled={attachLoading || attachCitations.every((c) => !c.docId.trim())}>
+                {attachLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Attaching...
+                  </>
+                ) : (
+                  <>
+                    <Paperclip className="mr-2 h-4 w-4" />
+                    Attach
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </Card>
   );
 }

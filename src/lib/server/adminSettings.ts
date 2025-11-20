@@ -119,7 +119,7 @@ export function mapSettingsToFlags(
       adminInboxApiEnabled: parseFlag(raw.ADMIN_INBOX_API),
       enableReviewPromote: parseFlag(raw.ENABLE_REVIEW_PROMOTE),
       allowEmptyCitations: parseFlag(raw.ALLOW_EMPTY_CITATIONS),
-      enableFaqCreation: parseFlag(raw.ENABLE_REVIEW_PROMOTE), // Maps to same backend flag
+      enableFaqCreation: parseFlag(raw['INBOX.ENABLE_REVIEW_PROMOTE']), // Maps to namespaced backend flag
     },
     tenantId: settings.tenant_id,
   };

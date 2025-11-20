@@ -770,9 +770,18 @@ export function ModernInboxClient({
       const body: Record<string, unknown> = {};
       if (useFaqEndpoint) {
         // /promote endpoint: supports citations, answer, title, is_faq
-        if (citations) {
+        // If citations provided, use them. Otherwise, if detail has suggested_citations,
+        // omit citations (backend will use suggested_citations). If no citations and
+        // allowEmptyCitations is true, send empty array.
+        if (citations && citations.length > 0) {
           body.citations = citations;
+        } else if (detail?.suggestedCitations && detail.suggestedCitations.length > 0) {
+          // Don't send citations - backend will use suggested_citations from inbox item
+        } else if (allowEmptyCitations) {
+          // Send empty array if empty citations are allowed
+          body.citations = [];
         }
+        // If no citations and not allowed, validation should have caught this earlier
         if (typeof answer === 'string' && answer.trim().length > 0) {
           body.answer = answer.trim();
         }
@@ -888,6 +897,13 @@ export function ModernInboxClient({
         }
 
         if (response.status === 400) {
+          console.error('[promote/approve] 400 error:', {
+            endpoint: useFaqEndpoint ? 'promote' : 'approve',
+            selectedId,
+            payload: body,
+            response: json,
+            text: text,
+          });
           const { rows, general } = parseValidationErrors(count, json);
           setCitationFieldErrors(rows);
           const errorMessage =
@@ -896,9 +912,10 @@ export function ModernInboxClient({
               ? useFaqEndpoint
                 ? 'Attach at least one citation before promoting.'
                 : 'Attach at least one citation before approving.'
-              : useFaqEndpoint
-                ? 'Resolve the highlighted fields before promoting.'
-                : 'Resolve the highlighted fields before approving.');
+              : json?.details || json?.error || json?.message ||
+                (useFaqEndpoint
+                  ? 'Resolve the highlighted fields before promoting.'
+                  : 'Resolve the highlighted fields before approving.'));
           setActionError(errorMessage);
           sendTelemetry(useFaqEndpoint ? 'ui.promote.fail' : 'ui.approve.fail', {
             ref_id: selectedId,

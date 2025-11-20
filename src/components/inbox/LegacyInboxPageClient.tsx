@@ -13,14 +13,20 @@ export type LegacyInboxItem = {
   has_pii?: boolean;
   pii_fields?: string[];
   status: 'pending' | 'approved' | 'rejected';
+  suggested_citations?: Array<{
+    doc_id: string;
+    page?: number;
+    span?: { start?: number; end?: number; text?: string };
+  }>;
 };
 
 type LegacyInboxPageClientProps = {
   disabled?: boolean;
   enableFaqCreation?: boolean;
+  allowEmptyCitations?: boolean;
 };
 
-export function LegacyInboxPageClient({ disabled, enableFaqCreation = false }: LegacyInboxPageClientProps) {
+export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, allowEmptyCitations = false }: LegacyInboxPageClientProps) {
   const [items, setItems] = useState<LegacyInboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +105,31 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false }: L
     }
   }, []);
 
+  const handleAttachCitations = useCallback(async (id: string, citations: Array<{ doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => {
+    try {
+      const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/attach_source`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ citations }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.details || data.error || `Failed to attach citations: ${response.status}`);
+      }
+
+      toast.success('Citations attached ✓');
+      await fetchItems(); // Refresh to get updated item
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to attach citations';
+      toast.error(`Attachment failed: ${errorMessage}`);
+      throw err; // Re-throw so caller can handle
+    }
+  }, [fetchItems]);
+
   const handleReject = useCallback(async (id: string) => {
     try {
       const response = await fetch('/api/admin/inbox/reject', {
@@ -144,8 +175,10 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false }: L
         loading={loading}
         error={error}
         enableFaqCreation={enableFaqCreation}
+        allowEmptyCitations={allowEmptyCitations}
         onApprove={handleApprove}
         onReject={handleReject}
+        onAttachCitations={handleAttachCitations}
         onRefresh={fetchItems}
       />
     </div>

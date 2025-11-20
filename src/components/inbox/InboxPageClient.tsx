@@ -349,6 +349,7 @@ export function InboxPageClient({
                         onClick={() => updateFlag(key, true)}
                         disabled={disabled || flags[key]}
                         title={tooltipText}
+                        className={flags[key] ? 'bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700' : ''}
                       >
                         On
                       </Button>
@@ -358,6 +359,7 @@ export function InboxPageClient({
                         onClick={() => updateFlag(key, false)}
                         disabled={disabled || !flags[key]}
                         title={tooltipText}
+                        className={!flags[key] ? 'bg-gray-500 hover:bg-gray-600 text-white border-gray-500 hover:border-gray-600' : ''}
                       >
                         Off
                       </Button>
@@ -395,7 +397,10 @@ export function InboxPageClient({
           />
         </>
       ) : (
-        <LegacyInboxPageClient enableFaqCreation={flags.enableFaqCreation === true} />
+        <LegacyInboxPageClient 
+          enableFaqCreation={flags.enableFaqCreation === true}
+          allowEmptyCitations={flags.allowEmptyCitations === true}
+        />
       )}
 
       {!flags.adminInboxApiEnabled && (

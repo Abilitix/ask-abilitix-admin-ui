@@ -54,6 +54,7 @@ export function InboxPageClient({
 }: InboxPageClientProps) {
   const [flags, setFlags] = useState<InitialInboxFlags>(initialFlags);
   const flagsRef = useRef(initialFlags);
+  const isInitialMountRef = useRef(true);
   const [mode, setMode] = useState<ReviewMode>(initialFlags.adminInboxApiEnabled ? 'modern' : 'legacy');
   const [modeSource, setModeSource] = useState<ModeSource>('tenant');
   const [flagPanelOpen, setFlagPanelOpen] = useState(false);
@@ -71,6 +72,11 @@ export function InboxPageClient({
     return `inbox-review-mode:${suffix}`;
   }, [tenantId, tenantSlug]);
 
+  const flagsStorageKey = useMemo(() => {
+    const suffix = tenantId ?? tenantSlug ?? 'default';
+    return `inbox-flags:${suffix}`;
+  }, [tenantId, tenantSlug]);
+
   const canUseModern = !!flags.adminInboxApiEnabled;
   const canModerate = Boolean(userRole && ['owner', 'admin', 'curator'].includes(userRole));
   const allowReviewPromote =
@@ -84,11 +90,48 @@ export function InboxPageClient({
     flagsRef.current = flags;
   }, [flags]);
 
-  // Sync state when initialFlags prop changes (e.g., after navigation)
+  // Load flags from localStorage on mount (if available) to preserve user changes
+  // Otherwise, use initialFlags from server
   useEffect(() => {
-    setFlags(initialFlags);
-    flagsRef.current = initialFlags;
-  }, [initialFlags]);
+    if (typeof window === 'undefined') return;
+
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      
+      // Try to load persisted flags from localStorage
+      try {
+        const stored = window.localStorage.getItem(flagsStorageKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          // Validate it's a valid flags object
+          if (parsed && typeof parsed === 'object' && Object.keys(initialFlags).every(key => key in parsed)) {
+            setFlags(parsed);
+            flagsRef.current = parsed;
+            return;
+          }
+        }
+      } catch (err) {
+        // If parse fails, fall back to initialFlags
+        console.warn('[flags] Failed to load from localStorage:', err);
+      }
+      
+      // Fall back to server-provided initialFlags
+      setFlags(initialFlags);
+      flagsRef.current = initialFlags;
+    }
+  }, [initialFlags, flagsStorageKey]);
+
+  // Persist flags to localStorage whenever they change (but not on initial mount)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (isInitialMountRef.current) return; // Skip on initial mount
+
+    try {
+      window.localStorage.setItem(flagsStorageKey, JSON.stringify(flags));
+    } catch (err) {
+      console.warn('[flags] Failed to save to localStorage:', err);
+    }
+  }, [flags, flagsStorageKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

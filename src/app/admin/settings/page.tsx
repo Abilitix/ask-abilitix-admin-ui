@@ -11,6 +11,7 @@ import { HelpCircle, Settings, Users, Key, TestTube, Trash2, UserX } from 'lucid
 import { toast } from 'sonner';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
 import { ApiErrorCode } from '@/types/errors';
+import { WidgetSettingsSection } from '@/components/widget/WidgetSettingsSection';
 
 type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; LLM_MAX_OUTPUT_TOKENS?: number; PROMPT_TOPK?: number; LLM_MAX_OUTPUT_TOKENS_CEILING?: number; };
 type SettingsResp = { effective: Eff; overrides: Partial<Eff>; tenant_id?: string; tenant_slug?: string; tenant_name?: string; };
@@ -1127,6 +1128,9 @@ export default function SettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Website Widget Section */}
+      <WidgetSettingsSection />
 
       {/* Current Members Section */}
       <Card>

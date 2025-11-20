@@ -48,15 +48,20 @@ async function handleRequest(
       );
     }
 
-    const path = `/${pathSegments.join('/')}`;
+    // Prepend /admin to the path since all Admin API endpoints are under /admin
+    const path = `/admin/${pathSegments.join('/')}`;
     const url = new URL(request.url);
     const searchParams = url.searchParams.toString();
     const fullPath = `${path}${searchParams ? `?${searchParams}` : ''}`;
     
     const targetUrl = `${ADMIN_API}${fullPath}`;
     
+    // Forward cookies for authentication
+    const cookieHeader = request.headers.get('cookie') || '';
+    
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Cookie': cookieHeader,
     };
 
     const body = method !== 'GET' ? await request.text() : undefined;

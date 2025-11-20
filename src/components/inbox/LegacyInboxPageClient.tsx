@@ -280,8 +280,8 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         
         console.log('[LegacyInbox] Loading document titles for doc IDs:', Array.from(docIds));
         
-        // Fetch all active documents to get titles
-        const response = await fetch('/api/admin/docs?status=all&limit=500');
+        // Fetch all documents to get titles (max limit is 100 per Admin API)
+        const response = await fetch('/api/admin/docs?status=all&limit=100');
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           throw new Error(

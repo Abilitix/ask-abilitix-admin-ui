@@ -62,22 +62,42 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
 
   const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true) => {
     try {
+      // Find the item to check for suggested_citations
+      const item = items.find((i) => i.id === id);
+      
       // Use /promote endpoint for FAQ creation (requires ENABLE_REVIEW_PROMOTE=1)
       // For regular QA pairs without FAQ, use /approve endpoint (legacy)
       const endpoint = isFaq 
         ? `/api/admin/inbox/${encodeURIComponent(id)}/promote`
         : '/api/admin/inbox/approve';
       
-      const body = isFaq
-        ? {
-            ...(editedAnswer && { answer: editedAnswer }),
-            is_faq: true,
-          }
-        : {
-            id,
-            reembed: true,
-            ...(editedAnswer && { answer: editedAnswer }),
-          };
+      const body: Record<string, unknown> = {};
+      
+      if (isFaq) {
+        // /promote endpoint: supports citations, answer, title, is_faq
+        // If item has suggested_citations, omit citations (backend will use suggested_citations)
+        // If no citations and allowEmptyCitations is true, send empty array
+        // Otherwise, backend validation should catch missing citations
+        if (item?.suggested_citations && item.suggested_citations.length > 0) {
+          // Don't send citations - backend will use suggested_citations from inbox item
+        } else if (allowEmptyCitations) {
+          // Send empty array if empty citations are allowed
+          body.citations = [];
+        }
+        // If no citations and not allowed, backend validation will catch this
+        
+        if (editedAnswer && editedAnswer.trim().length > 0) {
+          body.answer = editedAnswer.trim();
+        }
+        body.is_faq = true;
+      } else {
+        // /approve endpoint: only supports id, reembed, answer (no citations, no title)
+        body.id = id;
+        body.reembed = true;
+        if (editedAnswer && editedAnswer.trim().length > 0) {
+          body.answer = editedAnswer.trim();
+        }
+      }
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -87,10 +107,46 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         body: JSON.stringify(body),
       });
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
+      } catch (parseErr) {
+        // If response is not JSON, use status text
+        console.error('[promote] Failed to parse response:', parseErr);
+      }
 
       if (!response.ok || data.error) {
-        throw new Error(data.details || data.error || `Failed to ${isFaq ? 'promote' : 'approve'}: ${response.status}`);
+        // Parse detailed validation errors from backend
+        let errorMessage = data.details || data.error || data.message || `Failed to ${isFaq ? 'promote' : 'approve'}: ${response.status} ${response.statusText}`;
+        
+        // Check for detailed field errors (Admin API format)
+        if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
+          const fieldErrors = data.detail.error.fields
+            .map((field: any) => {
+              const fieldPath = field.field || '';
+              const message = field.message || 'Invalid value';
+              return `${fieldPath}: ${message}`;
+            })
+            .join(', ');
+          
+          if (fieldErrors) {
+            errorMessage = `Validation errors: ${fieldErrors}`;
+          }
+        }
+        
+        console.error('[promote] API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          data,
+          body,
+          errorCode: data.detail?.error?.code,
+          fieldErrors: data.detail?.error?.fields,
+        });
+        
+        throw new Error(errorMessage);
       }
 
       toast.success(isFaq 
@@ -103,7 +159,7 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
       const errorMessage = err instanceof Error ? err.message : `Failed to ${isFaq ? 'promote' : 'approve'} item`;
       toast.error(`${isFaq ? 'Promotion' : 'Approval'} failed: ${errorMessage}`);
     }
-  }, []);
+  }, [items, allowEmptyCitations]);
 
   const handleAttachCitations = useCallback(async (id: string, citations: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => {
     try {

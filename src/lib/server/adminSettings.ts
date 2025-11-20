@@ -4,6 +4,7 @@ import { getAdminApiBase } from '@/lib/env';
 type TenantSettingKey =
   | 'ADMIN_INBOX_API'
   | 'ENABLE_REVIEW_PROMOTE'
+  | 'INBOX.ENABLE_REVIEW_PROMOTE'
   | 'ALLOW_EMPTY_CITATIONS';
 
 export type TenantSettingsResponse = {
@@ -55,11 +56,16 @@ export async function getTenantSettingsServer(
       return null;
     }
 
+    // Check for namespaced key first, fall back to non-namespaced for backward compatibility
+    const enableReviewPromote = 
+      data['INBOX.ENABLE_REVIEW_PROMOTE'] ?? data.ENABLE_REVIEW_PROMOTE;
+
     const settings: Record<TenantSettingKey, number | boolean | undefined> = {
       ADMIN_INBOX_API: data.ADMIN_INBOX_API,
-      ENABLE_REVIEW_PROMOTE: data.ENABLE_REVIEW_PROMOTE,
+      ENABLE_REVIEW_PROMOTE: enableReviewPromote,
+      'INBOX.ENABLE_REVIEW_PROMOTE': enableReviewPromote,
       ALLOW_EMPTY_CITATIONS: data.ALLOW_EMPTY_CITATIONS,
-    };
+    } as Record<TenantSettingKey, number | boolean | undefined>;
 
     return {
       tenant_id: data.tenant_id,

@@ -56,7 +56,7 @@ export default async function AdminInboxPage() {
   const user = await getAuthUser();
   const settings = await getTenantSettingsServer([
     'ADMIN_INBOX_API',
-    'ENABLE_REVIEW_PROMOTE',
+    'INBOX.ENABLE_REVIEW_PROMOTE',
     'ALLOW_EMPTY_CITATIONS',
   ]);
   const { flags, tenantId } = mapSettingsToFlags(settings);

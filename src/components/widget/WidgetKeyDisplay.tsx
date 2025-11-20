@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { Copy, CheckCircle2 } from 'lucide-react';
 import type { WidgetConfig } from '@/lib/types/widget';
 
 interface WidgetKeyDisplayProps {
@@ -23,10 +25,13 @@ export function WidgetKeyDisplay({
   onRotate,
   rotating
 }: WidgetKeyDisplayProps) {
+  const [keyCopied, setKeyCopied] = useState(false);
+
   const handleCopyKey = async () => {
     try {
       await navigator.clipboard.writeText(widgetKey);
-      toast.success('Widget key copied to clipboard');
+      setKeyCopied(true);
+      setTimeout(() => setKeyCopied(false), 2000);
     } catch (error) {
       toast.error('Failed to copy to clipboard');
     }
@@ -68,8 +73,19 @@ export function WidgetKeyDisplay({
           variant="outline"
           size="sm"
           onClick={handleCopyKey}
+          className={keyCopied ? 'text-green-600 border-green-600' : ''}
         >
-          Copy Key
+          {keyCopied ? (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5 mr-1.5" />
+              Copy Key
+            </>
+          )}
         </Button>
         <Button
           variant="outline"

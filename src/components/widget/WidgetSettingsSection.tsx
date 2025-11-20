@@ -12,9 +12,11 @@ export function WidgetSettingsSection() {
   const [loading, setLoading] = useState(true);
   const [rotating, setRotating] = useState(false);
 
-  const loadConfig = async () => {
+  const loadConfig = async (showLoading: boolean = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const response = await fetch('/api/admin/widget/config', {
         cache: 'no-store'
       });
@@ -27,9 +29,13 @@ export function WidgetSettingsSection() {
       setConfig(data);
     } catch (error) {
       console.error('Failed to load widget config:', error);
-      toast.error('Failed to load widget configuration');
+      if (showLoading) {
+        toast.error('Failed to load widget configuration');
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -62,8 +68,28 @@ export function WidgetSettingsSection() {
 
       const data: RotateKeyResponse = await response.json();
 
-      // Reload config to get the masked key
-      await loadConfig();
+      // Update config state directly with new key and snippet
+      // Then reload config in background to get masked key (without showing loading spinner)
+      if (config) {
+        const maskKey = (key: string): string => {
+          if (!key || key.length <= 10) return key;
+          return key.slice(0, 10) + '***' + key.slice(-6);
+        };
+
+        setConfig({
+          ...config,
+          widget_key: data.widget_key,
+          widget_key_masked: maskKey(data.widget_key),
+          embed_snippet: data.embed_snippet,
+        });
+      }
+
+      // Reload config in background to get full updated config (usage stats, etc.)
+      // but don't show loading spinner
+      loadConfig(false).catch((err) => {
+        console.error('Background config reload failed:', err);
+        // Non-critical - we already updated the key and snippet
+      });
 
       toast.success('Widget key rotated. Copy the new embed code.');
     } catch (error) {

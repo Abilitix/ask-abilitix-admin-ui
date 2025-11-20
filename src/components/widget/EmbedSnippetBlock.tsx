@@ -1,17 +1,22 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { Copy, CheckCircle2 } from 'lucide-react';
 
 interface EmbedSnippetBlockProps {
   embedSnippet: string;
 }
 
 export function EmbedSnippetBlock({ embedSnippet }: EmbedSnippetBlockProps) {
+  const [snippetCopied, setSnippetCopied] = useState(false);
+
   const handleCopySnippet = async () => {
     try {
       await navigator.clipboard.writeText(embedSnippet);
-      toast.success('Embed snippet copied to clipboard');
+      setSnippetCopied(true);
+      setTimeout(() => setSnippetCopied(false), 2000);
     } catch (error) {
       toast.error('Failed to copy to clipboard');
     }
@@ -25,8 +30,19 @@ export function EmbedSnippetBlock({ embedSnippet }: EmbedSnippetBlockProps) {
           variant="outline"
           size="sm"
           onClick={handleCopySnippet}
+          className={snippetCopied ? 'text-green-600 border-green-600' : ''}
         >
-          Copy Snippet
+          {snippetCopied ? (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5 mr-1.5" />
+              Copy Snippet
+            </>
+          )}
         </Button>
       </div>
       <textarea

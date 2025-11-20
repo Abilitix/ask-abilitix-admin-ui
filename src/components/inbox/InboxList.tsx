@@ -1,82 +1,116 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Textarea } from '@/components/ui/textarea';
-import { InboxItem } from './InboxPageClient';
-import { Check, X, RefreshCw, Loader2, AlertTriangle, Inbox, Edit2, Save, RotateCcw } from 'lucide-react';
+import { InboxListItem } from './ModernInboxClient';
+import { ArrowDownCircle, Inbox as InboxIcon, Loader2, RefreshCw } from 'lucide-react';
 
-type InboxListProps = {
-  items: InboxItem[];
-  loading: boolean;
-  error: string | null;
-  onApprove: (id: string, editedAnswer?: string) => void;
-  onReject: (id: string) => void;
-  onRefresh: () => void;
+type AppliedFilters = {
+  ref: string;
+  tag: string;
+  qHash: string;
 };
 
-export function InboxList({ items, loading, error, onApprove, onReject, onRefresh }: InboxListProps) {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
+type InboxListProps = {
+  items: InboxListItem[];
+  loading: boolean;
+  refreshing: boolean;
+  error: string | null;
+  filters: AppliedFilters;
+  selectedId: string | null;
+  nextCursor: string | null;
+  onSelect: (id: string) => void;
+  onRefresh: () => void;
+  onLoadMore: () => void;
+};
 
-  console.log('InboxList rendered with items:', items.length, 'editingId:', editingId);
+function formatRelativeTime(value: string | null) {
+  if (!value) return { absolute: '—', relative: '—' };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return { absolute: '—', relative: '—' };
+  }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
+  const absolute = date.toLocaleString();
+  const diff = Date.now() - date.getTime();
+  const diffSeconds = Math.round(diff / 1000);
 
-  const truncateText = (text: string, maxLength: number = 100) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-  };
+  const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
-  const startEditing = (id: string, currentAnswer: string) => {
-    setEditingId(id);
-    setEditedAnswers(prev => ({ ...prev, [id]: currentAnswer }));
-  };
+  if (Math.abs(diffSeconds) < 60) {
+    return { absolute, relative: formatter.format(-diffSeconds, 'second') };
+  }
+  if (Math.abs(diffSeconds) < 3600) {
+    return { absolute, relative: formatter.format(-Math.round(diffSeconds / 60), 'minute') };
+  }
+  if (Math.abs(diffSeconds) < 86400) {
+    return { absolute, relative: formatter.format(-Math.round(diffSeconds / 3600), 'hour') };
+  }
+  if (Math.abs(diffSeconds) < 604800) {
+    return { absolute, relative: formatter.format(-Math.round(diffSeconds / 86400), 'day') };
+  }
+  if (Math.abs(diffSeconds) < 2629800) {
+    return { absolute, relative: formatter.format(-Math.round(diffSeconds / 604800), 'week') };
+  }
+  if (Math.abs(diffSeconds) < 31557600) {
+    return { absolute, relative: formatter.format(-Math.round(diffSeconds / 2629800), 'month') };
+  }
+  return { absolute, relative: formatter.format(-Math.round(diffSeconds / 31557600), 'year') };
+}
 
-  const cancelEditing = (id: string) => {
-    setEditingId(null);
-    setEditedAnswers(prev => {
-      const newAnswers = { ...prev };
-      delete newAnswers[id];
-      return newAnswers;
-    });
-  };
-
-  const saveEditing = (id: string) => {
-    // Keep the edited answer in state when saving
-    console.log('Saving edit for id:', id, 'edited answer:', editedAnswers[id]);
-    setEditingId(null);
-    // The edited answer is already stored in editedAnswers[id] from the textarea onChange
-  };
-
-  const handleApprove = (id: string) => {
-    const editedAnswer = editedAnswers[id];
-    console.log('Approving with edited answer:', editedAnswer);
-    console.log('All edited answers:', editedAnswers);
-    onApprove(id, editedAnswer);
-  };
-
-  if (loading) {
+function renderTag(tag: string) {
+  const base = 'text-xs font-medium';
+  if (tag === 'no_source') {
     return (
-      <Card>
+      <Badge key={tag} className={`${base} bg-amber-100 text-amber-900`}>
+        no_source
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge key={tag} variant="outline" className={base}>
+      {tag}
+    </Badge>
+  );
+}
+
+export function InboxList({
+  items,
+  loading,
+  refreshing,
+  error,
+  filters,
+  selectedId,
+  nextCursor,
+  onSelect,
+  onRefresh,
+  onLoadMore,
+}: InboxListProps) {
+  // Ensure items is always an array
+  const safeItems = Array.isArray(items) ? items : [];
+
+  const hasFilters = useMemo(
+    () => Boolean(filters.ref || filters.tag || filters.qHash),
+    [filters]
+  );
+
+  if (loading && !safeItems.length) {
+    return (
+      <Card className="h-full">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Inbox className="h-5 w-5" />
+          <CardTitle className="flex items-center justify-between text-base">
             <span>Inbox Items</span>
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Loading inbox items...</p>
-            </div>
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            Loading inbox…
           </div>
         </CardContent>
       </Card>
@@ -85,42 +119,46 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
 
   if (error) {
     return (
-      <Card>
+      <Card className="h-full">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Inbox className="h-5 w-5" />
+          <CardTitle className="flex items-center justify-between text-base">
             <span>Inbox Items</span>
+            <Button onClick={onRefresh} size="sm" variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <div className="text-red-500 text-sm mb-2">Error: {error}</div>
-            <Button onClick={onRefresh} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+            {error}
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (items.length === 0) {
+  if (!safeItems.length) {
     return (
-      <Card>
+      <Card className="h-full">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Inbox className="h-5 w-5" />
+          <CardTitle className="flex items-center justify-between text-base">
             <span>Inbox Items</span>
+            <Button onClick={onRefresh} size="sm" variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <Inbox className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No pending items</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              All items have been reviewed or there are no new submissions.
-            </p>
+          <div className="flex flex-col items-center justify-center gap-3 py-10 text-center text-sm text-muted-foreground">
+            <InboxIcon className="h-12 w-12 text-muted-foreground/60" />
+            <p>No inbox items found.</p>
+            {hasFilters && (
+              <p className="max-w-sm text-xs text-muted-foreground">
+                Try adjusting or clearing filters to see more results.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -128,145 +166,80 @@ export function InboxList({ items, loading, error, onApprove, onReject, onRefres
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium flex items-center space-x-2">
-          <Inbox className="h-4 w-4" />
-          <span>Inbox Items ({items.length})</span>
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between text-base">
+          <span>Inbox Items</span>
+          <Button onClick={onRefresh} size="sm" variant="outline">
+            {refreshing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Refresh
+          </Button>
         </CardTitle>
-        <Button onClick={onRefresh} variant="ghost" size="icon" title="Refresh inbox">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[200px]">Question</TableHead>
-                <TableHead className="w-[300px]">Answer</TableHead>
-                <TableHead className="w-[120px]">Created</TableHead>
-                <TableHead className="w-[100px]">PII</TableHead>
-                <TableHead className="w-[150px]">Actions</TableHead>
+                <TableHead className="w-[24ch]">Ref</TableHead>
+                <TableHead className="w-[18ch]">Hash</TableHead>
+                <TableHead>Tags</TableHead>
+                <TableHead className="w-[16ch]">Dup Count</TableHead>
+                <TableHead className="w-[22ch]">Asked</TableHead>
+                <TableHead className="w-[16ch]">Channel</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="w-[200px]">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="text-left">
-                          {truncateText(item.question, 80)}
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-md">
-                          <p>{item.question}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </TableCell>
-                  <TableCell className="w-[300px]">
-                    {editingId === item.id ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          value={editedAnswers[item.id] ?? item.answer}
-                          onChange={(e) => setEditedAnswers(prev => ({ ...prev, [item.id]: e.target.value }))}
-                          className="min-h-[100px] resize-y"
-                          placeholder="Edit the answer..."
-                        />
-                        <div className="flex space-x-2">
-                          <Button
-                            onClick={() => saveEditing(item.id)}
-                            size="sm"
-                            className="!bg-blue-600 !hover:bg-blue-700 !text-white"
-                            style={{ backgroundColor: '#2563eb', borderColor: '#2563eb' }}
-                          >
-                            <Save className="h-3 w-3 mr-1" />
-                            Save
-                          </Button>
-                          <Button
-                            onClick={() => cancelEditing(item.id)}
-                            size="sm"
-                            variant="outline"
-                          >
-                            <RotateCcw className="h-3 w-3 mr-1" />
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="text-sm whitespace-pre-wrap max-h-32 overflow-y-auto">
-                          {editedAnswers[item.id] || item.answer}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            onClick={() => startEditing(item.id, editedAnswers[item.id] || item.answer)}
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                          >
-                            <Edit2 className="h-3 w-3 mr-1" />
-                            Edit Answer
-                          </Button>
-                          <Badge variant="outline" className="text-xs">
-                            Click to edit
-                          </Badge>
-                        </div>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground w-[120px]">
-                    {formatDate(item.created_at)}
-                  </TableCell>
-                  <TableCell className="w-[100px]">
-                    {item.has_pii ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge variant="destructive" className="flex items-center space-x-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              <span>PII</span>
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>PII detected in fields: {item.pii_fields?.join(', ') || 'unknown'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : (
-                      <Badge variant="secondary">Clean</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="w-[150px]">
-                    <div className="flex space-x-2">
-                      <Button
-                        onClick={() => handleApprove(item.id)}
-                        size="sm"
-                        className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
-                        style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
-                        disabled={editingId === item.id}
-                        title="Approve and automatically generate embeddings"
-                      >
-                        <Check className="h-4 w-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        onClick={() => onReject(item.id)}
-                        size="sm"
-                        variant="destructive"
-                        disabled={editingId === item.id}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {safeItems.map((item) => {
+                const when = formatRelativeTime(item.askedAt);
+                const isSelected = selectedId === item.id;
+                const safeTags = Array.isArray(item.tags) ? item.tags : [];
+                return (
+                  <TableRow
+                    key={item.id}
+                    onClick={() => onSelect(item.id)}
+                    className={[
+                      'cursor-pointer transition-colors',
+                      isSelected ? 'bg-slate-50' : 'hover:bg-slate-50',
+                    ].join(' ')}
+                  >
+                    <TableCell className="font-mono text-xs">{item.id}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {item.qHash ?? '—'}
+                    </TableCell>
+                    <TableCell className="space-x-1 whitespace-nowrap">
+                      {safeTags.length ? safeTags.map(renderTag) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs">
+                        ×{item.dupCount}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground" title={when.absolute}>
+                      {when.relative}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {item.channel ?? '—'}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
+
+        {nextCursor && (
+          <div className="flex justify-center">
+            <Button onClick={onLoadMore} variant="ghost" size="sm">
+              <ArrowDownCircle className="mr-2 h-4 w-4" />
+              Load more
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

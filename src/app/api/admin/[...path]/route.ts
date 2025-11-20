@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase } from '@/lib/env';
 
 export async function GET(
   request: NextRequest,
@@ -38,7 +39,7 @@ async function handleRequest(
   method: string
 ) {
   try {
-    const ADMIN_API = process.env.ADMIN_API;
+    const ADMIN_API = getAdminApiBase();
     
     if (!ADMIN_API) {
       return NextResponse.json(
@@ -50,7 +51,8 @@ async function handleRequest(
     const path = `/${pathSegments.join('/')}`;
     const url = new URL(request.url);
     const searchParams = url.searchParams.toString();
-    const fullPath = `${path}${searchParams ? `?${searchParams}` : ''}`;
+    // Add /admin prefix for Admin API endpoints
+    const fullPath = `/admin${path}${searchParams ? `?${searchParams}` : ''}`;
     
     const targetUrl = `${ADMIN_API}${fullPath}`;
     

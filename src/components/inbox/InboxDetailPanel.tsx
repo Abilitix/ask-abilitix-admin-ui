@@ -13,6 +13,7 @@ import {
   PromoteConflict,
 } from './ModernInboxClient';
 import { CitationsEditor, CitationRowError, EditableCitation } from './CitationsEditor';
+import { toast } from 'sonner';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -20,6 +21,7 @@ import {
   ListChecks,
   Paperclip,
   Sparkles,
+  Copy,
 } from 'lucide-react';
 
 function formatRelativeTime(value: string | null) {
@@ -619,7 +621,25 @@ export function InboxDetailPanel({
         </dl>
 
         <div className="space-y-1">
-          <div className="text-xs font-semibold uppercase text-muted-foreground">Question</div>
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">Question</div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(detail.question ?? '');
+                  toast.success('Question copied to clipboard');
+                } catch (error) {
+                  toast.error('Failed to copy question');
+                }
+              }}
+            >
+              <Copy className="h-3.5 w-3.5 mr-1.5" />
+              Copy
+            </Button>
+          </div>
           <div className="rounded-md border border-slate-200 bg-white p-3 text-sm">
             {detail.question ?? '—'}
           </div>

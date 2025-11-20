@@ -22,6 +22,7 @@ import {
   Save,
   RotateCcw,
   Paperclip,
+  Copy,
 } from 'lucide-react';
 
 type LegacyInboxListProps = {
@@ -351,16 +352,35 @@ export function LegacyInboxList({
               {items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="w-[200px]">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="text-left">
-                          {truncateText(item.question, 80)}
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-md">
-                          <p>{item.question}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <div className="flex items-start gap-2 group">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger className="text-left flex-1 min-w-0">
+                            {truncateText(item.question, 80)}
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-md">
+                            <p>{item.question}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await navigator.clipboard.writeText(item.question);
+                            toast.success('Question copied to clipboard');
+                          } catch (error) {
+                            toast.error('Failed to copy question');
+                          }
+                        }}
+                        title="Copy question"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </TableCell>
                   <TableCell className="w-[200px] text-xs text-muted-foreground align-top">
                     {renderDocBadges(item, docTitles, docLoading)}

@@ -20,7 +20,10 @@ export default async function AdminDocsPage() {
         <div className="flex items-center gap-4">
           {canManage && (
             <Link href="/admin/docs/generate-faqs">
-              <Button variant="default" className="flex items-center gap-2">
+              <Button 
+                variant="default" 
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+              >
                 <Sparkles className="h-4 w-4" />
                 Generate FAQs
               </Button>

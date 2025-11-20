@@ -440,6 +440,7 @@ export function ModernInboxClient({
   const [promoteConflict, setPromoteConflict] = useState<PromoteConflict | null>(null);
   const [docOptions, setDocOptions] = useState<{ id: string; title: string }[]>([]);
   const [docOptionsLoading, setDocOptionsLoading] = useState<boolean>(false);
+  const docHydrationRef = useRef<Set<string>>(new Set());
 
   const filtersRef = useRef<Filters>(DEFAULT_FILTERS);
 
@@ -1030,6 +1031,47 @@ export function ModernInboxClient({
     loadList();
     return () => resetRefreshTimer();
   }, [loadList, resetRefreshTimer]);
+
+  const hydrateDocMatches = useCallback(
+    async (ids: string[]) => {
+      for (const id of ids) {
+        try {
+          const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}`, {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'include',
+          });
+          if (!response.ok) continue;
+          const json = await response.json().catch(() => null);
+          const detail = json ? normaliseDetail(json) : null;
+          const matches = detail?.topScores ?? null;
+          setItems((prev) =>
+            prev.map((item) =>
+              item.id === id ? { ...item, docMatches: matches } : item
+            )
+          );
+        } catch (err) {
+          console.warn('Failed to hydrate doc matches for inbox item', id, err);
+        } finally {
+          docHydrationRef.current.delete(id);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const missing = items
+      .filter(
+        (item) =>
+          !item.docMatches && !docHydrationRef.current.has(item.id)
+      )
+      .slice(0, 5)
+      .map((item) => item.id);
+    if (!missing.length) return;
+    missing.forEach((id) => docHydrationRef.current.add(id));
+    hydrateDocMatches(missing);
+  }, [items, hydrateDocMatches]);
 
   const handleApplyFilters = useCallback(() => {
     const next: Filters = {

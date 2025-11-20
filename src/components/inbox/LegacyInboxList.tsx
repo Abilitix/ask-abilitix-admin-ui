@@ -34,7 +34,63 @@ type LegacyInboxListProps = {
   onReject: (id: string) => void;
   onAttachCitations: (id: string, citations: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => Promise<void>;
   onRefresh: () => void;
+  docTitles?: Record<string, string>;
+  docLoading?: boolean;
 };
+
+function renderDocBadges(
+  item: LegacyInboxItem,
+  docTitles?: Record<string, string>,
+  docLoading?: boolean
+) {
+  if (!item.suggested_citations || item.suggested_citations.length === 0) {
+    return '—';
+  }
+
+  // If we're still loading and don't have any titles yet, show loading
+  if (docLoading && (!docTitles || Object.keys(docTitles).length === 0)) {
+    return <span className="text-xs text-muted-foreground">Loading…</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {item.suggested_citations.slice(0, 2).map((cite, idx) => {
+        const docId = cite.doc_id;
+        if (!docId) return null;
+        
+        // Try to get title from docTitles mapping first, then cite.title, then fallback to docId
+        const title =
+          (docTitles && docTitles[docId]) ||
+          cite.title ||
+          docId;
+        
+        // Only show "Loading…" if we're actively loading AND haven't found the title yet
+        // Once loading is complete, show the title (even if it's a UUID)
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(title);
+        const displayTitle = (isUuid && docLoading && (!docTitles || !docTitles[docId])) 
+          ? 'Loading…' 
+          : title;
+        
+        const label =
+          displayTitle && displayTitle.length > 24 
+            ? `${displayTitle.slice(0, 24).trim()}…` 
+            : displayTitle;
+        
+        return (
+          <Badge
+            key={`${item.id}-${docId}-${idx}`}
+            variant="outline"
+            className="text-[11px]"
+            title={title !== 'Loading…' ? title : undefined}
+          >
+            {label || 'Document'}
+            {cite.page && <span className="ml-1 text-muted-foreground">p.{cite.page}</span>}
+          </Badge>
+        );
+      })}
+    </div>
+  );
+}
 
 export function LegacyInboxList({
   items,
@@ -46,6 +102,8 @@ export function LegacyInboxList({
   onReject,
   onAttachCitations,
   onRefresh,
+  docTitles,
+  docLoading,
 }: LegacyInboxListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
@@ -282,6 +340,7 @@ export function LegacyInboxList({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[200px]">Question</TableHead>
+                <TableHead className="w-[200px]">Document</TableHead>
                 <TableHead className="w-[300px]">Answer</TableHead>
                 <TableHead className="w-[120px]">Created</TableHead>
                 <TableHead className="w-[100px]">PII</TableHead>
@@ -302,6 +361,9 @@ export function LegacyInboxList({
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+                  </TableCell>
+                  <TableCell className="w-[200px] text-xs text-muted-foreground align-top">
+                    {renderDocBadges(item, docTitles, docLoading)}
                   </TableCell>
                   <TableCell className="w-[300px]">
                     {editingId === item.id ? (

@@ -15,6 +15,7 @@ export type LegacyInboxItem = {
   status: 'pending' | 'approved' | 'rejected';
   suggested_citations?: Array<{
     doc_id: string;
+    title?: string;
     page?: number;
     span?: { start?: number; end?: number; text?: string };
   }>;
@@ -31,6 +32,8 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshSignal, setRefreshSignal] = useState(0);
+  const [docTitles, setDocTitles] = useState<Record<string, string>>({});
+  const [docLoading, setDocLoading] = useState(false);
 
   const fetchItems = useCallback(async () => {
     if (disabled) return;
@@ -250,6 +253,87 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
     fetchItems();
   }, [fetchItems]);
 
+  useEffect(() => {
+    if (items.length === 0) return;
+    
+    let active = true;
+    const loadDocTitles = async () => {
+      try {
+        setDocLoading(true);
+        
+        // Collect all unique doc IDs from suggested_citations
+        const docIds = new Set<string>();
+        items.forEach((item) => {
+          if (item.suggested_citations) {
+            item.suggested_citations.forEach((cite) => {
+              if (cite.doc_id) {
+                docIds.add(cite.doc_id);
+              }
+            });
+          }
+        });
+        
+        if (docIds.size === 0) {
+          setDocLoading(false);
+          return;
+        }
+        
+        console.log('[LegacyInbox] Loading document titles for doc IDs:', Array.from(docIds));
+        
+        // Fetch all documents to get titles (max limit is 100 per Admin API)
+        const response = await fetch('/api/admin/docs?status=all&limit=100');
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(
+            (data && (data.details || data.error)) || 'Failed to load documents'
+          );
+        }
+        if (!active) return;
+        
+        const docsSource =
+          (Array.isArray(data?.docs) && data.docs) ||
+          (Array.isArray(data?.documents) && data.documents) ||
+          [];
+        
+        console.log('[LegacyInbox] Fetched documents:', docsSource.length, 'total');
+        
+        // Map document IDs to titles - include ALL documents, not just those in citations
+        // This ensures we have a complete mapping
+        const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
+          (acc: Record<string, string>, doc: any) => {
+            if (!doc || typeof doc !== 'object') return acc;
+            const id = doc.id;
+            if (!id || typeof id !== 'string') return acc;
+            const title =
+              typeof doc.title === 'string' && doc.title.trim().length > 0
+                ? doc.title.trim()
+                : id;
+            acc[id] = title;
+            return acc;
+          },
+          {}
+        );
+        
+        console.log('[LegacyInbox] Mapped document titles:', Object.keys(mapped).length, 'documents');
+        console.log('[LegacyInbox] Looking for:', Array.from(docIds));
+        console.log('[LegacyInbox] Found titles:', Array.from(docIds).map(id => ({ id, title: mapped[id] || 'NOT FOUND' })));
+        
+        setDocTitles(mapped);
+      } catch (err) {
+        console.error('[LegacyInbox] Failed to load document titles:', err);
+      } finally {
+        if (active) {
+          setDocLoading(false);
+        }
+      }
+    };
+    
+    loadDocTitles();
+    return () => {
+      active = false;
+    };
+  }, [items]);
+
   return (
     <div className="space-y-6">
       <LegacyInboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
@@ -264,6 +348,8 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         onReject={handleReject}
         onAttachCitations={handleAttachCitations}
         onRefresh={fetchItems}
+        docTitles={docTitles}
+        docLoading={docLoading}
       />
     </div>
   );

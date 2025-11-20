@@ -76,6 +76,7 @@ export type InitialInboxFlags = {
   adminInboxApiEnabled: boolean;
   enableReviewPromote: boolean;
   allowEmptyCitations: boolean;
+  enableFaqCreation: boolean;
 };
 
 export function mapSettingsToFlags(
@@ -85,6 +86,7 @@ export function mapSettingsToFlags(
     adminInboxApiEnabled: false,
     enableReviewPromote: false,
     allowEmptyCitations: false,
+    enableFaqCreation: false,
   };
 
   if (!settings) {
@@ -111,6 +113,7 @@ export function mapSettingsToFlags(
       adminInboxApiEnabled: parseFlag(raw.ADMIN_INBOX_API),
       enableReviewPromote: parseFlag(raw.ENABLE_REVIEW_PROMOTE),
       allowEmptyCitations: parseFlag(raw.ALLOW_EMPTY_CITATIONS),
+      enableFaqCreation: parseFlag(raw.ENABLE_REVIEW_PROMOTE), // Maps to same backend flag
     },
     tenantId: settings.tenant_id,
   };

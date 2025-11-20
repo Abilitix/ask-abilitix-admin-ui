@@ -17,6 +17,7 @@ export type LegacyInboxItem = {
 
 type LegacyInboxPageClientProps = {
   disabled?: boolean;
+  enableFaqCreation?: boolean;
 };
 
 export function LegacyInboxPageClient({ disabled }: LegacyInboxPageClientProps) {

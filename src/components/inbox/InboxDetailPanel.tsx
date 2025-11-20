@@ -265,6 +265,7 @@ type InboxDetailPanelProps = {
   allowEmptyCitations: boolean;
   reviewFlagEnabled: boolean;
   hasReviewerAccess: boolean;
+  enableFaqCreation: boolean;
   tenantId?: string;
   attachLoading: boolean;
   promoteLoading: boolean;
@@ -292,6 +293,7 @@ export function InboxDetailPanel({
   allowEmptyCitations,
   reviewFlagEnabled,
   hasReviewerAccess,
+  enableFaqCreation,
   tenantId,
   attachLoading,
   promoteLoading,
@@ -691,16 +693,18 @@ export function InboxDetailPanel({
             </div>
           )}
 
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-              checked={createAsFaq}
-              onChange={(event) => setCreateAsFaq(event.target.checked)}
-              disabled={baseActionsDisabled}
-            />
-            <span>Create as FAQ (default)</span>
-          </label>
+          {enableFaqCreation && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                checked={createAsFaq}
+                onChange={(event) => setCreateAsFaq(event.target.checked)}
+                disabled={baseActionsDisabled}
+              />
+              <span>Create as FAQ (default)</span>
+            </label>
+          )}
 
           <div className="flex flex-wrap gap-2">
             <Button

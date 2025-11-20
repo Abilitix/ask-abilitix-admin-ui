@@ -371,6 +371,7 @@ export type ModernInboxClientProps = {
   tenantId?: string;
   reviewFlagEnabled: boolean;
   hasReviewerAccess: boolean;
+  enableFaqCreation: boolean;
   modeKey: string;
   onPromoteSuccess?: () => void;
   onPromoteConflict?: (qaPairId?: string) => void;
@@ -392,6 +393,7 @@ export function ModernInboxClient({
   tenantId,
   reviewFlagEnabled,
   hasReviewerAccess,
+  enableFaqCreation,
   modeKey,
   onPromoteSuccess,
   onPromoteConflict,
@@ -747,6 +749,12 @@ export function ModernInboxClient({
         return false;
       }
 
+      // Determine endpoint and payload based on isFaq flag
+      const useFaqEndpoint = isFaq === true;
+      const endpoint = useFaqEndpoint
+        ? `/api/admin/inbox/${encodeURIComponent(selectedId)}/promote`
+        : `/api/admin/inbox/approve`;
+
       const count = citations?.length ?? 0;
       setPromoteLoading(true);
       setActionError(null);
@@ -758,35 +766,41 @@ export function ModernInboxClient({
         setCitationFieldErrors([]);
       }
 
+      // Build payload based on endpoint
       const body: Record<string, unknown> = {};
-      if (citations) {
-        body.citations = citations;
-      }
-      if (typeof answer === 'string' && answer.trim().length > 0) {
-        body.answer = answer.trim();
-      }
-      if (typeof title === 'string' && title.trim().length > 0) {
-        body.title = title.trim();
-      }
-      if (typeof isFaq === 'boolean') {
-        body.is_faq = isFaq;
+      if (useFaqEndpoint) {
+        // /promote endpoint: supports citations, answer, title, is_faq
+        if (citations) {
+          body.citations = citations;
+        }
+        if (typeof answer === 'string' && answer.trim().length > 0) {
+          body.answer = answer.trim();
+        }
+        if (typeof title === 'string' && title.trim().length > 0) {
+          body.title = title.trim();
+        }
+        body.is_faq = true;
+      } else {
+        // /approve endpoint: only supports id, reembed, answer (no citations, no title)
+        body.id = selectedId;
+        body.reembed = true;
+        if (typeof answer === 'string' && answer.trim().length > 0) {
+          body.answer = answer.trim();
+        }
       }
 
-      sendTelemetry('ui.promote.click', {
+      sendTelemetry(useFaqEndpoint ? 'ui.promote.click' : 'ui.approve.click', {
         ref_id: selectedId,
-        count,
+        count: useFaqEndpoint ? count : 0,
       });
 
       try {
-        const response = await fetch(
-          `/api/admin/inbox/${encodeURIComponent(selectedId)}/promote`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-            cache: 'no-store',
-          }
-        );
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          cache: 'no-store',
+        });
 
         const text = await response.text();
         let json: any = null;
@@ -806,12 +820,15 @@ export function ModernInboxClient({
               ? json.published_at
               : undefined;
 
-          sendTelemetry('ui.promote.success', {
+          sendTelemetry(useFaqEndpoint ? 'ui.promote.success' : 'ui.approve.success', {
             ref_id: selectedId,
             qa_pair_id: qaPairId ?? null,
           });
 
-          toast.success('Published as a verified answer.');
+          toast.success(useFaqEndpoint 
+            ? 'Published as a verified FAQ.' 
+            : 'Item approved ✓ (embeddings generated automatically)'
+          );
           setDetail((prev) =>
             prev
               ? {
@@ -838,9 +855,11 @@ export function ModernInboxClient({
           const conflictMessage =
             typeof json?.details === 'string'
               ? json.details
-              : 'This question was already promoted.';
+              : useFaqEndpoint
+                ? 'This question was already promoted.'
+                : 'This question was already approved.';
           setActionError(conflictMessage);
-          sendTelemetry('ui.promote.fail', {
+          sendTelemetry(useFaqEndpoint ? 'ui.promote.fail' : 'ui.approve.fail', {
             ref_id: selectedId,
             reason: 'conflict',
             qa_pair_id: qaPairId ?? null,
@@ -856,9 +875,11 @@ export function ModernInboxClient({
           const message =
             typeof json?.details === 'string'
               ? json.details
-              : 'You do not have permission to promote this item.';
+              : useFaqEndpoint
+                ? 'You do not have permission to promote this item.'
+                : 'You do not have permission to approve this item.';
           setActionError(message);
-          sendTelemetry('ui.promote.fail', {
+          sendTelemetry(useFaqEndpoint ? 'ui.promote.fail' : 'ui.approve.fail', {
             ref_id: selectedId,
             reason: 'forbidden',
             status: response.status,
@@ -872,31 +893,37 @@ export function ModernInboxClient({
           const errorMessage =
             general ||
             (json?.error === 'citations_required'
-              ? 'Attach at least one citation before promoting.'
-              : 'Resolve the highlighted fields before promoting.');
+              ? useFaqEndpoint
+                ? 'Attach at least one citation before promoting.'
+                : 'Attach at least one citation before approving.'
+              : useFaqEndpoint
+                ? 'Resolve the highlighted fields before promoting.'
+                : 'Resolve the highlighted fields before approving.');
           setActionError(errorMessage);
-          sendTelemetry('ui.promote.fail', {
+          sendTelemetry(useFaqEndpoint ? 'ui.promote.fail' : 'ui.approve.fail', {
             ref_id: selectedId,
             reason: 'validation',
           });
           return false;
         }
 
+        const action = useFaqEndpoint ? 'promote' : 'approve';
         const message =
           (json && (json.details || json.error || json.message)) ||
-          `Failed to promote inbox item (${response.status})`;
+          `Failed to ${action} inbox item (${response.status})`;
         setActionError(message);
-        sendTelemetry('ui.promote.fail', {
+        sendTelemetry(useFaqEndpoint ? 'ui.promote.fail' : 'ui.approve.fail', {
           ref_id: selectedId,
           reason: 'server',
           status: response.status,
         });
         return false;
       } catch (err) {
+        const action = useFaqEndpoint ? 'promote' : 'approve';
         const message =
-          err instanceof Error ? err.message : 'Failed to promote inbox item.';
+          err instanceof Error ? err.message : `Failed to ${action} inbox item.`;
         setActionError(message);
-        sendTelemetry('ui.promote.fail', {
+        sendTelemetry(useFaqEndpoint ? 'ui.promote.fail' : 'ui.approve.fail', {
           ref_id: selectedId,
           reason: 'network',
         });
@@ -1155,6 +1182,7 @@ export function ModernInboxClient({
           allowEmptyCitations={allowEmptyCitations}
           reviewFlagEnabled={reviewFlagEnabled}
           hasReviewerAccess={hasReviewerAccess}
+          enableFaqCreation={enableFaqCreation}
           tenantId={tenantId}
           attachLoading={attachLoading}
           promoteLoading={promoteLoading}

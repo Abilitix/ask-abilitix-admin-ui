@@ -24,6 +24,7 @@ type LegacyInboxListProps = {
   items: LegacyInboxItem[];
   loading: boolean;
   error: string | null;
+  enableFaqCreation: boolean;
   onApprove: (id: string, editedAnswer?: string, isFaq?: boolean) => void;
   onReject: (id: string) => void;
   onRefresh: () => void;
@@ -33,6 +34,7 @@ export function LegacyInboxList({
   items,
   loading,
   error,
+  enableFaqCreation,
   onApprove,
   onReject,
   onRefresh,
@@ -247,21 +249,23 @@ export function LegacyInboxList({
                   </TableCell>
                   <TableCell className="w-[150px]">
                     <div className="flex flex-col gap-2">
-                      <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                          checked={faqSelections[item.id] ?? true}
-                          disabled={editingId === item.id}
-                          onChange={(event) =>
-                            setFaqSelections((prev) => ({
-                              ...prev,
-                              [item.id]: event.target.checked,
-                            }))
-                          }
-                        />
-                        <span>Create as FAQ</span>
-                      </label>
+                      {enableFaqCreation && (
+                        <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                            checked={faqSelections[item.id] ?? true}
+                            disabled={editingId === item.id}
+                            onChange={(event) =>
+                              setFaqSelections((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.checked,
+                              }))
+                            }
+                          />
+                          <span>Create as FAQ</span>
+                        </label>
+                      )}
                       <div className="flex space-x-2">
                         <Button
                           onClick={() => handleApprove(item.id)}

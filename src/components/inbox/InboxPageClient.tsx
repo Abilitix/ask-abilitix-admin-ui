@@ -25,18 +25,21 @@ const FLAG_KEY_MAP = {
   adminInboxApiEnabled: 'ADMIN_INBOX_API',
   enableReviewPromote: 'ENABLE_REVIEW_PROMOTE',
   allowEmptyCitations: 'ALLOW_EMPTY_CITATIONS',
+  enableFaqCreation: 'ENABLE_REVIEW_PROMOTE', // Maps to same backend flag
 } as const;
 
 const FLAG_LABELS: Record<keyof InitialInboxFlags, string> = {
   adminInboxApiEnabled: 'Structured inbox',
   enableReviewPromote: 'Attach & Promote',
   allowEmptyCitations: 'Allow empty citations',
+  enableFaqCreation: 'Enable FAQ creation',
 };
 
 const FLAG_HINTS: Record<keyof InitialInboxFlags, string> = {
   adminInboxApiEnabled: 'Enables the new inbox list with filters and detail drawer.',
   enableReviewPromote: 'Requires the structured inbox. Unlocks attach source & promote actions.',
   allowEmptyCitations: 'When enabled, SMEs can promote without attaching citations.',
+  enableFaqCreation: 'Allows promoting inbox items as FAQs with fast-path embedding generation. Works with both legacy and modern inbox.',
 };
 
 const FLAG_DEPENDENCIES: Partial<Record<keyof InitialInboxFlags, keyof InitialInboxFlags>> = {
@@ -370,6 +373,7 @@ export function InboxPageClient({
             tenantId={tenantId}
             reviewFlagEnabled={flags.enableReviewPromote === true}
             hasReviewerAccess={canModerate}
+            enableFaqCreation={flags.enableFaqCreation === true}
             modeKey={resolvedMode}
             onRegisterActions={setModernActions}
           />

@@ -195,14 +195,7 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
   }, [fetchItems]);
 
   return (
-    <div className="container mx-auto space-y-6 px-4 py-6 lg:px-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Inbox</h1>
-        <p className="text-sm text-muted-foreground">
-          Review and approve pending items. Embeddings are automatically generated when approving.
-        </p>
-      </div>
-
+    <div className="space-y-6">
       <LegacyInboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
 
       <LegacyInboxList

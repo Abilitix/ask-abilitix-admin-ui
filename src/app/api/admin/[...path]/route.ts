@@ -56,8 +56,12 @@ async function handleRequest(
     
     const targetUrl = `${ADMIN_API}${fullPath}`;
     
+    // Forward cookies for authentication
+    const cookieHeader = request.headers.get('cookie') || '';
+    
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Cookie': cookieHeader,
     };
 
     const body = method !== 'GET' ? await request.text() : undefined;

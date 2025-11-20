@@ -23,9 +23,9 @@ type InboxPageClientProps = {
 
 const FLAG_KEY_MAP = {
   adminInboxApiEnabled: 'ADMIN_INBOX_API',
-  enableReviewPromote: 'ENABLE_REVIEW_PROMOTE',
+  enableReviewPromote: 'INBOX.ENABLE_REVIEW_PROMOTE',
   allowEmptyCitations: 'ALLOW_EMPTY_CITATIONS',
-  enableFaqCreation: 'ENABLE_REVIEW_PROMOTE', // Maps to same backend flag
+  enableFaqCreation: 'INBOX.ENABLE_REVIEW_PROMOTE', // Maps to same backend flag
 } as const;
 
 const FLAG_LABELS: Record<keyof InitialInboxFlags, string> = {
@@ -192,18 +192,34 @@ export function InboxPageClient({
     pendingTimerRef.current = setTimeout(async () => {
       try {
         const backendKey = FLAG_KEY_MAP[key];
+        const payload: Record<string, unknown> = {
+          updates: [
+            {
+              key: backendKey,
+              value: { value: nextValue ? 1 : 0 },
+            },
+          ],
+        };
+        if (tenantId) {
+          payload.tenant_id = tenantId;
+        } else if (tenantSlug) {
+          payload.tenant_slug = tenantSlug;
+        }
         const response = await fetch('/api/admin/tenant-settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            key: backendKey,
-            value: { value: nextValue ? 1 : 0 },
-            ...(tenantId ? { tenant_id: tenantId } : tenantSlug ? { tenant_slug: tenantSlug } : {}),
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
-          throw new Error(await response.text());
+          const errorText = await response.text();
+          console.error('[flag-toggle] API error:', {
+            key: backendKey,
+            status: response.status,
+            error: errorText,
+            payload,
+          });
+          throw new Error(errorText);
         }
 
         if (typeof window !== 'undefined' && (window as any).gtag) {

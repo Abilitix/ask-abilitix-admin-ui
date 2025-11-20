@@ -23,6 +23,7 @@ import {
   RotateCcw,
   Paperclip,
   Copy,
+  CheckCircle2,
 } from 'lucide-react';
 
 type LegacyInboxListProps = {
@@ -112,6 +113,7 @@ export function LegacyInboxList({
   const [attachModalOpen, setAttachModalOpen] = useState<string | null>(null);
   const [attachCitations, setAttachCitations] = useState<EditableCitation[]>([{ docId: '', page: '', spanStart: '', spanEnd: '', spanText: '' }]);
   const [attachLoading, setAttachLoading] = useState(false);
+  const [copiedQuestionId, setCopiedQuestionId] = useState<string | null>(null);
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
 
@@ -371,14 +373,19 @@ export function LegacyInboxList({
                           e.stopPropagation();
                           try {
                             await navigator.clipboard.writeText(item.question);
-                            toast.success('Question copied to clipboard');
+                            setCopiedQuestionId(item.id);
+                            setTimeout(() => setCopiedQuestionId(null), 2000);
                           } catch (error) {
                             toast.error('Failed to copy question');
                           }
                         }}
-                        title="Copy question"
+                        title={copiedQuestionId === item.id ? 'Copied!' : 'Copy question'}
                       >
-                        <Copy className="h-3.5 w-3.5" />
+                        {copiedQuestionId === item.id ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
                       </Button>
                     </div>
                   </TableCell>

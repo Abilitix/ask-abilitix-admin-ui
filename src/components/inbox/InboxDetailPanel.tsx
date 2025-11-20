@@ -313,6 +313,7 @@ export function InboxDetailPanel({
   const [showErrors, setShowErrors] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [createAsFaq, setCreateAsFaq] = useState(true);
+  const [questionCopied, setQuestionCopied] = useState(false);
 
   useEffect(() => {
     if (!detail) return;
@@ -626,18 +627,32 @@ export function InboxDetailPanel({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+              className={`h-7 px-2 text-xs transition-colors ${
+                questionCopied 
+                  ? 'text-green-600 hover:text-green-700' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(detail.question ?? '');
-                  toast.success('Question copied to clipboard');
+                  setQuestionCopied(true);
+                  setTimeout(() => setQuestionCopied(false), 2000);
                 } catch (error) {
                   toast.error('Failed to copy question');
                 }
               }}
             >
-              <Copy className="h-3.5 w-3.5 mr-1.5" />
-              Copy
+              {questionCopied ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 mr-1.5" />
+                  Copy
+                </>
+              )}
             </Button>
           </div>
           <div className="rounded-md border border-slate-200 bg-white p-3 text-sm">

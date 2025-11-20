@@ -20,7 +20,7 @@ type LegacyInboxPageClientProps = {
   enableFaqCreation?: boolean;
 };
 
-export function LegacyInboxPageClient({ disabled }: LegacyInboxPageClientProps) {
+export function LegacyInboxPageClient({ disabled, enableFaqCreation = false }: LegacyInboxPageClientProps) {
   const [items, setItems] = useState<LegacyInboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +143,7 @@ export function LegacyInboxPageClient({ disabled }: LegacyInboxPageClientProps) 
         items={items}
         loading={loading}
         error={error}
+        enableFaqCreation={enableFaqCreation}
         onApprove={handleApprove}
         onReject={handleReject}
         onRefresh={fetchItems}

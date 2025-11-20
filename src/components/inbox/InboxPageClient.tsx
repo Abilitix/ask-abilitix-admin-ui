@@ -379,7 +379,7 @@ export function InboxPageClient({
           />
         </>
       ) : (
-        <LegacyInboxPageClient />
+        <LegacyInboxPageClient enableFaqCreation={flags.enableFaqCreation === true} />
       )}
 
       {!flags.adminInboxApiEnabled && (

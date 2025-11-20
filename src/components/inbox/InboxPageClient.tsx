@@ -84,6 +84,12 @@ export function InboxPageClient({
     flagsRef.current = flags;
   }, [flags]);
 
+  // Sync state when initialFlags prop changes (e.g., after navigation)
+  useEffect(() => {
+    setFlags(initialFlags);
+    flagsRef.current = initialFlags;
+  }, [initialFlags]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 

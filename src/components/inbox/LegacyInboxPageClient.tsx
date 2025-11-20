@@ -105,7 +105,7 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
     }
   }, []);
 
-  const handleAttachCitations = useCallback(async (id: string, citations: Array<{ doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => {
+  const handleAttachCitations = useCallback(async (id: string, citations: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => {
     try {
       const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/attach_source`, {
         method: 'POST',
@@ -115,10 +115,45 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         body: JSON.stringify({ citations }),
       });
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
+      } catch (parseErr) {
+        // If response is not JSON, use status text
+        console.error('[attach-citations] Failed to parse response:', parseErr);
+      }
 
-      if (!response.ok || data.error) {
-        throw new Error(data.details || data.error || `Failed to attach citations: ${response.status}`);
+      if (!response.ok) {
+        // Parse detailed validation errors from backend
+        let errorMessage = data.details || data.error || data.message || `Failed to attach citations: ${response.status} ${response.statusText}`;
+        
+        // Check for detailed field errors (Admin API format)
+        if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
+          const fieldErrors = data.detail.error.fields
+            .map((field: any) => {
+              const fieldPath = field.field || '';
+              const message = field.message || 'Invalid value';
+              return `${fieldPath}: ${message}`;
+            })
+            .join(', ');
+          
+          if (fieldErrors) {
+            errorMessage = `Validation errors: ${fieldErrors}`;
+          }
+        }
+        
+        console.error('[attach-citations] API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          data,
+          citations,
+          errorCode: data.detail?.error?.code,
+          fieldErrors: data.detail?.error?.fields,
+        });
+        throw new Error(errorMessage);
       }
 
       toast.success('Citations attached ✓');

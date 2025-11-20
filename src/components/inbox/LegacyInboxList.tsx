@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +32,7 @@ type LegacyInboxListProps = {
   allowEmptyCitations: boolean;
   onApprove: (id: string, editedAnswer?: string, isFaq?: boolean) => void;
   onReject: (id: string) => void;
-  onAttachCitations: (id: string, citations: Array<{ doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => Promise<void>;
+  onAttachCitations: (id: string, citations: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => Promise<void>;
   onRefresh: () => void;
 };
 
@@ -112,29 +113,80 @@ export function LegacyInboxList({
     if (!attachModalOpen) return;
 
     // Validate citations
-    const validCitations = attachCitations
-      .filter((c) => c.docId.trim().length > 0)
-      .map((c) => {
-        const citation: { doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } } = {
-          doc_id: c.docId.trim(),
-        };
-        const pageNum = c.page.trim() ? parseInt(c.page.trim(), 10) : undefined;
-        if (pageNum && !isNaN(pageNum)) {
-          citation.page = pageNum;
+    const citationsWithDocId = attachCitations.filter((c) => c.docId.trim().length > 0);
+    
+    if (citationsWithDocId.length === 0) {
+      toast.error('Please provide at least one citation with a document ID');
+      return;
+    }
+
+    // Check for duplicates (backend will validate UUID format)
+    const docIdSet = new Set<string>();
+    const duplicateCitations: number[] = [];
+
+    citationsWithDocId.forEach((c, idx) => {
+      const docId = c.docId.trim();
+      if (docIdSet.has(docId)) {
+        duplicateCitations.push(idx);
+      } else {
+        docIdSet.add(docId);
+      }
+    });
+
+    if (duplicateCitations.length > 0) {
+      toast.error('Duplicate document IDs found. Each citation must have a unique document ID.');
+      return;
+    }
+
+    // Build valid citations with required format
+    const validCitations = citationsWithDocId.map((c) => {
+      const citation: { 
+        type: string;
+        doc_id: string; 
+        page?: number; 
+        span?: { start?: number; end?: number; text?: string } 
+      } = {
+        type: 'doc', // Required by backend
+        doc_id: c.docId.trim(),
+      };
+      
+      const pageNum = c.page.trim() ? parseInt(c.page.trim(), 10) : undefined;
+      if (pageNum !== undefined && !isNaN(pageNum) && pageNum > 0) {
+        citation.page = pageNum;
+      }
+      
+      const spanStart = c.spanStart.trim() ? parseInt(c.spanStart.trim(), 10) : undefined;
+      const spanEnd = c.spanEnd.trim() ? parseInt(c.spanEnd.trim(), 10) : undefined;
+      
+      if (spanStart !== undefined || spanEnd !== undefined || c.spanText.trim()) {
+        citation.span = {};
+        if (spanStart !== undefined && !isNaN(spanStart) && spanStart >= 0) {
+          citation.span.start = spanStart;
         }
-        const spanStart = c.spanStart.trim() ? parseInt(c.spanStart.trim(), 10) : undefined;
-        const spanEnd = c.spanEnd.trim() ? parseInt(c.spanEnd.trim(), 10) : undefined;
-        if (spanStart !== undefined || spanEnd !== undefined || c.spanText.trim()) {
-          citation.span = {};
-          if (spanStart !== undefined && !isNaN(spanStart)) citation.span.start = spanStart;
-          if (spanEnd !== undefined && !isNaN(spanEnd)) citation.span.end = spanEnd;
-          if (c.spanText.trim()) citation.span.text = c.spanText.trim();
+        if (spanEnd !== undefined && !isNaN(spanEnd) && spanEnd >= 0) {
+          citation.span.end = spanEnd;
         }
-        return citation;
-      });
+        if (c.spanText.trim()) {
+          const text = c.spanText.trim();
+          // Enforce 400 char limit
+          citation.span.text = text.length > 400 ? text.substring(0, 400) : text;
+        }
+        
+        // Validate span.start <= span.end if both are present
+        if (citation.span.start !== undefined && citation.span.end !== undefined) {
+          if (citation.span.start > citation.span.end) {
+            toast.error('Span start must be less than or equal to span end');
+            return null;
+          }
+        }
+      }
+      
+      return citation;
+    }).filter((c): c is NonNullable<typeof c> => c !== null);
 
     if (validCitations.length === 0) {
-      return; // Should show error, but for now just return
+      toast.error('Please provide at least one valid citation');
+      return;
     }
 
     setAttachLoading(true);

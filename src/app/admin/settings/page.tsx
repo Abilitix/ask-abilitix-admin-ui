@@ -7,10 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle, Settings, Users, Key, TestTube, Trash2, UserX } from 'lucide-react';
+import { HelpCircle, Settings, Users, TestTube, Trash2, UserX } from 'lucide-react';
 import { toast } from 'sonner';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
 import { ApiErrorCode } from '@/types/errors';
+import { WidgetSettingsSection } from '@/components/widget/WidgetSettingsSection';
 
 type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; LLM_MAX_OUTPUT_TOKENS?: number; PROMPT_TOPK?: number; LLM_MAX_OUTPUT_TOKENS_CEILING?: number; };
 type SettingsResp = { effective: Eff; overrides: Partial<Eff>; tenant_id?: string; tenant_slug?: string; tenant_name?: string; };
@@ -90,7 +91,6 @@ export default function SettingsPage() {
   const [data, setData] = useState<SettingsResp | null>(null);
   const [form, setForm] = useState<Partial<Eff>>({});
   const [saving, setSaving] = useState(false);
-  const [rot, setRot] = useState<string|null>(null);
   const [err, setErr] = useState<string|null>(null);
   const [supportsGate, setSupportsGate] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
@@ -480,23 +480,6 @@ export default function SettingsPage() {
       setErr(String(e));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function rotate() {
-    setErr(null);
-    try {
-      const r = await fetch('/api/admin/keys/rotate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'widget' }),
-        cache: 'no-store'
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j = await r.json();
-      setRot(j.key);
-    } catch (e) {
-      setErr(String(e));
     }
   }
 
@@ -1092,41 +1075,12 @@ export default function SettingsPage() {
             >
               Reset to Defaults
             </Button>
-            
-            <Button
-              onClick={rotate}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Key className="h-4 w-4" />
-              Rotate Widget Key
-            </Button>
           </div>
-
-          {/* Generated Key Display */}
-          {rot && (
-            <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Key className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-green-700">One-time Widget Key Generated</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-sm bg-white px-3 py-2 border rounded font-mono">{rot}</code>
-                <Button
-                  onClick={async () => { await navigator.clipboard.writeText(rot!); }}
-                  variant="outline"
-                  size="sm"
-                >
-                  Copy
-                </Button>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                This key will only be shown once. Copy it now if you need it.
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
+
+      {/* Website Widget Section */}
+      <WidgetSettingsSection />
 
       {/* Current Members Section */}
       <Card>

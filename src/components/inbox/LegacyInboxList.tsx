@@ -22,6 +22,8 @@ import {
   Save,
   RotateCcw,
   Paperclip,
+  Copy,
+  CheckCircle2,
 } from 'lucide-react';
 
 type LegacyInboxListProps = {
@@ -111,6 +113,7 @@ export function LegacyInboxList({
   const [attachModalOpen, setAttachModalOpen] = useState<string | null>(null);
   const [attachCitations, setAttachCitations] = useState<EditableCitation[]>([{ docId: '', page: '', spanStart: '', spanEnd: '', spanText: '' }]);
   const [attachLoading, setAttachLoading] = useState(false);
+  const [copiedQuestionId, setCopiedQuestionId] = useState<string | null>(null);
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
 
@@ -351,19 +354,45 @@ export function LegacyInboxList({
               {items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="w-[200px]">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="text-left">
-                          {truncateText(item.question, 80)}
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-md">
-                          <p>{item.question}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <div className="flex items-start gap-2 group">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger className="text-left flex-1 min-w-0">
+                            {truncateText(item.question, 80)}
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-md">
+                            <p>{item.question}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await navigator.clipboard.writeText(item.question);
+                            setCopiedQuestionId(item.id);
+                            setTimeout(() => setCopiedQuestionId(null), 2000);
+                          } catch (error) {
+                            toast.error('Failed to copy question');
+                          }
+                        }}
+                        title={copiedQuestionId === item.id ? 'Copied!' : 'Copy question'}
+                      >
+                        {copiedQuestionId === item.id ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
                   </TableCell>
-                  <TableCell className="w-[200px] text-xs text-muted-foreground align-top">
-                    {renderDocBadges(item, docTitles, docLoading)}
+                  <TableCell className="w-[200px] text-xs text-muted-foreground">
+                    <div className="flex items-center min-h-[2.5rem]">
+                      {renderDocBadges(item, docTitles, docLoading)}
+                    </div>
                   </TableCell>
                   <TableCell className="w-[300px]">
                     {editingId === item.id ? (

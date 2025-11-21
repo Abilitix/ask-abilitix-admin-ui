@@ -5,6 +5,7 @@ import ConditionalTopNav from "@/components/ConditionalTopNav";
 import { TenantProvider } from "@/components/TenantContext";
 import { getAuthUser } from "@/lib/auth";
 import SiteFooter from "@/components/SiteFooter";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = { title: "AbilitiX Admin" };
 
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
           <SiteFooter />
+          <Toaster />
         </TenantProvider>
       </body>
     </html>

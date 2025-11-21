@@ -146,6 +146,13 @@ export function WidgetSettingsSection() {
         throw new Error(errorText || `Failed to update widget status: ${response.status}`);
       }
 
+      // Check response body for any errors
+      const responseData = await response.json().catch(() => null);
+      if (responseData?.error) {
+        console.error('[widget-toggle] Response contains error:', responseData);
+        throw new Error(responseData.error || responseData.message || 'Failed to update widget status');
+      }
+
       // Update local state optimistically
       setConfig((prev) => (prev ? { ...prev, enabled: newEnabled } : null));
 
@@ -154,6 +161,7 @@ export function WidgetSettingsSection() {
         console.error('Background config reload failed:', err);
       });
 
+      console.log('[widget-toggle] Success:', { newEnabled, responseData });
       toast.success(`Widget ${newEnabled ? 'enabled' : 'disabled'}.`);
     } catch (error) {
       console.error('[widget-toggle] failed', error);

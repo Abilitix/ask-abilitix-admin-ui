@@ -314,6 +314,7 @@ export function InboxDetailPanel({
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [createAsFaq, setCreateAsFaq] = useState(true);
   const [questionCopied, setQuestionCopied] = useState(false);
+  const [promoteSuccess, setPromoteSuccess] = useState(false);
 
   useEffect(() => {
     if (!detail) return;
@@ -437,7 +438,13 @@ export function InboxDetailPanel({
     payload.isFaq = createAsFaq;
 
     const success = await onPromote(payload);
-    if (!success) {
+    if (success) {
+      // Show success feedback for 2 seconds
+      setPromoteSuccess(true);
+      setTimeout(() => {
+        setPromoteSuccess(false);
+      }, 2000);
+    } else {
       setShowErrors(true);
     }
   }, [
@@ -762,15 +769,25 @@ export function InboxDetailPanel({
               size="sm"
               className="bg-amber-600 text-white hover:bg-amber-700"
               onClick={handlePromoteClick}
-              disabled={disablePromote}
+              disabled={disablePromote || promoteSuccess}
               title={disabledTitle}
             >
               {promoteLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Promoting...
+                </>
+              ) : promoteSuccess ? (
+                <>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Promoted
+                </>
               ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Promote to verified
+                </>
               )}
-              Promote to verified
             </Button>
           </div>
         </div>

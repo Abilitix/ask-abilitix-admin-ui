@@ -114,6 +114,7 @@ export function LegacyInboxList({
   const [attachCitations, setAttachCitations] = useState<EditableCitation[]>([{ docId: '', page: '', spanStart: '', spanEnd: '', spanText: '' }]);
   const [attachLoading, setAttachLoading] = useState(false);
   const [copiedQuestionId, setCopiedQuestionId] = useState<string | null>(null);
+  const [actionStates, setActionStates] = useState<Record<string, 'approving' | 'approved' | 'rejecting' | 'rejected'>>({});
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
 
@@ -141,9 +142,39 @@ export function LegacyInboxList({
   };
 
   const handleApprove = (id: string) => {
+    // Set visual feedback immediately
+    setActionStates((prev) => ({ ...prev, [id]: 'approving' }));
     const editedAnswer = editedAnswers[id];
     const isFaq = faqSelections[id] ?? true;
     onApprove(id, editedAnswer, isFaq);
+    // On success, parent removes item, so state clears naturally
+    // On error, clear state after a delay (parent keeps item and shows error toast)
+    setTimeout(() => {
+      setActionStates((prev) => {
+        const next = { ...prev };
+        if (next[id] === 'approving') {
+          delete next[id];
+        }
+        return next;
+      });
+    }, 3000);
+  };
+
+  const handleReject = (id: string) => {
+    // Set visual feedback immediately
+    setActionStates((prev) => ({ ...prev, [id]: 'rejecting' }));
+    onReject(id);
+    // On success, parent removes item, so state clears naturally
+    // On error, clear state after a delay (parent keeps item and shows error toast)
+    setTimeout(() => {
+      setActionStates((prev) => {
+        const next = { ...prev };
+        if (next[id] === 'rejecting') {
+          delete next[id];
+        }
+        return next;
+      });
+    }, 3000);
   };
 
   const handleOpenAttachModal = (id: string) => {
@@ -531,7 +562,9 @@ export function LegacyInboxList({
                           disabled={
                             editingId === item.id ||
                             (!allowEmptyCitations &&
-                              (!item.suggested_citations || item.suggested_citations.length === 0))
+                              (!item.suggested_citations || item.suggested_citations.length === 0)) ||
+                            actionStates[item.id] === 'approving' ||
+                            actionStates[item.id] === 'approved'
                           }
                           title={
                             !allowEmptyCitations &&
@@ -540,17 +573,49 @@ export function LegacyInboxList({
                               : 'Approve and automatically generate embeddings'
                           }
                         >
-                          <Check className="h-4 w-4 mr-1" />
-                          Approve
+                          {actionStates[item.id] === 'approving' ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              Approving...
+                            </>
+                          ) : actionStates[item.id] === 'approved' ? (
+                            <>
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Approved
+                            </>
+                          ) : (
+                            <>
+                              <Check className="h-4 w-4 mr-1" />
+                              Approve
+                            </>
+                          )}
                         </Button>
                         <Button
-                          onClick={() => onReject(item.id)}
+                          onClick={() => handleReject(item.id)}
                           size="sm"
                           variant="destructive"
-                          disabled={editingId === item.id}
+                          disabled={
+                            editingId === item.id ||
+                            actionStates[item.id] === 'rejecting' ||
+                            actionStates[item.id] === 'rejected'
+                          }
                         >
-                          <X className="h-4 w-4 mr-1" />
-                          Reject
+                          {actionStates[item.id] === 'rejecting' ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              Rejecting...
+                            </>
+                          ) : actionStates[item.id] === 'rejected' ? (
+                            <>
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Rejected
+                            </>
+                          ) : (
+                            <>
+                              <X className="h-4 w-4 mr-1" />
+                              Reject
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>

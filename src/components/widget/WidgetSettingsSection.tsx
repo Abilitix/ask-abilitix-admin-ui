@@ -227,7 +227,10 @@ export function WidgetSettingsSection() {
           return;
         }
 
-        const payload: Record<string, unknown> = {
+        const payload: {
+          updates: Array<{ key: string; value: { value: string } }>;
+          tenant_slug?: string;
+        } = {
           updates: [],
         };
 

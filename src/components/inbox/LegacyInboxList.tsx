@@ -389,8 +389,10 @@ export function LegacyInboxList({
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell className="w-[200px] text-xs text-muted-foreground align-top">
-                    {renderDocBadges(item, docTitles, docLoading)}
+                  <TableCell className="w-[200px] text-xs text-muted-foreground">
+                    <div className="flex items-center min-h-[2.5rem]">
+                      {renderDocBadges(item, docTitles, docLoading)}
+                    </div>
                   </TableCell>
                   <TableCell className="w-[300px]">
                     {editingId === item.id ? (

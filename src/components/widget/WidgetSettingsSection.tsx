@@ -1,21 +1,43 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, HelpCircle, Palette } from 'lucide-react';
 import { WidgetKeyDisplay } from './WidgetKeyDisplay';
 import { EmbedSnippetBlock } from './EmbedSnippetBlock';
 import type { WidgetConfig, RotateKeyResponse } from '@/lib/types/widget';
 
 export function WidgetSettingsSection() {
   const [config, setConfig] = useState<WidgetConfig | null>(null);
+  const configRef = useRef<WidgetConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [rotating, setRotating] = useState(false);
   const [togglingEnabled, setTogglingEnabled] = useState(false);
+  
+  // Theme settings state
+  const [themeSettings, setThemeSettings] = useState({
+    primary_color: '#3b82f6',
+    accent_color: '#8b5cf6',
+    title: '',
+    welcome_message: '',
+    position: 'bottom-right',
+  });
+  const [savingTheme, setSavingTheme] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const loadConfig = async (showLoading: boolean = true) => {
+  // Keep ref in sync with state
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+
+  const loadConfig = useCallback(async (showLoading: boolean = true) => {
     try {
       if (showLoading) {
         setLoading(true);
@@ -30,6 +52,16 @@ export function WidgetSettingsSection() {
 
       const data: WidgetConfig = await response.json();
       setConfig(data);
+      // Initialize theme settings from config
+      if (data) {
+        setThemeSettings({
+          primary_color: data.primary_color || '#3b82f6',
+          accent_color: data.accent_color || '#8b5cf6',
+          title: data.title || '',
+          welcome_message: data.welcome_message || '',
+          position: data.position || 'bottom-right',
+        });
+      }
     } catch (error) {
       console.error('Failed to load widget config:', error);
       if (showLoading) {
@@ -40,7 +72,7 @@ export function WidgetSettingsSection() {
         setLoading(false);
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadConfig();
@@ -173,6 +205,112 @@ export function WidgetSettingsSection() {
     }
   };
 
+  // Save theme settings with debouncing
+  const saveThemeSettings = useCallback((updates: Partial<typeof themeSettings>) => {
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Update local state immediately for responsive UI
+    setThemeSettings((prev) => ({ ...prev, ...updates }));
+
+    // Debounce API call
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        setSavingTheme(true);
+        
+        // Get latest config from ref at save time
+        const currentConfig = configRef.current;
+        if (!currentConfig) {
+          setSavingTheme(false);
+          return;
+        }
+
+        const payload: Record<string, unknown> = {
+          updates: [],
+        };
+
+        // Build updates array for changed settings
+        if (updates.primary_color !== undefined) {
+          payload.updates.push({
+            key: 'WIDGET.PRIMARY_COLOR',
+            value: { value: updates.primary_color },
+          });
+        }
+        if (updates.accent_color !== undefined) {
+          payload.updates.push({
+            key: 'WIDGET.ACCENT_COLOR',
+            value: { value: updates.accent_color },
+          });
+        }
+        if (updates.title !== undefined) {
+          payload.updates.push({
+            key: 'WIDGET.TITLE',
+            value: { value: updates.title },
+          });
+        }
+        if (updates.welcome_message !== undefined) {
+          payload.updates.push({
+            key: 'WIDGET.WELCOME_MESSAGE',
+            value: { value: updates.welcome_message },
+          });
+        }
+        if (updates.position !== undefined) {
+          payload.updates.push({
+            key: 'WIDGET.POSITION',
+            value: { value: updates.position },
+          });
+        }
+
+        if (payload.updates.length === 0) {
+          setSavingTheme(false);
+          return;
+        }
+
+        if (currentConfig.tenant_slug) {
+          payload.tenant_slug = currentConfig.tenant_slug;
+        }
+
+        const response = await fetch('/api/admin/tenant-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `Failed to save theme settings: ${response.status}`);
+        }
+
+        const responseData = await response.json().catch(() => null);
+        if (responseData?.error) {
+          throw new Error(responseData.error || responseData.message || 'Failed to save theme settings');
+        }
+
+        // Reload config to get updated embed snippet
+        await loadConfig(false);
+        toast.success('Theme settings saved');
+      } catch (error) {
+        console.error('[theme-save] failed', error);
+        toast.error('Failed to save theme settings. Please try again.');
+        // Reload config to revert to server state
+        loadConfig(false).catch(() => {});
+      } finally {
+        setSavingTheme(false);
+      }
+    }, 500); // 500ms debounce
+  }, [loadConfig]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
   if (loading) {
     return (
       <Card>
@@ -255,6 +393,201 @@ export function WidgetSettingsSection() {
         />
 
         <EmbedSnippetBlock embedSnippet={config.embed_snippet} />
+
+        {/* Theme Settings - Phase 2+ */}
+        <div className="border-t pt-6 mt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Palette className="h-5 w-5 text-blue-600" />
+            <h3 className="text-lg font-semibold">Theme Customization</h3>
+            {savingTheme && (
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground mb-6">
+            Customize the appearance of your widget to match your brand.
+          </p>
+
+          <div className="space-y-6">
+            {/* Colors Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Primary Color */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="primary-color" className="text-sm font-medium">
+                    Primary Color
+                  </Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Main color used for buttons and primary actions in the widget</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <input
+                      type="color"
+                      id="primary-color"
+                      value={themeSettings.primary_color}
+                      onChange={(e) => saveThemeSettings({ primary_color: e.target.value })}
+                      className="h-10 w-16 rounded border border-gray-300 cursor-pointer"
+                    />
+                  </div>
+                  <Input
+                    type="text"
+                    value={themeSettings.primary_color}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (/^#[0-9A-Fa-f]{6}$/.test(value) || value === '') {
+                        saveThemeSettings({ primary_color: value || '#3b82f6' });
+                      }
+                    }}
+                    placeholder="#3b82f6"
+                    className="flex-1 font-mono text-sm"
+                    maxLength={7}
+                  />
+                </div>
+              </div>
+
+              {/* Accent Color */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="accent-color" className="text-sm font-medium">
+                    Accent Color
+                  </Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Secondary color used for highlights and accents in the widget</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <input
+                      type="color"
+                      id="accent-color"
+                      value={themeSettings.accent_color}
+                      onChange={(e) => saveThemeSettings({ accent_color: e.target.value })}
+                      className="h-10 w-16 rounded border border-gray-300 cursor-pointer"
+                    />
+                  </div>
+                  <Input
+                    type="text"
+                    value={themeSettings.accent_color}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (/^#[0-9A-Fa-f]{6}$/.test(value) || value === '') {
+                        saveThemeSettings({ accent_color: value || '#8b5cf6' });
+                      }
+                    }}
+                    placeholder="#8b5cf6"
+                    className="flex-1 font-mono text-sm"
+                    maxLength={7}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Title */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="widget-title" className="text-sm font-medium">
+                  Widget Title
+                </Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Title displayed in the widget header (optional)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Input
+                id="widget-title"
+                type="text"
+                value={themeSettings.title}
+                onChange={(e) => saveThemeSettings({ title: e.target.value })}
+                placeholder="Chat with us"
+                maxLength={50}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                {themeSettings.title.length}/50 characters
+              </p>
+            </div>
+
+            {/* Welcome Message */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="welcome-message" className="text-sm font-medium">
+                  Welcome Message
+                </Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Initial message shown when users open the widget (optional)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Textarea
+                id="welcome-message"
+                value={themeSettings.welcome_message}
+                onChange={(e) => saveThemeSettings({ welcome_message: e.target.value })}
+                placeholder="Hi! How can I help you today?"
+                maxLength={200}
+                rows={3}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                {themeSettings.welcome_message.length}/200 characters
+              </p>
+            </div>
+
+            {/* Position */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="widget-position" className="text-sm font-medium">
+                  Widget Position
+                </Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Where the widget appears on your website</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Select
+                id="widget-position"
+                value={themeSettings.position}
+                onChange={(e) => saveThemeSettings({ position: e.target.value })}
+                className="w-full"
+              >
+                <option value="bottom-right">Bottom Right</option>
+                <option value="bottom-left">Bottom Left</option>
+              </Select>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

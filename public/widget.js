@@ -64,8 +64,8 @@
   }
 
   // API endpoints - Runtime API for widget requests
-  // CORS is now configured on Runtime API, so this works directly from any website
-  const API_BASE = 'https://ask-abilitix-runtime.onrender.com';
+  // Note: Using ask-abilitix-api.onrender.com (same as Admin UI), not ask-abilitix-runtime.onrender.com
+  const API_BASE = 'https://ask-abilitix-api.onrender.com';
 
   // Widget state
   let isOpen = false;

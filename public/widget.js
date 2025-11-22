@@ -137,6 +137,9 @@
     </div>
     <button id="abilitix-widget-close" style="background: none; border: none; color: white; cursor: pointer; font-size: 24px; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">&times;</button>
   `;
+  
+  // Get close button reference (must be after innerHTML is set)
+  const closeButton = chatHeader.querySelector('#abilitix-widget-close');
 
   // Messages container
   const messagesContainer = document.createElement('div');
@@ -285,7 +288,11 @@
 
   // Event listeners
   chatButton.onclick = toggleChat;
-  document.getElementById('abilitix-widget-close').onclick = toggleChat;
+  if (closeButton) {
+    closeButton.onclick = toggleChat;
+  } else {
+    console.error('Abilitix Widget: Close button not found');
+  }
 
   sendButton.onclick = () => {
     const question = messageInput.value.trim();

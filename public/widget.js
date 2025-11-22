@@ -18,6 +18,17 @@
   'use strict';
 
   console.log('Abilitix Widget: Script loaded and executing...');
+  
+  // Debug: Log environment details
+  console.log('Abilitix Widget: Environment Details', {
+    windowLocation: window.location.href,
+    windowOrigin: window.location.origin || 'null',
+    windowProtocol: window.location.protocol,
+    documentUrl: document.URL,
+    documentLocation: document.location.href,
+    isFileProtocol: window.location.protocol === 'file:',
+    currentScript: document.currentScript ? document.currentScript.src : 'not available'
+  });
 
   // Configuration from script tag attributes
   const scriptTag = document.currentScript || document.querySelector('script[data-tenant]');
@@ -53,6 +64,7 @@
   }
 
   // API endpoints - Runtime API for widget requests
+  // CORS is now configured on Runtime API, so this works directly from any website
   const API_BASE = 'https://ask-abilitix-runtime.onrender.com';
 
   // Widget state
@@ -240,7 +252,45 @@
 
     try {
       // Call Runtime API with widget key authentication
-      // Backend validates widget key and routes to correct tenant
+      // Runtime API validates widget key and routes to correct tenant
+      // Note: Once Runtime API adds CORS headers, this will work directly
+      const requestBody = {
+        question: question,
+        session_id: sessionId
+      };
+      
+      // Log full request details including origin
+      const currentOrigin = window.location.origin || 'null';
+      const currentProtocol = window.location.protocol || 'unknown';
+      
+      console.log('Widget API request:', {
+        url: `${API_BASE}/ask`,
+        method: 'POST',
+        origin: currentOrigin,
+        protocol: currentProtocol,
+        isFileProtocol: currentProtocol === 'file:',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-slug': config.tenant,
+          'X-Widget-Key': config.widgetKey ? config.widgetKey.substring(0, 10) + '...' : 'missing'
+        },
+        body: requestBody,
+        environment: {
+          windowLocation: window.location.href,
+          documentUrl: document.URL,
+          referrer: document.referrer || 'none'
+        }
+      });
+      
+      // Warn if using file:// protocol
+      if (currentProtocol === 'file:' || currentOrigin === 'null' || !currentOrigin) {
+        console.warn('⚠️ Widget is running from file:// protocol (origin: null)');
+        console.warn('⚠️ CORS will fail. Use a web server: python -m http.server 8000');
+        console.warn('⚠️ Then open: http://localhost:8000/test_widget_production.html');
+      }
+      
+      console.log('Widget: Making fetch request to:', `${API_BASE}/ask`);
+      
       const response = await fetch(`${API_BASE}/ask`, {
         method: 'POST',
         headers: {
@@ -248,17 +298,28 @@
           'x-tenant-slug': config.tenant,
           'X-Widget-Key': config.widgetKey
         },
-        body: JSON.stringify({
-          question: question,
-          session_id: sessionId
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorText = await response.text();
+        const corsHeader = response.headers.get('Access-Control-Allow-Origin');
+        console.error('Widget API error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          corsHeader: corsHeader || 'MISSING',
+          allHeaders: Object.fromEntries(response.headers.entries()),
+          body: errorText
+        });
+        throw new Error(`API error: ${response.status} - ${errorText}`);
       }
+      
+      // Log CORS headers from successful response
+      const corsHeader = response.headers.get('Access-Control-Allow-Origin');
+      console.log('Widget API response CORS header:', corsHeader || 'MISSING');
 
       const data = await response.json();
+      console.log('Widget API success:', data);
       
       // Remove loading message
       loadingMessage.remove();
@@ -266,7 +327,38 @@
       // Add bot response
       addMessage('bot', data.answer || 'Sorry, I couldn\'t process your question.');
     } catch (error) {
+      const currentOrigin = window.location.origin || 'null';
+      const currentProtocol = window.location.protocol || 'unknown';
+      
       console.error('Widget API error:', error);
+      console.error('Widget API error details:', {
+        message: error.message,
+        stack: error.stack,
+        apiBase: API_BASE,
+        tenant: config.tenant,
+        widgetKey: config.widgetKey ? config.widgetKey.substring(0, 10) + '...' : 'missing',
+        origin: currentOrigin,
+        protocol: currentProtocol,
+        isFileProtocol: currentProtocol === 'file:',
+        windowLocation: window.location.href,
+        errorType: error.name,
+        isCorsError: error.message.includes('CORS') || error.message.includes('Failed to fetch')
+      });
+      
+      // Specific CORS error diagnosis
+      if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+        if (currentProtocol === 'file:' || currentOrigin === 'null' || !currentOrigin) {
+          console.error('🔴 DIAGNOSIS: CORS failed because origin is null (file:// protocol)');
+          console.error('🔴 SOLUTION: Use a web server - python -m http.server 8000');
+          console.error('🔴 Then open: http://localhost:8000/test_widget_production.html');
+        } else {
+          console.error('🔴 DIAGNOSIS: CORS failed with proper origin:', currentOrigin);
+          console.error('🔴 POSSIBLE CAUSES:');
+          console.error('   1. Production Runtime API hasn\'t deployed CORS fix yet');
+          console.error('   2. Runtime API CORS middleware not configured correctly');
+          console.error('   3. Network/proxy blocking the request');
+        }
+      }
       loadingMessage.remove();
       addMessage('bot', 'Sorry, there was an error processing your message. Please try again.');
     }

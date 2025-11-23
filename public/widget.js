@@ -292,6 +292,144 @@
     sendButton.style.opacity = '1';
   };
 
+  // Format message text: convert markdown to HTML
+  function formatMessageText(text, sender) {
+    if (!text) return '';
+    
+    // For user messages, just escape HTML (security)
+    if (sender === 'user') {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+    }
+    
+    // For bot messages, format markdown with full support
+    let formatted = text;
+    
+    // Step 1: Handle code blocks (```code```) - do this first to preserve code
+    const codeBlocks = [];
+    formatted = formatted.replace(/```([\s\S]*?)```/g, (match, code) => {
+      const id = `__CODE_BLOCK_${codeBlocks.length}__`;
+      codeBlocks.push({
+        id: id,
+        code: code.trim()
+      });
+      return id;
+    });
+    
+    // Step 2: Handle inline code (`code`) - do this before other formatting
+    const inlineCodes = [];
+    formatted = formatted.replace(/`([^`]+)`/g, (match, code) => {
+      const id = `__INLINE_CODE_${inlineCodes.length}__`;
+      inlineCodes.push({
+        id: id,
+        code: code
+      });
+      return id;
+    });
+    
+    // Step 3: Split into lines for list processing
+    const lines = formatted.split('\n');
+    const processedLines = [];
+    let inList = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Detect bullet points: lines starting with "- " or "* " or "• " or numbered "1. " etc.
+      const bulletMatch = line.match(/^([-*•]|\d+[.)])\s+(.+)$/);
+      
+      if (bulletMatch) {
+        if (!inList) {
+          processedLines.push('<ul>');
+          inList = true;
+        }
+        // Process content with formatting
+        let content = bulletMatch[2];
+        content = applyTextFormatting(content, inlineCodes, codeBlocks);
+        processedLines.push(`<li>${content}</li>`);
+      } else {
+        if (inList) {
+          processedLines.push('</ul>');
+          inList = false;
+        }
+        
+        if (line) {
+          // Check if it's a code block placeholder
+          const codeBlockMatch = line.match(/^__CODE_BLOCK_(\d+)__$/);
+          if (codeBlockMatch) {
+            const blockIndex = parseInt(codeBlockMatch[1]);
+            const codeBlock = codeBlocks[blockIndex];
+            if (codeBlock) {
+              processedLines.push(`<pre><code>${escapeHtml(codeBlock.code)}</code></pre>`);
+            }
+          } else {
+            // Process content with formatting
+            let content = line;
+            content = applyTextFormatting(content, inlineCodes, codeBlocks);
+            processedLines.push(`<p>${content}</p>`);
+          }
+        } else {
+          // Empty line - add spacing
+          processedLines.push('<br>');
+        }
+      }
+    }
+    
+    // Close any open list
+    if (inList) {
+      processedLines.push('</ul>');
+    }
+    
+    formatted = processedLines.join('');
+    
+    // If no formatting was applied, wrap in paragraph
+    if (!formatted.includes('<') && !formatted.includes('&')) {
+      formatted = '<p>' + formatted + '</p>';
+    }
+    
+    return formatted;
+  }
+  
+  // Helper: Apply text formatting (bold, links, inline code)
+  function applyTextFormatting(text, inlineCodes, codeBlocks) {
+    // Restore inline code first
+    inlineCodes.forEach((item, index) => {
+      text = text.replace(item.id, `<code>${escapeHtml(item.code)}</code>`);
+    });
+    
+    // Escape HTML
+    text = escapeHtml(text);
+    
+    // Format bold: **text**
+    text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    
+    // Format italic: *text* (but not if it's part of **text**)
+    text = text.replace(/(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+    
+    // Auto-detect and link URLs (http://, https://, www.)
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+    text = text.replace(urlRegex, (url) => {
+      let href = url;
+      if (!href.startsWith('http')) {
+        href = 'https://' + href;
+      }
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: ${config.primaryColor}; text-decoration: underline;">${url}</a>`;
+    });
+    
+    return text;
+  }
+  
+  // Helper: Escape HTML
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   // Add welcome message
   function addWelcomeMessage() {
     if (config.welcomeMessage) {
@@ -334,7 +472,9 @@
         </div>
       `;
     } else {
-      messageBubble.textContent = text;
+      // Format text: convert markdown-like formatting to HTML
+      const formattedText = formatMessageText(text, sender);
+      messageBubble.innerHTML = formattedText;
     }
 
     messageDiv.appendChild(messageBubble);
@@ -575,6 +715,65 @@
     }
     #abilitix-widget-messages {
       -webkit-overflow-scrolling: touch;
+    }
+    /* Formatting styles for bot messages */
+    #abilitix-widget-messages p {
+      margin: 0 0 8px 0;
+      line-height: 1.5;
+    }
+    #abilitix-widget-messages p:last-child {
+      margin-bottom: 0;
+    }
+    #abilitix-widget-messages ul {
+      margin: 8px 0;
+      padding-left: 20px;
+      list-style-type: disc;
+    }
+    #abilitix-widget-messages ul:first-child {
+      margin-top: 0;
+    }
+    #abilitix-widget-messages ul:last-child {
+      margin-bottom: 0;
+    }
+    #abilitix-widget-messages li {
+      margin: 4px 0;
+      line-height: 1.5;
+      padding-left: 4px;
+    }
+    #abilitix-widget-messages strong {
+      font-weight: 600;
+    }
+    #abilitix-widget-messages em {
+      font-style: italic;
+    }
+    #abilitix-widget-messages a {
+      text-decoration: underline;
+      word-break: break-word;
+    }
+    #abilitix-widget-messages a:hover {
+      opacity: 0.8;
+    }
+    #abilitix-widget-messages code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      color: #d63384;
+    }
+    #abilitix-widget-messages pre {
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    #abilitix-widget-messages pre code {
+      background: none;
+      padding: 0;
+      color: #1a1a1a;
+      font-size: 13px;
+      line-height: 1.5;
     }
   `;
   document.head.appendChild(style);

@@ -70,7 +70,86 @@
   // Widget state
   let isOpen = false;
   let messages = [];
-  let sessionId = 'widget-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  
+  // Get or create sessionId (persist across page refreshes)
+  // This ensures messages persist for the same user session
+  function getOrCreateSessionId(tenantSlug) {
+    const sessionKey = `ask_abilitix_widget_session_${tenantSlug || 'default'}`;
+    try {
+      let sessionId = localStorage.getItem(sessionKey);
+      if (!sessionId) {
+        // Generate new sessionId
+        sessionId = 'widget-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem(sessionKey, sessionId);
+      }
+      return sessionId;
+    } catch (err) {
+      // Fallback if localStorage fails
+      return 'widget-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    }
+  }
+  
+  let sessionId = getOrCreateSessionId(config.tenant);
+
+  // localStorage helpers for chat persistence (tenant + session isolated)
+  // Storage key includes both tenant slug AND session ID for proper isolation:
+  // - Tenant isolation: Different tenants don't see each other's messages
+  // - Session isolation: Different users/sessions on same browser don't see each other's messages
+  function getStorageKey(tenantSlug, sessionId) {
+    return `ask_abilitix_widget_chat_${tenantSlug || 'default'}_${sessionId || 'default'}`;
+  }
+
+  function loadChatFromStorage(tenantSlug, sessionId) {
+    try {
+      const key = getStorageKey(tenantSlug, sessionId);
+      const stored = localStorage.getItem(key);
+      if (!stored) return null;
+      
+      const parsed = JSON.parse(stored);
+      // Validate structure
+      if (parsed && Array.isArray(parsed.messages) && typeof parsed.lastUpdatedAt === 'string') {
+        return parsed;
+      }
+      return null;
+    } catch (err) {
+      console.warn('Widget: Failed to load chat from localStorage:', err);
+      return null;
+    }
+  }
+
+  function saveChatToStorage(messages, tenantSlug, sessionId) {
+    try {
+      const key = getStorageKey(tenantSlug, sessionId);
+      const stored = {
+        messages: messages.map((m) => ({
+          sender: m.sender,
+          text: m.text,
+          timestamp: m.timestamp || new Date().toISOString()
+        })),
+        lastUpdatedAt: new Date().toISOString(),
+        tenantSlug: tenantSlug,
+        sessionId: sessionId
+      };
+      localStorage.setItem(key, JSON.stringify(stored));
+    } catch (err) {
+      console.warn('Widget: Failed to save chat to localStorage:', err);
+    }
+  }
+
+  function clearChatStorage(tenantSlug, sessionId) {
+    try {
+      const key = getStorageKey(tenantSlug, sessionId);
+      localStorage.removeItem(key);
+    } catch (err) {
+      console.warn('Widget: Failed to clear chat from localStorage:', err);
+    }
+  }
+  
+  // Load messages from localStorage on initialization (using sessionId for isolation)
+  const storedChat = loadChatFromStorage(config.tenant, sessionId);
+  if (storedChat && storedChat.messages && storedChat.messages.length > 0) {
+    messages = storedChat.messages;
+  }
 
   // Create widget container
   const widgetContainer = document.createElement('div');
@@ -213,6 +292,172 @@
     sendButton.style.opacity = '1';
   };
 
+  // Format message text: convert markdown to HTML
+  function formatMessageText(text, sender) {
+    if (!text) return '';
+    
+    // For user messages, just escape HTML (security)
+    if (sender === 'user') {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+    }
+    
+    // For bot messages, format markdown with full support
+    let formatted = text;
+    
+    // Step 1: Handle code blocks (```code```) - do this first to preserve code
+    const codeBlocks = [];
+    formatted = formatted.replace(/```([\s\S]*?)```/g, (match, code) => {
+      const id = `__CODE_BLOCK_${codeBlocks.length}__`;
+      codeBlocks.push({
+        id: id,
+        code: code.trim()
+      });
+      return id;
+    });
+    
+    // Step 2: Handle inline code (`code`) - do this before other formatting
+    const inlineCodes = [];
+    formatted = formatted.replace(/`([^`]+)`/g, (match, code) => {
+      const id = `__INLINE_CODE_${inlineCodes.length}__`;
+      inlineCodes.push({
+        id: id,
+        code: code
+      });
+      return id;
+    });
+    
+    // Step 3: Split into lines for list processing
+    const lines = formatted.split('\n');
+    const processedLines = [];
+    let inList = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Detect bullet points: lines starting with "- " or "* " or "• " or numbered "1. " etc.
+      const bulletMatch = line.match(/^([-*•]|\d+[.)])\s+(.+)$/);
+      
+      if (bulletMatch) {
+        if (!inList) {
+          processedLines.push('<ul>');
+          inList = true;
+        }
+        // Process content with formatting
+        let content = bulletMatch[2];
+        content = applyTextFormatting(content, inlineCodes, codeBlocks);
+        processedLines.push(`<li>${content}</li>`);
+      } else {
+        if (inList) {
+          processedLines.push('</ul>');
+          inList = false;
+        }
+        
+        if (line) {
+          // Check if it's a code block placeholder
+          const codeBlockMatch = line.match(/^__CODE_BLOCK_(\d+)__$/);
+          if (codeBlockMatch) {
+            const blockIndex = parseInt(codeBlockMatch[1]);
+            const codeBlock = codeBlocks[blockIndex];
+            if (codeBlock) {
+              processedLines.push(`<pre><code>${escapeHtml(codeBlock.code)}</code></pre>`);
+            }
+          } else {
+            // Check for markdown headers: # Header, ## Header, ### Header
+            const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
+            if (headerMatch) {
+              const level = headerMatch[1].length;
+              const headerText = headerMatch[2];
+              let content = applyTextFormatting(headerText, inlineCodes, codeBlocks);
+              const tag = `h${Math.min(level + 2, 6)}`; // h3-h6 for widget (h1-h2 too large)
+              processedLines.push(`<${tag} style="font-weight: 600; margin: 12px 0 8px 0; font-size: ${level === 1 ? '18px' : level === 2 ? '16px' : '15px'};">${content}</${tag}>`);
+            } else {
+              // Process content with formatting
+              let content = line;
+              content = applyTextFormatting(content, inlineCodes, codeBlocks);
+              processedLines.push(`<p>${content}</p>`);
+            }
+          }
+        } else {
+          // Empty line - add spacing
+          processedLines.push('<br>');
+        }
+      }
+    }
+    
+    // Close any open list
+    if (inList) {
+      processedLines.push('</ul>');
+    }
+    
+    formatted = processedLines.join('');
+    
+    // If no formatting was applied, wrap in paragraph
+    if (!formatted.includes('<') && !formatted.includes('&')) {
+      formatted = '<p>' + formatted + '</p>';
+    }
+    
+    return formatted;
+  }
+  
+  // Helper: Apply text formatting (bold, links, inline code)
+  function applyTextFormatting(text, inlineCodes, codeBlocks) {
+    // Restore inline code first
+    inlineCodes.forEach((item, index) => {
+      text = text.replace(item.id, `<code>${escapeHtml(item.code)}</code>`);
+    });
+    
+    // Format markdown links: [text](url) - do this before escaping HTML
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
+      let href = url.trim();
+      if (!href.startsWith('http')) {
+        href = 'https://' + href;
+      }
+      return `__MARKDOWN_LINK_${linkText}__${href}__`;
+    });
+    
+    // Escape HTML
+    text = escapeHtml(text);
+    
+    // Restore markdown links as HTML
+    text = text.replace(/__MARKDOWN_LINK_(.+?)__(.+?)__/g, (match, linkText, href) => {
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: ${config.primaryColor}; text-decoration: underline;">${linkText}</a>`;
+    });
+    
+    // Format bold: **text**
+    text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    
+    // Format italic: *text* (but not if it's part of **text**)
+    text = text.replace(/(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+    
+    // Auto-detect and link plain URLs (http://, https://, www.) - only if not already in a link
+    const urlRegex = /(https?:\/\/[^\s<>]+|www\.[^\s<>]+)/g;
+    text = text.replace(urlRegex, (url) => {
+      // Skip if already inside an <a> tag
+      if (text.indexOf(`href="${url}"`) !== -1 || text.indexOf(`>${url}</a>`) !== -1) {
+        return url;
+      }
+      let href = url;
+      if (!href.startsWith('http')) {
+        href = 'https://' + href;
+      }
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: ${config.primaryColor}; text-decoration: underline;">${url}</a>`;
+    });
+    
+    return text;
+  }
+  
+  // Helper: Escape HTML
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   // Add welcome message
   function addWelcomeMessage() {
     if (config.welcomeMessage) {
@@ -221,7 +466,7 @@
   }
 
   // Add message to chat
-  function addMessage(sender, text, isLoading = false) {
+  function addMessage(sender, text, isLoading = false, skipSave = false) {
     const messageDiv = document.createElement('div');
     messageDiv.style.cssText = `
       margin-bottom: 8px;
@@ -255,14 +500,41 @@
         </div>
       `;
     } else {
-      messageBubble.textContent = text;
+      // Format text: convert markdown-like formatting to HTML
+      const formattedText = formatMessageText(text, sender);
+      messageBubble.innerHTML = formattedText;
     }
 
     messageDiv.appendChild(messageBubble);
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
+    // Save to localStorage (skip for loading messages and when explicitly told to skip)
+    if (!isLoading && !skipSave && text) {
+      messages.push({
+        sender: sender,
+        text: text,
+        timestamp: new Date().toISOString()
+      });
+      saveChatToStorage(messages, config.tenant, sessionId);
+    }
+
     return messageDiv;
+  }
+
+  // Track if messages have been rendered
+  let messagesRendered = false;
+
+  // Render loaded messages from localStorage
+  function renderLoadedMessages() {
+    if (messages.length === 0 || messagesRendered) return;
+    
+    messagesContainer.innerHTML = ''; // Clear container
+    messages.forEach((msg) => {
+      addMessage(msg.sender, msg.text, false, true); // skipSave=true to avoid double-saving
+    });
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    messagesRendered = true;
   }
 
   // Send message to API
@@ -391,8 +663,14 @@
     if (isOpen) {
       chatWindow.style.display = 'flex';
       messageInput.focus();
-      if (messages.length === 0) {
+      
+      // Render loaded messages if any exist (only once)
+      if (messages.length > 0 && !messagesRendered) {
+        renderLoadedMessages();
+      } else if (messages.length === 0 && !messagesRendered) {
+        // Only show welcome message if no previous messages
         addWelcomeMessage();
+        messagesRendered = true; // Mark as rendered to prevent duplicate welcome message
       }
     } else {
       chatWindow.style.display = 'none';
@@ -465,6 +743,80 @@
     }
     #abilitix-widget-messages {
       -webkit-overflow-scrolling: touch;
+    }
+    /* Formatting styles for bot messages */
+    #abilitix-widget-messages p {
+      margin: 0 0 8px 0;
+      line-height: 1.5;
+    }
+    #abilitix-widget-messages p:last-child {
+      margin-bottom: 0;
+    }
+    #abilitix-widget-messages ul {
+      margin: 8px 0;
+      padding-left: 20px;
+      list-style-type: disc;
+    }
+    #abilitix-widget-messages ul:first-child {
+      margin-top: 0;
+    }
+    #abilitix-widget-messages ul:last-child {
+      margin-bottom: 0;
+    }
+    #abilitix-widget-messages li {
+      margin: 4px 0;
+      line-height: 1.5;
+      padding-left: 4px;
+    }
+    #abilitix-widget-messages strong {
+      font-weight: 600;
+    }
+    #abilitix-widget-messages em {
+      font-style: italic;
+    }
+    #abilitix-widget-messages a {
+      text-decoration: underline;
+      word-break: break-word;
+    }
+    #abilitix-widget-messages a:hover {
+      opacity: 0.8;
+    }
+    #abilitix-widget-messages code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      color: #d63384;
+    }
+    #abilitix-widget-messages pre {
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    #abilitix-widget-messages pre code {
+      background: none;
+      padding: 0;
+      color: #1a1a1a;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    #abilitix-widget-messages h3, #abilitix-widget-messages h4, #abilitix-widget-messages h5, #abilitix-widget-messages h6 {
+      font-weight: 600;
+      margin: 12px 0 8px 0;
+      line-height: 1.4;
+      color: #1a1a1a;
+    }
+    #abilitix-widget-messages h3 {
+      font-size: 18px;
+    }
+    #abilitix-widget-messages h4 {
+      font-size: 16px;
+    }
+    #abilitix-widget-messages h5, #abilitix-widget-messages h6 {
+      font-size: 15px;
     }
   `;
   document.head.appendChild(style);

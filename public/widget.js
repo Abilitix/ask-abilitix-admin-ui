@@ -366,10 +366,20 @@
               processedLines.push(`<pre><code>${escapeHtml(codeBlock.code)}</code></pre>`);
             }
           } else {
-            // Process content with formatting
-            let content = line;
-            content = applyTextFormatting(content, inlineCodes, codeBlocks);
-            processedLines.push(`<p>${content}</p>`);
+            // Check for markdown headers: # Header, ## Header, ### Header
+            const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
+            if (headerMatch) {
+              const level = headerMatch[1].length;
+              const headerText = headerMatch[2];
+              let content = applyTextFormatting(headerText, inlineCodes, codeBlocks);
+              const tag = `h${Math.min(level + 2, 6)}`; // h3-h6 for widget (h1-h2 too large)
+              processedLines.push(`<${tag} style="font-weight: 600; margin: 12px 0 8px 0; font-size: ${level === 1 ? '18px' : level === 2 ? '16px' : '15px'};">${content}</${tag}>`);
+            } else {
+              // Process content with formatting
+              let content = line;
+              content = applyTextFormatting(content, inlineCodes, codeBlocks);
+              processedLines.push(`<p>${content}</p>`);
+            }
           }
         } else {
           // Empty line - add spacing
@@ -400,8 +410,22 @@
       text = text.replace(item.id, `<code>${escapeHtml(item.code)}</code>`);
     });
     
+    // Format markdown links: [text](url) - do this before escaping HTML
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
+      let href = url.trim();
+      if (!href.startsWith('http')) {
+        href = 'https://' + href;
+      }
+      return `__MARKDOWN_LINK_${linkText}__${href}__`;
+    });
+    
     // Escape HTML
     text = escapeHtml(text);
+    
+    // Restore markdown links as HTML
+    text = text.replace(/__MARKDOWN_LINK_(.+?)__(.+?)__/g, (match, linkText, href) => {
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: ${config.primaryColor}; text-decoration: underline;">${linkText}</a>`;
+    });
     
     // Format bold: **text**
     text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -409,9 +433,13 @@
     // Format italic: *text* (but not if it's part of **text**)
     text = text.replace(/(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
     
-    // Auto-detect and link URLs (http://, https://, www.)
-    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+    // Auto-detect and link plain URLs (http://, https://, www.) - only if not already in a link
+    const urlRegex = /(https?:\/\/[^\s<>]+|www\.[^\s<>]+)/g;
     text = text.replace(urlRegex, (url) => {
+      // Skip if already inside an <a> tag
+      if (text.indexOf(`href="${url}"`) !== -1 || text.indexOf(`>${url}</a>`) !== -1) {
+        return url;
+      }
       let href = url;
       if (!href.startsWith('http')) {
         href = 'https://' + href;
@@ -774,6 +802,21 @@
       color: #1a1a1a;
       font-size: 13px;
       line-height: 1.5;
+    }
+    #abilitix-widget-messages h3, #abilitix-widget-messages h4, #abilitix-widget-messages h5, #abilitix-widget-messages h6 {
+      font-weight: 600;
+      margin: 12px 0 8px 0;
+      line-height: 1.4;
+      color: #1a1a1a;
+    }
+    #abilitix-widget-messages h3 {
+      font-size: 18px;
+    }
+    #abilitix-widget-messages h4 {
+      font-size: 16px;
+    }
+    #abilitix-widget-messages h5, #abilitix-widget-messages h6 {
+      font-size: 15px;
     }
   `;
   document.head.appendChild(style);

@@ -67,10 +67,66 @@
   // Note: Using ask-abilitix-api.onrender.com (same as Admin UI), not ask-abilitix-runtime.onrender.com
   const API_BASE = 'https://ask-abilitix-api.onrender.com';
 
+  // localStorage helpers for chat persistence (tenant-isolated)
+  function getStorageKey(tenantSlug) {
+    return `ask_abilitix_widget_chat_${tenantSlug || 'default'}`;
+  }
+
+  function loadChatFromStorage(tenantSlug) {
+    try {
+      const key = getStorageKey(tenantSlug);
+      const stored = localStorage.getItem(key);
+      if (!stored) return null;
+      
+      const parsed = JSON.parse(stored);
+      // Validate structure
+      if (parsed && Array.isArray(parsed.messages) && typeof parsed.lastUpdatedAt === 'string') {
+        return parsed;
+      }
+      return null;
+    } catch (err) {
+      console.warn('Widget: Failed to load chat from localStorage:', err);
+      return null;
+    }
+  }
+
+  function saveChatToStorage(messages, tenantSlug) {
+    try {
+      const key = getStorageKey(tenantSlug);
+      const stored = {
+        messages: messages.map((m) => ({
+          sender: m.sender,
+          text: m.text,
+          timestamp: m.timestamp || new Date().toISOString()
+        })),
+        lastUpdatedAt: new Date().toISOString(),
+        tenantSlug: tenantSlug
+      };
+      localStorage.setItem(key, JSON.stringify(stored));
+    } catch (err) {
+      console.warn('Widget: Failed to save chat to localStorage:', err);
+    }
+  }
+
+  function clearChatStorage(tenantSlug) {
+    try {
+      const key = getStorageKey(tenantSlug);
+      localStorage.removeItem(key);
+    } catch (err) {
+      console.warn('Widget: Failed to clear chat from localStorage:', err);
+    }
+  }
+
   // Widget state
   let isOpen = false;
   let messages = [];
   let sessionId = 'widget-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  
+  // Load messages from localStorage on initialization
+  const storedChat = loadChatFromStorage(config.tenant);
+  if (storedChat && storedChat.messages && storedChat.messages.length > 0) {
+    messages = storedChat.messages;
+  }
 
   // Create widget container
   const widgetContainer = document.createElement('div');
@@ -221,7 +277,7 @@
   }
 
   // Add message to chat
-  function addMessage(sender, text, isLoading = false) {
+  function addMessage(sender, text, isLoading = false, skipSave = false) {
     const messageDiv = document.createElement('div');
     messageDiv.style.cssText = `
       margin-bottom: 8px;
@@ -262,7 +318,32 @@
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
+    // Save to localStorage (skip for loading messages and when explicitly told to skip)
+    if (!isLoading && !skipSave && text) {
+      messages.push({
+        sender: sender,
+        text: text,
+        timestamp: new Date().toISOString()
+      });
+      saveChatToStorage(messages, config.tenant);
+    }
+
     return messageDiv;
+  }
+
+  // Track if messages have been rendered
+  let messagesRendered = false;
+
+  // Render loaded messages from localStorage
+  function renderLoadedMessages() {
+    if (messages.length === 0 || messagesRendered) return;
+    
+    messagesContainer.innerHTML = ''; // Clear container
+    messages.forEach((msg) => {
+      addMessage(msg.sender, msg.text, false, true); // skipSave=true to avoid double-saving
+    });
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    messagesRendered = true;
   }
 
   // Send message to API
@@ -391,8 +472,14 @@
     if (isOpen) {
       chatWindow.style.display = 'flex';
       messageInput.focus();
-      if (messages.length === 0) {
+      
+      // Render loaded messages if any exist (only once)
+      if (messages.length > 0 && !messagesRendered) {
+        renderLoadedMessages();
+      } else if (messages.length === 0 && !messagesRendered) {
+        // Only show welcome message if no previous messages
         addWelcomeMessage();
+        messagesRendered = true; // Mark as rendered to prevent duplicate welcome message
       }
     } else {
       chatWindow.style.display = 'none';

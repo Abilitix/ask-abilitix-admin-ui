@@ -67,14 +67,22 @@
   // Note: Using ask-abilitix-api.onrender.com (same as Admin UI), not ask-abilitix-runtime.onrender.com
   const API_BASE = 'https://ask-abilitix-api.onrender.com';
 
-  // localStorage helpers for chat persistence (tenant-isolated)
-  function getStorageKey(tenantSlug) {
-    return `ask_abilitix_widget_chat_${tenantSlug || 'default'}`;
+  // Widget state
+  let isOpen = false;
+  let messages = [];
+  let sessionId = 'widget-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+  // localStorage helpers for chat persistence (tenant + session isolated)
+  // Storage key includes both tenant slug AND session ID for proper isolation:
+  // - Tenant isolation: Different tenants don't see each other's messages
+  // - Session isolation: Different users/sessions on same browser don't see each other's messages
+  function getStorageKey(tenantSlug, sessionId) {
+    return `ask_abilitix_widget_chat_${tenantSlug || 'default'}_${sessionId || 'default'}`;
   }
 
-  function loadChatFromStorage(tenantSlug) {
+  function loadChatFromStorage(tenantSlug, sessionId) {
     try {
-      const key = getStorageKey(tenantSlug);
+      const key = getStorageKey(tenantSlug, sessionId);
       const stored = localStorage.getItem(key);
       if (!stored) return null;
       
@@ -90,9 +98,9 @@
     }
   }
 
-  function saveChatToStorage(messages, tenantSlug) {
+  function saveChatToStorage(messages, tenantSlug, sessionId) {
     try {
-      const key = getStorageKey(tenantSlug);
+      const key = getStorageKey(tenantSlug, sessionId);
       const stored = {
         messages: messages.map((m) => ({
           sender: m.sender,
@@ -100,7 +108,8 @@
           timestamp: m.timestamp || new Date().toISOString()
         })),
         lastUpdatedAt: new Date().toISOString(),
-        tenantSlug: tenantSlug
+        tenantSlug: tenantSlug,
+        sessionId: sessionId
       };
       localStorage.setItem(key, JSON.stringify(stored));
     } catch (err) {
@@ -108,22 +117,17 @@
     }
   }
 
-  function clearChatStorage(tenantSlug) {
+  function clearChatStorage(tenantSlug, sessionId) {
     try {
-      const key = getStorageKey(tenantSlug);
+      const key = getStorageKey(tenantSlug, sessionId);
       localStorage.removeItem(key);
     } catch (err) {
       console.warn('Widget: Failed to clear chat from localStorage:', err);
     }
   }
-
-  // Widget state
-  let isOpen = false;
-  let messages = [];
-  let sessionId = 'widget-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
   
-  // Load messages from localStorage on initialization
-  const storedChat = loadChatFromStorage(config.tenant);
+  // Load messages from localStorage on initialization (using sessionId for isolation)
+  const storedChat = loadChatFromStorage(config.tenant, sessionId);
   if (storedChat && storedChat.messages && storedChat.messages.length > 0) {
     messages = storedChat.messages;
   }
@@ -325,7 +329,7 @@
         text: text,
         timestamp: new Date().toISOString()
       });
-      saveChatToStorage(messages, config.tenant);
+      saveChatToStorage(messages, config.tenant, sessionId);
     }
 
     return messageDiv;

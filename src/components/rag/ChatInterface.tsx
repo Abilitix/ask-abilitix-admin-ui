@@ -129,17 +129,43 @@ function getAnswerTypeLabel(
   return null;
 }
 
-// localStorage helpers for sticky chat
-function getStorageKey(tenantSlug?: string): string {
-  const slug = tenantSlug || process.env.NEXT_PUBLIC_TENANT_SLUG || 'default';
-  return `ask_abilitix_chat_${slug}`;
+// localStorage helpers for sticky chat (tenant + session isolated)
+// Storage key includes both tenant slug AND session ID for proper isolation:
+// - Tenant isolation: Different tenants don't see each other's messages
+// - Session isolation: Different users/sessions on same browser don't see each other's messages
+
+// Get or create sessionId (persist across page refreshes)
+function getOrCreateSessionId(tenantSlug?: string): string {
+  if (typeof window === 'undefined') {
+    return `ai-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+  
+  const sessionKey = `ask_abilitix_chat_session_${tenantSlug || 'default'}`;
+  try {
+    let sessionId = window.localStorage.getItem(sessionKey);
+    if (!sessionId) {
+      // Generate new sessionId
+      sessionId = `ai-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      window.localStorage.setItem(sessionKey, sessionId);
+    }
+    return sessionId;
+  } catch (err) {
+    // Fallback if localStorage fails
+    return `ai-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
 }
 
-function loadChatFromStorage(tenantSlug?: string): StoredChat | null {
+function getStorageKey(tenantSlug?: string, sessionId?: string): string {
+  const slug = tenantSlug || process.env.NEXT_PUBLIC_TENANT_SLUG || 'default';
+  const sid = sessionId || 'default';
+  return `ask_abilitix_chat_${slug}_${sid}`;
+}
+
+function loadChatFromStorage(tenantSlug?: string, sessionId?: string): StoredChat | null {
   if (typeof window === 'undefined') return null;
   
   try {
-    const key = getStorageKey(tenantSlug);
+    const key = getStorageKey(tenantSlug, sessionId);
     const stored = window.localStorage.getItem(key);
     if (!stored) return null;
     
@@ -155,11 +181,11 @@ function loadChatFromStorage(tenantSlug?: string): StoredChat | null {
   }
 }
 
-function saveChatToStorage(messages: ChatMsg[], tenantSlug?: string): void {
+function saveChatToStorage(messages: ChatMsg[], tenantSlug?: string, sessionId?: string): void {
   if (typeof window === 'undefined') return;
   
   try {
-    const key = getStorageKey(tenantSlug);
+    const key = getStorageKey(tenantSlug, sessionId);
     const stored: StoredChat = {
       messages: messages.map((m) => ({
         role: m.role,
@@ -175,11 +201,11 @@ function saveChatToStorage(messages: ChatMsg[], tenantSlug?: string): void {
   }
 }
 
-function clearChatStorage(tenantSlug?: string): void {
+function clearChatStorage(tenantSlug?: string, sessionId?: string): void {
   if (typeof window === 'undefined') return;
   
   try {
-    const key = getStorageKey(tenantSlug);
+    const key = getStorageKey(tenantSlug, sessionId);
     window.localStorage.removeItem(key);
   } catch (err) {
     console.warn('[ChatInterface] Failed to clear chat from localStorage:', err);
@@ -226,13 +252,8 @@ export default function ChatInterface({
   // Tenant slug for localStorage isolation (critical for multi-tenant security)
   const [tenantSlug, setTenantSlug] = React.useState<string | undefined>(undefined);
   
-  // Generate unique session ID for conversation memory (additive enhancement)
-  const [sessionId] = React.useState(() => `ai-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  
-  // Debug logging for session memory
-  React.useEffect(() => {
-    console.log('ChatInterface Debug - Session ID generated:', sessionId);
-  }, [sessionId]);
+  // Session ID is computed dynamically from tenantSlug when needed (since tenantSlug loads async)
+  // It's persisted in localStorage per tenant, ensuring isolation between tenants and sessions
 
   // Initialize messages from localStorage or default
   const [messages, setMessages] = React.useState<ChatMsg[]>(() => {
@@ -253,8 +274,9 @@ export default function ChatInterface({
           const slug = data?.tenant?.slug || data?.tenant_slug || data?.tenant?.id || undefined;
           if (slug) {
             setTenantSlug(slug);
-            // Load chat history for this specific tenant
-            const stored = loadChatFromStorage(slug);
+            // Load chat history for this specific tenant and session
+            const currentSessionId = getOrCreateSessionId(slug);
+            const stored = loadChatFromStorage(slug, currentSessionId);
             if (stored && Array.isArray(stored.messages) && stored.messages.length > 0) {
               setMessages(stored.messages.map((m, idx) => ({
                 id: `m${idx}`,
@@ -308,7 +330,8 @@ export default function ChatInterface({
   // Auto-save messages to localStorage whenever they change (only if tenant slug is known)
   React.useEffect(() => {
     if (messages.length > 0 && tenantSlug) {
-      saveChatToStorage(messages, tenantSlug);
+      const currentSessionId = getOrCreateSessionId(tenantSlug);
+      saveChatToStorage(messages, tenantSlug, currentSessionId);
     }
   }, [messages, tenantSlug]);
 
@@ -317,7 +340,10 @@ export default function ChatInterface({
     if (typeof window === 'undefined') return;
     
     if (window.confirm('Are you sure you want to clear this conversation?')) {
-      clearChatStorage(tenantSlug);
+      if (tenantSlug) {
+        const currentSessionId = getOrCreateSessionId(tenantSlug);
+        clearChatStorage(tenantSlug, currentSessionId);
+      }
       setMessages([
         { id: "m0", role: "assistant", text: "Hello, how can I help you?", time: nowHHMM(), isFaq: undefined },
       ]);
@@ -415,10 +441,11 @@ export default function ChatInterface({
 
     // Non-stream fallback
     const askNonStreaming = async () => {
+      const currentSessionId = tenantSlug ? getOrCreateSessionId(tenantSlug) : getOrCreateSessionId();
       const requestPayload = { 
         question, 
         topk: topK, 
-        session_id: sessionId,
+        session_id: currentSessionId,
         ...(sessionMaxTokens ? { max_tokens: sessionMaxTokens } : {})
       };
       
@@ -477,10 +504,11 @@ export default function ChatInterface({
     };
 
     try {
+      const currentSessionId = tenantSlug ? getOrCreateSessionId(tenantSlug) : getOrCreateSessionId();
       const streamingPayload = { 
         question, 
         topk: topK, 
-        session_id: sessionId,
+        session_id: currentSessionId,
         ...(sessionMaxTokens ? { max_tokens: sessionMaxTokens } : {})
       };
       

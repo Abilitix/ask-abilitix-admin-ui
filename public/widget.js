@@ -465,6 +465,9 @@
     }
   }
 
+  // Track copied message IDs (for showing green tick)
+  const copiedMessages = new Set();
+
   // Add message to chat
   function addMessage(sender, text, isLoading = false, skipSave = false) {
     const messageDiv = document.createElement('div');
@@ -473,6 +476,19 @@
       display: flex;
       ${sender === 'user' ? 'justify-content: flex-end' : 'justify-content: flex-start'};
     `;
+
+    // For bot messages, create a wrapper to hold message and copy button
+    let messageWrapper = messageDiv;
+    if (sender === 'bot' && !isLoading) {
+      messageWrapper = document.createElement('div');
+      messageWrapper.style.cssText = `
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        max-width: 80%;
+      `;
+      messageDiv.appendChild(messageWrapper);
+    }
 
     const messageBubble = document.createElement('div');
     messageBubble.style.cssText = `
@@ -489,6 +505,7 @@
       ${sender === 'user' 
         ? `background: ${config.primaryColor}; color: white; border-bottom-right-radius: 4px; text-shadow: 0 1px 1px rgba(0,0,0,0.1);` 
         : 'background: white; color: #1a1a1a; border-bottom-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);'};
+      ${sender === 'bot' && !isLoading ? 'flex: 1;' : ''};
     `;
 
     if (isLoading) {
@@ -505,7 +522,60 @@
       messageBubble.innerHTML = formattedText;
     }
 
-    messageDiv.appendChild(messageBubble);
+    messageWrapper.appendChild(messageBubble);
+
+    // Add copy button for bot messages
+    if (sender === 'bot' && !isLoading && text) {
+      const messageId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      const copyButton = document.createElement('button');
+      copyButton.setAttribute('data-message-id', messageId);
+      copyButton.style.cssText = `
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: background-color 0.2s;
+        padding: 0;
+        margin-top: 2px;
+      `;
+      copyButton.onmouseenter = function() {
+        this.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+      };
+      copyButton.onmouseleave = function() {
+        this.style.backgroundColor = 'transparent';
+      };
+      
+      // SVG icons for Copy and CheckCircle
+      const copyIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #6b7280;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+      const checkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #10b981;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+      
+      copyButton.innerHTML = copyIcon;
+      
+      copyButton.onclick = async function() {
+        try {
+          await navigator.clipboard.writeText(text);
+          copiedMessages.add(messageId);
+          copyButton.innerHTML = checkIcon;
+          
+          // Reset after 2 seconds
+          setTimeout(() => {
+            copiedMessages.delete(messageId);
+            copyButton.innerHTML = copyIcon;
+          }, 2000);
+        } catch (error) {
+          console.error('Failed to copy message:', error);
+        }
+      };
+      
+      messageWrapper.appendChild(copyButton);
+    }
+
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 

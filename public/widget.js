@@ -70,7 +70,26 @@
   // Widget state
   let isOpen = false;
   let messages = [];
-  let sessionId = 'widget-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  
+  // Get or create sessionId (persist across page refreshes)
+  // This ensures messages persist for the same user session
+  function getOrCreateSessionId(tenantSlug) {
+    const sessionKey = `ask_abilitix_widget_session_${tenantSlug || 'default'}`;
+    try {
+      let sessionId = localStorage.getItem(sessionKey);
+      if (!sessionId) {
+        // Generate new sessionId
+        sessionId = 'widget-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem(sessionKey, sessionId);
+      }
+      return sessionId;
+    } catch (err) {
+      // Fallback if localStorage fails
+      return 'widget-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    }
+  }
+  
+  let sessionId = getOrCreateSessionId(config.tenant);
 
   // localStorage helpers for chat persistence (tenant + session isolated)
   // Storage key includes both tenant slug AND session ID for proper isolation:

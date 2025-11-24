@@ -8,10 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, Search, Archive, ArchiveRestore, RefreshCw } from 'lucide-react';
+import { Loader2, Search, Archive, ArchiveRestore, RefreshCw, X } from 'lucide-react';
 import type { FAQ, FAQStatus, FAQListResponse } from '@/lib/types/faq-lifecycle';
 
 type StatusFilter = FAQStatus | 'all';
+
+type Document = {
+  id: string;
+  title: string;
+  status: string;
+};
 
 export function FAQManagementClient() {
   const [faqs, setFaqs] = useState<FAQ[]>([]);
@@ -20,6 +26,13 @@ export function FAQManagementClient() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [docSearchTerm, setDocSearchTerm] = useState('');
+  const [docSearchInput, setDocSearchInput] = useState('');
+  const [showDocDropdown, setShowDocDropdown] = useState(false);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [selectedDocTitle, setSelectedDocTitle] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [limit] = useState(50);
   const [offset, setOffset] = useState(0);
@@ -36,6 +49,9 @@ export function FAQManagementClient() {
       }
       if (searchTerm) {
         params.set('search', searchTerm);
+      }
+      if (selectedDocId) {
+        params.set('doc_id', selectedDocId);
       }
       params.set('limit', limit.toString());
       params.set('offset', offset.toString());
@@ -58,7 +74,85 @@ export function FAQManagementClient() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchTerm, limit, offset]);
+  }, [statusFilter, searchTerm, selectedDocId, limit, offset]);
+
+  // Fetch documents for searchable dropdown
+  const fetchDocuments = useCallback(async (search: string) => {
+    if (!search.trim()) {
+      setDocuments([]);
+      return;
+    }
+
+    try {
+      setLoadingDocs(true);
+      const response = await fetch(`/api/admin/docs?q=${encodeURIComponent(search)}&status=active&limit=20`);
+      
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+      const docs = data.docs || data.documents || [];
+      setDocuments(docs);
+    } catch (err) {
+      console.error('Document search error:', err);
+      setDocuments([]);
+    } finally {
+      setLoadingDocs(false);
+    }
+  }, []);
+
+  // Debounced document search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (docSearchInput.trim()) {
+        fetchDocuments(docSearchInput.trim());
+        setShowDocDropdown(true);
+      } else {
+        setDocuments([]);
+        setShowDocDropdown(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [docSearchInput, fetchDocuments]);
+
+  // Handle document selection
+  const handleDocSelect = (doc: Document) => {
+    setSelectedDocId(doc.id);
+    setSelectedDocTitle(doc.title);
+    setDocSearchInput('');
+    setDocSearchTerm('');
+    setShowDocDropdown(false);
+    setDocuments([]);
+    setOffset(0); // Reset pagination
+  };
+
+  // Clear document filter
+  const handleClearDoc = () => {
+    setSelectedDocId(null);
+    setSelectedDocTitle(null);
+    setDocSearchInput('');
+    setDocSearchTerm('');
+    setShowDocDropdown(false);
+    setDocuments([]);
+    setOffset(0); // Reset pagination
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.doc-filter-container')) {
+        setShowDocDropdown(false);
+      }
+    };
+
+    if (showDocDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showDocDropdown]);
 
   // Initial load and when filters change
   useEffect(() => {
@@ -158,6 +252,65 @@ export function FAQManagementClient() {
               </div>
             </div>
 
+            {/* Source Document Filter */}
+            <div className="flex-1 relative doc-filter-container">
+              <Label htmlFor="doc-filter">Source Document</Label>
+              {selectedDocId ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 px-3 py-2 border rounded-md bg-slate-50 text-sm">
+                    {selectedDocTitle || 'Selected document'}
+                  </div>
+                  <Button
+                    onClick={handleClearDoc}
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Input
+                    id="doc-filter"
+                    placeholder="Search document name..."
+                    value={docSearchInput}
+                    onChange={(e) => setDocSearchInput(e.target.value)}
+                    onFocus={() => {
+                      if (docSearchInput.trim() && documents.length > 0) {
+                        setShowDocDropdown(true);
+                      }
+                    }}
+                  />
+                  {showDocDropdown && documents.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                      {loadingDocs ? (
+                        <div className="p-3 text-center text-sm text-slate-500">
+                          <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                          Searching...
+                        </div>
+                      ) : (
+                        documents.map((doc) => (
+                          <button
+                            key={doc.id}
+                            onClick={() => handleDocSelect(doc)}
+                            className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm border-b last:border-b-0"
+                          >
+                            {doc.title}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                  {showDocDropdown && !loadingDocs && documents.length === 0 && docSearchInput.trim() && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg p-3 text-sm text-slate-500">
+                      No documents found
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Refresh */}
             <div className="flex items-end">
               <Button onClick={fetchFAQs} variant="outline" disabled={loading}>
@@ -198,7 +351,7 @@ export function FAQManagementClient() {
           ) : faqs.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-slate-600">
-                {searchTerm || statusFilter !== 'all'
+                {searchTerm || statusFilter !== 'all' || selectedDocId
                   ? 'No FAQs found matching your filters.'
                   : 'No FAQs found. Create FAQs by promoting items from the Inbox.'}
               </p>

@@ -28,6 +28,11 @@ export async function GET(request: NextRequest) {
       forwardParams.set('offset', offset);
     }
 
+    const docId = searchParams.get('doc_id');
+    if (docId) {
+      forwardParams.set('doc_id', docId);
+    }
+
     const queryString = forwardParams.toString();
     const path = `/admin/faqs${queryString ? `?${queryString}` : ''}`;
 

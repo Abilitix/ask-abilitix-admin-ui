@@ -24,6 +24,7 @@ import {
   Paperclip,
   Copy,
   CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 
 type LegacyInboxListProps = {
@@ -38,6 +39,14 @@ type LegacyInboxListProps = {
   onRefresh: () => void;
   docTitles?: Record<string, string>;
   docLoading?: boolean;
+  // Bulk selection props
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onSelectAll?: () => void;
+  bulkActionLoading?: boolean;
+  onBulkApprove?: () => void;
+  onBulkReject?: () => void;
+  onClearSelection?: () => void;
 };
 
 function renderDocBadges(
@@ -106,6 +115,13 @@ export function LegacyInboxList({
   onRefresh,
   docTitles,
   docLoading,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
+  bulkActionLoading = false,
+  onBulkApprove,
+  onBulkReject,
+  onClearSelection,
 }: LegacyInboxListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
@@ -358,22 +374,81 @@ export function LegacyInboxList({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium flex items-center space-x-2">
-          <Inbox className="h-4 w-4" />
-          <span>Inbox Items ({items.length})</span>
-        </CardTitle>
-        <Button onClick={onRefresh} variant="ghost" size="icon" title="Refresh inbox">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[200px]">Question</TableHead>
+    <>
+      {selectedIds && selectedIds.size > 0 && onBulkApprove && onBulkReject && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedIds.size} item(s) selected
+              </span>
+              {onClearSelection && (
+                <Button variant="link" size="sm" onClick={onClearSelection} className="text-blue-800">
+                  Clear selection
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onBulkApprove}
+                disabled={bulkActionLoading}
+                className="bg-green-50 border-green-300 text-green-800 hover:bg-green-100"
+              >
+                {bulkActionLoading ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                )}
+                Bulk Approve ({selectedIds.size})
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onBulkReject}
+                disabled={bulkActionLoading}
+                className="bg-red-50 border-red-300 text-red-800 hover:bg-red-100"
+              >
+                {bulkActionLoading ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <XCircle className="h-3 w-3 mr-1" />
+                )}
+                Bulk Reject ({selectedIds.size})
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium flex items-center space-x-2">
+            <Inbox className="h-4 w-4" />
+            <span>Inbox Items ({items.length})</span>
+          </CardTitle>
+          <Button onClick={onRefresh} variant="ghost" size="icon" title="Refresh inbox">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {selectedIds !== undefined && onToggleSelect && onSelectAll && (
+                    <TableHead className="w-12">
+                      <input
+                        type="checkbox"
+                        className="form-checkbox h-4 w-4 text-blue-600"
+                        checked={items.length > 0 && items.every((item) => selectedIds.has(item.id))}
+                        onChange={onSelectAll}
+                        disabled={bulkActionLoading}
+                      />
+                    </TableHead>
+                  )}
+                  <TableHead className="w-[200px]">Question</TableHead>
                 <TableHead className="w-[200px]">Document</TableHead>
                 <TableHead className="w-[300px]">Answer</TableHead>
                 <TableHead className="w-[120px]">Created</TableHead>
@@ -382,8 +457,28 @@ export function LegacyInboxList({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item) => (
+              {items.map((item) => {
+                const isBulkSelected = selectedIds?.has(item.id) ?? false;
+                return (
                 <TableRow key={item.id}>
+                  {selectedIds !== undefined && onToggleSelect && (
+                    <TableCell
+                      className="w-12"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSelect(item.id);
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        className="form-checkbox h-4 w-4 text-blue-600"
+                        checked={isBulkSelected}
+                        onChange={() => onToggleSelect(item.id)}
+                        disabled={bulkActionLoading}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="w-[200px]">
                     <div className="flex items-start gap-2 group">
                       <TooltipProvider>
@@ -621,7 +716,8 @@ export function LegacyInboxList({
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -667,7 +763,8 @@ export function LegacyInboxList({
         </div>,
         document.body
       )}
-    </Card>
+      </Card>
+    </>
   );
 }
 

@@ -118,8 +118,8 @@ export function getVisibleNavItems(role: UserRole, isMobile: boolean = false, us
   
   const navItems = [
     { href: "/", label: "Dashboard", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: true },
-    { href: "/admin/inbox", label: "Inbox", permission: "canAccessInbox" as keyof RolePermissions, mobileVisible: true },
-    { href: "/admin/docs", label: "Docs", permission: "canAccessDocs" as keyof RolePermissions, mobileVisible: true },
+    { href: "/admin/inbox", label: "Review Answers", permission: "canAccessInbox" as keyof RolePermissions, mobileVisible: true },
+    { href: "/admin/docs", label: "Upload Docs", permission: "canAccessDocs" as keyof RolePermissions, mobileVisible: true },
     { href: "/admin/faqs", label: "FAQ Management", permission: "canAccessFAQs" as keyof RolePermissions, mobileVisible: true },
     { href: "/admin/settings", label: "Settings", permission: "canAccessSettings" as keyof RolePermissions, mobileVisible: false },
     { href: "/admin/ai", label: "AI Assistant", permission: "canAccessDebug" as keyof RolePermissions, mobileVisible: false },

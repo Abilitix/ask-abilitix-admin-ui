@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, Search, Archive, ArchiveRestore, RefreshCw, X } from 'lucide-react';
+import { Loader2, Search, Archive, ArchiveRestore, RefreshCw, X, RotateCcw } from 'lucide-react';
 import type { FAQ, FAQStatus, FAQListResponse } from '@/lib/types/faq-lifecycle';
 
 type StatusFilter = FAQStatus | 'all';
@@ -36,6 +36,12 @@ export function FAQManagementClient() {
   const [total, setTotal] = useState(0);
   const [limit] = useState(50);
   const [offset, setOffset] = useState(0);
+  const [actionLoading, setActionLoading] = useState<Map<string, boolean>>(new Map());
+  const [supersedeModal, setSupersedeModal] = useState<{ open: boolean; obsoleteId: string | null; availableFaqs: FAQ[] }>({
+    open: false,
+    obsoleteId: null,
+    availableFaqs: [],
+  });
 
   // Fetch FAQs
   const fetchFAQs = useCallback(async () => {
@@ -206,6 +212,145 @@ export function FAQManagementClient() {
   const truncate = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
+  };
+
+  // Set loading state for a specific FAQ action
+  const setFaqLoading = (faqId: string, isLoading: boolean) => {
+    setActionLoading((prev) => {
+      const next = new Map(prev);
+      if (isLoading) {
+        next.set(faqId, true);
+      } else {
+        next.delete(faqId);
+      }
+      return next;
+    });
+  };
+
+  // Check if a FAQ action is loading
+  const isFaqLoading = (faqId: string) => actionLoading.get(faqId) || false;
+
+  // Archive FAQ
+  const handleArchive = async (faq: FAQ) => {
+    if (!confirm(`Are you sure you want to archive this FAQ?\n\n"${truncate(faq.question, 60)}"`)) {
+      return;
+    }
+
+    setFaqLoading(faq.id, true);
+    try {
+      const response = await fetch(`/api/admin/faqs/${faq.id}/archive`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || `Failed to archive FAQ: ${response.status}`);
+      }
+
+      toast.success('FAQ archived successfully');
+      await fetchFAQs(); // Refresh list
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to archive FAQ';
+      toast.error(errorMessage);
+      console.error('Archive error:', err);
+    } finally {
+      setFaqLoading(faq.id, false);
+    }
+  };
+
+  // Unarchive FAQ
+  const handleUnarchive = async (faq: FAQ) => {
+    if (!confirm(`Are you sure you want to unarchive this FAQ?\n\n"${truncate(faq.question, 60)}"`)) {
+      return;
+    }
+
+    setFaqLoading(faq.id, true);
+    try {
+      const response = await fetch(`/api/admin/faqs/${faq.id}/unarchive`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || `Failed to unarchive FAQ: ${response.status}`);
+      }
+
+      toast.success('FAQ unarchived successfully');
+      await fetchFAQs(); // Refresh list
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to unarchive FAQ';
+      toast.error(errorMessage);
+      console.error('Unarchive error:', err);
+    } finally {
+      setFaqLoading(faq.id, false);
+    }
+  };
+
+  // Open supersede modal and fetch available FAQs
+  const handleOpenSupersede = async (obsoleteFaq: FAQ) => {
+    try {
+      // Fetch active FAQs (excluding the one being superseded)
+      const response = await fetch('/api/admin/faqs?status=active&limit=100');
+      if (!response.ok) {
+        throw new Error('Failed to fetch available FAQs');
+      }
+      const data: FAQListResponse = await response.json();
+      const available = (data.items || []).filter((f) => f.id !== obsoleteFaq.id);
+
+      if (available.length === 0) {
+        toast.error('No active FAQs available to supersede with');
+        return;
+      }
+
+      setSupersedeModal({
+        open: true,
+        obsoleteId: obsoleteFaq.id,
+        availableFaqs: available,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load FAQs';
+      toast.error(errorMessage);
+      console.error('Supersede modal error:', err);
+    }
+  };
+
+  // Close supersede modal
+  const handleCloseSupersede = () => {
+    setSupersedeModal({ open: false, obsoleteId: null, availableFaqs: [] });
+  };
+
+  // Execute supersede action
+  const handleSupersede = async (newFaqId: string) => {
+    if (!supersedeModal.obsoleteId) return;
+
+    setFaqLoading(supersedeModal.obsoleteId, true);
+    try {
+      const response = await fetch('/api/admin/faqs/supersede', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          new_faq_id: newFaqId,
+          obsolete_faq_ids: [supersedeModal.obsoleteId],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || `Failed to supersede FAQ: ${response.status}`);
+      }
+
+      toast.success('FAQ superseded successfully');
+      handleCloseSupersede();
+      await fetchFAQs(); // Refresh list
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to supersede FAQ';
+      toast.error(errorMessage);
+      console.error('Supersede error:', err);
+    } finally {
+      setFaqLoading(supersedeModal.obsoleteId, false);
+    }
   };
 
   return (
@@ -399,28 +544,48 @@ export function FAQManagementClient() {
                         <td className="p-3">
                           <div className="flex gap-2">
                             {faq.status === 'active' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  toast.info('Archive functionality coming in Phase 2');
-                                }}
-                              >
-                                <Archive className="h-3 w-3 mr-1" />
-                                Archive
-                              </Button>
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleArchive(faq)}
+                                  disabled={isFaqLoading(faq.id)}
+                                >
+                                  {isFaqLoading(faq.id) ? (
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  ) : (
+                                    <Archive className="h-3 w-3 mr-1" />
+                                  )}
+                                  Archive
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenSupersede(faq)}
+                                  disabled={isFaqLoading(faq.id)}
+                                >
+                                  <RotateCcw className="h-3 w-3 mr-1" />
+                                  Supersede
+                                </Button>
+                              </>
                             )}
                             {faq.status === 'archived' && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => {
-                                  toast.info('Unarchive functionality coming in Phase 2');
-                                }}
+                                onClick={() => handleUnarchive(faq)}
+                                disabled={isFaqLoading(faq.id)}
                               >
-                                <ArchiveRestore className="h-3 w-3 mr-1" />
+                                {isFaqLoading(faq.id) ? (
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                  <ArchiveRestore className="h-3 w-3 mr-1" />
+                                )}
                                 Unarchive
                               </Button>
+                            )}
+                            {faq.status === 'superseded' && (
+                              <span className="text-xs text-slate-500 italic">Read-only</span>
                             )}
                           </div>
                         </td>
@@ -460,6 +625,57 @@ export function FAQManagementClient() {
           )}
         </CardContent>
       </Card>
+
+      {/* Supersede Modal */}
+      {supersedeModal.open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto m-4">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Supersede FAQ</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCloseSupersede}
+                  disabled={isFaqLoading(supersedeModal.obsoleteId || '')}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-sm text-slate-600">
+                Select the new FAQ that will replace the obsolete one:
+              </div>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {supersedeModal.availableFaqs.map((faq) => (
+                  <div
+                    key={faq.id}
+                    className="border rounded-md p-3 hover:bg-slate-50 cursor-pointer"
+                    onClick={() => {
+                      if (confirm(`Replace the obsolete FAQ with:\n\n"${truncate(faq.question, 60)}"?`)) {
+                        handleSupersede(faq.id);
+                      }
+                    }}
+                  >
+                    <div className="font-medium text-sm">{truncate(faq.question, 80)}</div>
+                    <div className="text-xs text-slate-500 mt-1">{truncate(faq.answer, 100)}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={handleCloseSupersede}
+                  disabled={isFaqLoading(supersedeModal.obsoleteId || '')}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

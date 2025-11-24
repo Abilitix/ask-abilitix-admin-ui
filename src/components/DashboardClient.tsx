@@ -32,7 +32,7 @@ const BASE_CARDS: Card[] = [
     key: "docs",
     href: "/admin/docs",
     title: "Upload Documents",
-    desc: "Upload; archive/unarchive; supersede",
+    desc: "Upload documents; generate FAQs; archive/unarchive; supersede",
   },
   {
     key: "faqs",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,12 @@ type Document = {
   id: string;
   title: string;
   status: string;
+};
+
+type SupersedeModalState = {
+  open: boolean;
+  obsoleteIds: string[];
+  availableFaqs: FAQ[];
 };
 
 export function FAQManagementClient() {
@@ -37,9 +43,12 @@ export function FAQManagementClient() {
   const [limit] = useState(50);
   const [offset, setOffset] = useState(0);
   const [actionLoading, setActionLoading] = useState<Map<string, boolean>>(new Map());
-  const [supersedeModal, setSupersedeModal] = useState<{ open: boolean; obsoleteId: string | null; availableFaqs: FAQ[] }>({
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  const [supersedeModal, setSupersedeModal] = useState<SupersedeModalState>({
     open: false,
-    obsoleteId: null,
+    obsoleteIds: [],
     availableFaqs: [],
   });
 
@@ -85,6 +94,19 @@ export function FAQManagementClient() {
       const data: FAQListResponse = await response.json();
       setFaqs(data.items || []);
       setTotal(data.total || 0);
+      setSelectedIds((prev) => {
+        if (prev.size === 0) return prev;
+        const currentIds = new Set((data.items || []).map((faq) => faq.id));
+        let changed = false;
+        const next = new Set(prev);
+        prev.forEach((id) => {
+          if (!currentIds.has(id)) {
+            next.delete(id);
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch FAQs';
       setError(errorMessage);
@@ -173,6 +195,16 @@ export function FAQManagementClient() {
     }
   }, [showDocDropdown]);
 
+  useEffect(() => {
+    if (!selectAllRef.current) return;
+    if (faqs.length === 0) {
+      selectAllRef.current.indeterminate = false;
+      return;
+    }
+    const selectedOnPage = faqs.filter((faq) => selectedIds.has(faq.id)).length;
+    selectAllRef.current.indeterminate = selectedOnPage > 0 && selectedOnPage < faqs.length;
+  }, [faqs, selectedIds]);
+
   // Initial load and when filters change
   useEffect(() => {
     fetchFAQs();
@@ -227,6 +259,36 @@ export function FAQManagementClient() {
     return text.substring(0, maxLength) + '...';
   };
 
+  const toggleSelect = (faqId: string) => {
+    if (bulkActionLoading) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(faqId)) {
+        next.delete(faqId);
+      } else {
+        next.add(faqId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (bulkActionLoading) return;
+    setSelectedIds((prev) => {
+      const pageIds = faqs.map((faq) => faq.id);
+      const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach((id) => next.delete(id));
+      } else {
+        pageIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
   // Set loading state for a specific FAQ action
   const setFaqLoading = (faqId: string, isLoading: boolean) => {
     setActionLoading((prev) => {
@@ -242,6 +304,20 @@ export function FAQManagementClient() {
 
   // Check if a FAQ action is loading
   const isFaqLoading = (faqId: string) => actionLoading.get(faqId) || false;
+
+  const selectedFaqs = faqs.filter((faq) => selectedIds.has(faq.id));
+  const selectedActiveIds = selectedFaqs.filter((faq) => faq.status === 'active').map((faq) => faq.id);
+  const selectedArchivedIds = selectedFaqs.filter((faq) => faq.status === 'archived').map((faq) => faq.id);
+  const hasSelection = selectedIds.size > 0;
+  const canBulkArchive = selectedActiveIds.length > 0;
+  const canBulkUnarchive = selectedArchivedIds.length > 0;
+  const canBulkSupersede = selectedActiveIds.length > 0;
+  const modalIsBulk = supersedeModal.obsoleteIds.length > 1;
+  const supersedeModalLoading = modalIsBulk
+    ? bulkActionLoading
+    : supersedeModal.obsoleteIds.length === 1
+      ? isFaqLoading(supersedeModal.obsoleteIds[0])
+      : false;
 
   // Archive FAQ
   const handleArchive = async (faq: FAQ) => {
@@ -304,8 +380,8 @@ export function FAQManagementClient() {
     }
   };
 
-  // Open supersede modal and fetch available FAQs
-  const handleOpenSupersede = async (obsoleteFaq: FAQ) => {
+  // Fetch active FAQs and open supersede modal
+  const openSupersedeModal = async (obsoleteIds: string[]) => {
     try {
       // Fetch active FAQs (excluding the one being superseded)
       const response = await fetch('/api/admin/faqs?status=active&limit=100');
@@ -313,7 +389,7 @@ export function FAQManagementClient() {
         throw new Error('Failed to fetch available FAQs');
       }
       const data: FAQListResponse = await response.json();
-      const available = (data.items || []).filter((f) => f.id !== obsoleteFaq.id);
+      const available = (data.items || []).filter((f) => !obsoleteIds.includes(f.id));
 
       if (available.length === 0) {
         toast.error('No active FAQs available to supersede with');
@@ -322,7 +398,7 @@ export function FAQManagementClient() {
 
       setSupersedeModal({
         open: true,
-        obsoleteId: obsoleteFaq.id,
+        obsoleteIds,
         availableFaqs: available,
       });
     } catch (err) {
@@ -332,26 +408,44 @@ export function FAQManagementClient() {
     }
   };
 
+  const handleOpenSupersede = (obsoleteFaq: FAQ) => {
+    openSupersedeModal([obsoleteFaq.id]);
+  };
+
+  const handleOpenBulkSupersede = () => {
+    if (selectedActiveIds.length === 0) {
+      toast.info('Select at least one active FAQ to supersede');
+      return;
+    }
+    openSupersedeModal(selectedActiveIds);
+  };
+
   // Close supersede modal
   const handleCloseSupersede = () => {
-    setSupersedeModal({ open: false, obsoleteId: null, availableFaqs: [] });
+    setSupersedeModal({ open: false, obsoleteIds: [], availableFaqs: [] });
   };
 
   // Execute supersede action
   const handleSupersede = async (newFaqId: string) => {
-    if (!supersedeModal.obsoleteId) return;
-
-    setFaqLoading(supersedeModal.obsoleteId, true);
+    if (!supersedeModal.obsoleteIds.length) return;
+    const isBulk = supersedeModal.obsoleteIds.length > 1;
+    if (isBulk) {
+      setBulkActionLoading(true);
+    } else {
+      setFaqLoading(supersedeModal.obsoleteIds[0], true);
+    }
     try {
-      const response = await fetch('/api/admin/faqs/supersede', {
+      const endpoint = isBulk ? '/api/admin/faqs/bulk-supersede' : '/api/admin/faqs/supersede';
+      const body = isBulk
+        ? { new_faq_id: newFaqId, obsolete_ids: supersedeModal.obsoleteIds }
+        : { new_faq_id: newFaqId, obsolete_faq_ids: supersedeModal.obsoleteIds };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          new_faq_id: newFaqId,
-          obsolete_faq_ids: [supersedeModal.obsoleteId],
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -359,15 +453,92 @@ export function FAQManagementClient() {
         throw new Error(errorData.details || `Failed to supersede FAQ: ${response.status}`);
       }
 
-      toast.success('FAQ superseded successfully');
+      toast.success(
+        isBulk
+          ? `Superseded ${supersedeModal.obsoleteIds.length} FAQ(s)`
+          : 'FAQ superseded successfully'
+      );
       handleCloseSupersede();
+      if (isBulk) {
+        clearSelection();
+      }
       await fetchFAQs(); // Refresh list
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to supersede FAQ';
       toast.error(errorMessage);
       console.error('Supersede error:', err);
     } finally {
-      setFaqLoading(supersedeModal.obsoleteId, false);
+      if (isBulk) {
+        setBulkActionLoading(false);
+      } else {
+        setFaqLoading(supersedeModal.obsoleteIds[0], false);
+      }
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (selectedActiveIds.length === 0) {
+      toast.info('Select active FAQs to archive');
+      return;
+    }
+    if (
+      !confirm(
+        `Archive ${selectedActiveIds.length} selected FAQ(s)?\n\nThis only hides the curated answer. The underlying document may still answer via RAG.`
+      )
+    ) {
+      return;
+    }
+    setBulkActionLoading(true);
+    try {
+      const response = await fetch('/api/admin/faqs/bulk-archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedActiveIds }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || `Failed to archive FAQs: ${response.status}`);
+      }
+      toast.success(`Archived ${selectedActiveIds.length} FAQ(s)`);
+      clearSelection();
+      await fetchFAQs();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to archive FAQs';
+      toast.error(errorMessage);
+      console.error('Bulk archive error:', err);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkUnarchive = async () => {
+    if (selectedArchivedIds.length === 0) {
+      toast.info('Select archived FAQs to unarchive');
+      return;
+    }
+    if (!confirm(`Unarchive ${selectedArchivedIds.length} selected FAQ(s)?`)) {
+      return;
+    }
+    setBulkActionLoading(true);
+    try {
+      const response = await fetch('/api/admin/faqs/bulk-unarchive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedArchivedIds }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || `Failed to unarchive FAQs: ${response.status}`);
+      }
+      toast.success(`Unarchived ${selectedArchivedIds.length} FAQ(s)`);
+      clearSelection();
+      await fetchFAQs();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to unarchive FAQs';
+      toast.error(errorMessage);
+      console.error('Bulk unarchive error:', err);
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -521,10 +692,64 @@ export function FAQManagementClient() {
             </div>
           ) : (
             <div className="space-y-4">
+              {hasSelection && (
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="font-medium text-slate-700">
+                    {selectedIds.size} selected
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleBulkArchive}
+                      disabled={!canBulkArchive || bulkActionLoading}
+                    >
+                      <Archive className="h-3 w-3 mr-1" />
+                      Archive
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleBulkUnarchive}
+                      disabled={!canBulkUnarchive || bulkActionLoading}
+                    >
+                      <ArchiveRestore className="h-3 w-3 mr-1" />
+                      Unarchive
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleOpenBulkSupersede}
+                      disabled={!canBulkSupersede || bulkActionLoading}
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Supersede
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={clearSelection}
+                      disabled={bulkActionLoading}
+                    >
+                      Clear selection
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b">
+                      <th className="p-3 w-10">
+                        <input
+                          ref={selectAllRef}
+                          type="checkbox"
+                          className="h-4 w-4"
+                          onChange={toggleSelectAll}
+                          checked={faqs.length > 0 && faqs.every((faq) => selectedIds.has(faq.id))}
+                          disabled={faqs.length === 0 || bulkActionLoading}
+                        />
+                      </th>
                       <th className="text-left p-3 font-medium text-sm text-slate-700">Question</th>
                       <th className="text-left p-3 font-medium text-sm text-slate-700">Answer</th>
                       <th className="text-left p-3 font-medium text-sm text-slate-700">Status</th>
@@ -533,8 +758,17 @@ export function FAQManagementClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {faqs.map((faq) => (
-                      <tr key={faq.id} className="border-b hover:bg-slate-50">
+                      {faqs.map((faq) => (
+                        <tr key={faq.id} className="border-b hover:bg-slate-50">
+                          <td className="p-3">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={selectedIds.has(faq.id)}
+                              onChange={() => toggleSelect(faq.id)}
+                              disabled={bulkActionLoading}
+                            />
+                          </td>
                         <td className="p-3">
                           <div className="font-medium text-sm">{truncate(faq.question, 60)}</div>
                         </td>
@@ -567,7 +801,7 @@ export function FAQManagementClient() {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleArchive(faq)}
-                                  disabled={isFaqLoading(faq.id)}
+                                  disabled={isFaqLoading(faq.id) || bulkActionLoading}
                                 >
                                   {isFaqLoading(faq.id) ? (
                                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -580,7 +814,7 @@ export function FAQManagementClient() {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleOpenSupersede(faq)}
-                                  disabled={isFaqLoading(faq.id)}
+                                  disabled={isFaqLoading(faq.id) || bulkActionLoading}
                                 >
                                   <RotateCcw className="h-3 w-3 mr-1" />
                                   Supersede
@@ -592,7 +826,7 @@ export function FAQManagementClient() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleUnarchive(faq)}
-                                disabled={isFaqLoading(faq.id)}
+                                disabled={isFaqLoading(faq.id) || bulkActionLoading}
                               >
                                 {isFaqLoading(faq.id) ? (
                                   <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -659,12 +893,16 @@ export function FAQManagementClient() {
               onClick={(e) => e.stopPropagation()}
             >
               <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
-                <CardTitle>Supersede FAQ</CardTitle>
+                <CardTitle>
+                  {modalIsBulk
+                    ? `Supersede ${supersedeModal.obsoleteIds.length} FAQs`
+                    : 'Supersede FAQ'}
+                </CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleCloseSupersede}
-                  disabled={isFaqLoading(supersedeModal.obsoleteId || '')}
+                  disabled={supersedeModalLoading}
                   aria-label="Close supersede dialog"
                 >
                   <X className="h-4 w-4" />
@@ -672,7 +910,7 @@ export function FAQManagementClient() {
               </CardHeader>
               <CardContent className="space-y-4 pb-6 pt-4">
                 <div className="text-sm text-slate-600">
-                  Select the new FAQ that will replace the obsolete one. Only active FAQs with citations are listed.
+                  Select the new FAQ that will replace the obsolete one(s). Only active FAQs with citations are listed.
                 </div>
                 <div className="space-y-2 overflow-y-auto pr-2" style={{ maxHeight: '60vh' }}>
                   {supersedeModal.availableFaqs.map((faq) => (
@@ -685,7 +923,7 @@ export function FAQManagementClient() {
                           handleSupersede(faq.id);
                         }
                       }}
-                      disabled={isFaqLoading(supersedeModal.obsoleteId || '')}
+                      disabled={supersedeModalLoading}
                     >
                       <div className="font-medium text-sm">{truncate(faq.question, 140)}</div>
                       <div className="text-xs text-slate-500 mt-1">{truncate(faq.answer, 170)}</div>
@@ -701,7 +939,7 @@ export function FAQManagementClient() {
                   <Button
                     variant="outline"
                     onClick={handleCloseSupersede}
-                    disabled={isFaqLoading(supersedeModal.obsoleteId || '')}
+                    disabled={supersedeModalLoading}
                   >
                     Cancel
                   </Button>

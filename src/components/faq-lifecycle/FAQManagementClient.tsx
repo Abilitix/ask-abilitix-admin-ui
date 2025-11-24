@@ -39,6 +39,10 @@ export function FAQManagementClient() {
   const [actionLoading, setActionLoading] = useState<Map<string, boolean>>(new Map());
   const [supersedeModal, setSupersedeModal] = useState<{ open: boolean; obsoleteId: string | null; availableFaqs: FAQ[] }>({
     open: false,
+    obsoleteId: null,
+    availableFaqs: [],
+  });
+
   // Lock body scroll when supersede modal is open
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -51,9 +55,6 @@ export function FAQManagementClient() {
     }
     return;
   }, [supersedeModal.open]);
-    obsoleteId: null,
-    availableFaqs: [],
-  });
 
   // Fetch FAQs
   const fetchFAQs = useCallback(async () => {

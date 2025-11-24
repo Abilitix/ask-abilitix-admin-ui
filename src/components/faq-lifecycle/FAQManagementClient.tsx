@@ -633,8 +633,13 @@ export function FAQManagementClient() {
 
       {/* Supersede Modal */}
       {supersedeModal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto m-4">
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 py-10 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Supersede FAQ"
+        >
+          <Card className="w-full max-w-3xl shadow-2xl">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Supersede FAQ</CardTitle>
@@ -650,23 +655,30 @@ export function FAQManagementClient() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-sm text-slate-600">
-                Select the new FAQ that will replace the obsolete one:
+                Select the new FAQ that will replace the obsolete one. Only active FAQs with citations are listed.
               </div>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
                 {supersedeModal.availableFaqs.map((faq) => (
-                  <div
+                  <button
                     key={faq.id}
-                    className="border rounded-md p-3 hover:bg-slate-50 cursor-pointer"
+                    type="button"
+                    className="w-full text-left border rounded-md p-3 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     onClick={() => {
-                      if (confirm(`Replace the obsolete FAQ with:\n\n"${truncate(faq.question, 60)}"?`)) {
+                      if (confirm(`Replace the obsolete FAQ with:\n\n"${truncate(faq.question, 80)}"?`)) {
                         handleSupersede(faq.id);
                       }
                     }}
+                    disabled={isFaqLoading(supersedeModal.obsoleteId || '')}
                   >
-                    <div className="font-medium text-sm">{truncate(faq.question, 80)}</div>
-                    <div className="text-xs text-slate-500 mt-1">{truncate(faq.answer, 100)}</div>
-                  </div>
+                    <div className="font-medium text-sm">{truncate(faq.question, 110)}</div>
+                    <div className="text-xs text-slate-500 mt-1">{truncate(faq.answer, 140)}</div>
+                  </button>
                 ))}
+                {supersedeModal.availableFaqs.length === 0 && (
+                  <div className="rounded-md border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    No eligible FAQs found. Create or approve a new FAQ to supersede with.
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button

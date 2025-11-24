@@ -25,14 +25,20 @@ const BASE_CARDS: Card[] = [
   {
     key: "inbox",
     href: "/admin/inbox",
-    title: "Inbox",
-    desc: "Approve/reject Q&A; copy citations",
+    title: "Review Answers",
+    desc: "Review and approve/reject Q&A; copy citations",
   },
   {
     key: "docs",
     href: "/admin/docs",
-    title: "Documents",
-    desc: "Upload; archive/unarchive; supersede",
+    title: "Upload Documents",
+    desc: "Upload documents; generate FAQs; archive/unarchive; supersede",
+  },
+  {
+    key: "faqs",
+    href: "/admin/faqs",
+    title: "FAQ Management",
+    desc: "Manage FAQ lifecycle; archive, unarchive, supersede",
   },
   {
     key: "settings",
@@ -70,6 +76,8 @@ export default function DashboardClient({ user }: DashboardClientProps) {
           return hasPermission(user.role, "canAccessInbox");
         case "docs":
           return hasPermission(user.role, "canAccessDocs");
+        case "faqs":
+          return hasPermission(user.role, "canAccessFAQs");
         case "settings":
           return hasPermission(user.role, "canAccessSettings");
         default:

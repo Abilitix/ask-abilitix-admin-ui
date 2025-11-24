@@ -219,7 +219,7 @@ export function InboxList({
           <Table>
             <TableHeader>
               <TableRow>
-                {selectedIds && onToggleSelect && onSelectAll && (
+                {selectedIds !== undefined && onToggleSelect && onSelectAll && (
                   <TableHead className="w-12">
                     <input
                       type="checkbox"
@@ -254,7 +254,7 @@ export function InboxList({
                       isSelected ? 'bg-slate-50' : 'hover:bg-slate-50',
                     ].join(' ')}
                   >
-                    {selectedIds && onToggleSelect && (
+                    {selectedIds !== undefined && onToggleSelect && (
                       <TableCell
                         className="w-12"
                         onClick={(e) => {

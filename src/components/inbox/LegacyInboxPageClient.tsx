@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { LegacyInboxList } from './LegacyInboxList';
 import { LegacyInboxStatsCard } from './LegacyInboxStatsCard';
 import { toast } from 'sonner';
+import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
 export type LegacyInboxItem = {
   id: string;
@@ -34,6 +35,9 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [docTitles, setDocTitles] = useState<Record<string, string>>({});
   const [docLoading, setDocLoading] = useState(false);
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   const fetchItems = useCallback(async () => {
     if (disabled) return;
@@ -249,6 +253,131 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
     }
   }, []);
 
+  // Bulk selection handlers
+  const handleToggleSelect = useCallback((id: string) => {
+    if (bulkActionLoading) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, [bulkActionLoading]);
+
+  const handleSelectAll = useCallback(() => {
+    if (bulkActionLoading) return;
+    setSelectedIds((prev) => {
+      const pageIds = items.map((item) => item.id);
+      const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach((id) => next.delete(id));
+      } else {
+        pageIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, [items, bulkActionLoading]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  // Bulk approve handler
+  const handleBulkApprove = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const confirmMessage = `Are you sure you want to bulk approve ${ids.length} inbox item(s)?`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const response = await fetch('/api/admin/inbox/bulk-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || `Failed to bulk approve: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.errors && result.errors.length > 0) {
+        toast.error(
+          `Bulk approve completed with errors for ${result.errors.length} of ${ids.length} item(s).`
+        );
+        console.error('Bulk approve errors:', result.errors);
+      } else {
+        toast.success(`Successfully bulk approved ${ids.length} item(s).`);
+      }
+
+      clearSelection();
+      await fetchItems(); // Refresh list
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to bulk approve items';
+      toast.error(errorMessage);
+      console.error('Bulk approve error:', err);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }, [selectedIds, clearSelection, fetchItems]);
+
+  // Bulk reject handler
+  const handleBulkReject = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const confirmMessage = `Are you sure you want to bulk reject ${ids.length} inbox item(s)?`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const response = await fetch('/api/admin/inbox/bulk-reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || `Failed to bulk reject: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.errors && result.errors.length > 0) {
+        toast.error(
+          `Bulk reject completed with errors for ${result.errors.length} of ${ids.length} item(s).`
+        );
+        console.error('Bulk reject errors:', result.errors);
+      } else {
+        toast.success(`Successfully bulk rejected ${ids.length} item(s).`);
+      }
+
+      clearSelection();
+      await fetchItems(); // Refresh list
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to bulk reject items';
+      toast.error(errorMessage);
+      console.error('Bulk reject error:', err);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }, [selectedIds, clearSelection, fetchItems]);
+
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
@@ -350,6 +479,13 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         onRefresh={fetchItems}
         docTitles={docTitles}
         docLoading={docLoading}
+        selectedIds={selectedIds}
+        onToggleSelect={handleToggleSelect}
+        onSelectAll={handleSelectAll}
+        bulkActionLoading={bulkActionLoading}
+        onBulkApprove={handleBulkApprove}
+        onBulkReject={handleBulkReject}
+        onClearSelection={clearSelection}
       />
     </div>
   );

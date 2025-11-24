@@ -26,6 +26,11 @@ type InboxListProps = {
   onSelect: (id: string) => void;
   onRefresh: () => void;
   onLoadMore: () => void;
+  // Bulk selection props
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onSelectAll?: () => void;
+  bulkActionLoading?: boolean;
 };
 
 function formatRelativeTime(value: string | null) {
@@ -114,6 +119,10 @@ export function InboxList({
   onSelect,
   onRefresh,
   onLoadMore,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
+  bulkActionLoading = false,
 }: InboxListProps) {
   // Ensure items is always an array
   const safeItems = Array.isArray(items) ? items : [];
@@ -210,6 +219,17 @@ export function InboxList({
           <Table>
             <TableHeader>
               <TableRow>
+                {selectedIds && onToggleSelect && onSelectAll && (
+                  <TableHead className="w-12">
+                    <input
+                      type="checkbox"
+                      className="form-checkbox h-4 w-4 text-blue-600"
+                      checked={items.length > 0 && items.every((item) => selectedIds.has(item.id))}
+                      onChange={onSelectAll}
+                      disabled={bulkActionLoading}
+                    />
+                  </TableHead>
+                )}
                 <TableHead className="w-[24ch]">Ref</TableHead>
                 <TableHead className="w-[18ch]">Hash</TableHead>
                 <TableHead>Tags</TableHead>
@@ -224,6 +244,7 @@ export function InboxList({
                 const when = formatRelativeTime(item.askedAt);
                 const isSelected = selectedId === item.id;
                 const safeTags = Array.isArray(item.tags) ? item.tags : [];
+                const isBulkSelected = selectedIds?.has(item.id) ?? false;
                 return (
                   <TableRow
                     key={item.id}
@@ -233,6 +254,24 @@ export function InboxList({
                       isSelected ? 'bg-slate-50' : 'hover:bg-slate-50',
                     ].join(' ')}
                   >
+                    {selectedIds && onToggleSelect && (
+                      <TableCell
+                        className="w-12"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSelect(item.id);
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          className="form-checkbox h-4 w-4 text-blue-600"
+                          checked={isBulkSelected}
+                          onChange={() => onToggleSelect(item.id)}
+                          disabled={bulkActionLoading}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="font-mono text-xs">{item.id}</TableCell>
                     <TableCell className="font-mono text-xs">
                       {item.qHash ?? '—'}

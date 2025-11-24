@@ -60,6 +60,7 @@ export function InboxPageClient({
   const [flagPanelOpen, setFlagPanelOpen] = useState(false);
   const [updatingKey, setUpdatingKey] = useState<keyof InitialInboxFlags | null>(null);
   const [modernActions, setModernActions] = useState<ModernInboxActions | null>(null);
+  const CITATIONS_LOCK_MESSAGE = 'Citations are required. This control is managed centrally.';
   const pendingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingRequestRef = useRef<{
     key: keyof InitialInboxFlags;
@@ -223,6 +224,10 @@ export function InboxPageClient({
   };
 
   const updateFlag = (key: keyof InitialInboxFlags, nextValue: boolean) => {
+    if (key === 'allowEmptyCitations') {
+      toast.info(CITATIONS_LOCK_MESSAGE);
+      return;
+    }
     if (pendingTimerRef.current) {
       clearTimeout(pendingTimerRef.current);
       pendingTimerRef.current = null;
@@ -333,9 +338,7 @@ export function InboxPageClient({
               </Button>
             </div>
             <Badge variant="outline">{modeSourceLabel}</Badge>
-            <Badge variant={flags.allowEmptyCitations ? 'outline' : 'secondary'}>
-              {flags.allowEmptyCitations ? 'Citations optional' : 'Citations required'}
-            </Badge>
+            <Badge variant="secondary">Citations required (locked)</Badge>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -384,6 +387,9 @@ export function InboxPageClient({
                 : updatingKey === key
                   ? 'Updating…'
                   : undefined;
+              const isLockedFlag = key === 'allowEmptyCitations';
+              const effectiveValue = isLockedFlag ? false : flags[key];
+              const lockTooltip = isLockedFlag ? CITATIONS_LOCK_MESSAGE : tooltipText;
               return (
                 <div key={key} className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
                   <div className="flex items-center justify-between">
@@ -394,26 +400,37 @@ export function InboxPageClient({
                     <div className="inline-flex items-center gap-2">
                       <Button
                         size="sm"
-                        variant={flags[key] ? 'default' : 'outline'}
+                        variant={effectiveValue ? 'default' : 'outline'}
                         onClick={() => updateFlag(key, true)}
-                        disabled={disabled || flags[key]}
-                        title={tooltipText}
-                        className={flags[key] ? 'bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700' : ''}
+                        disabled={disabled || effectiveValue || isLockedFlag}
+                        title={lockTooltip}
+                        className={
+                          effectiveValue
+                            ? 'bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700'
+                            : ''
+                        }
                       >
                         On
                       </Button>
                       <Button
                         size="sm"
-                        variant={!flags[key] ? 'default' : 'outline'}
+                        variant={!effectiveValue ? 'default' : 'outline'}
                         onClick={() => updateFlag(key, false)}
-                        disabled={disabled || !flags[key]}
-                        title={tooltipText}
-                        className={!flags[key] ? 'bg-gray-500 hover:bg-gray-600 text-white border-gray-500 hover:border-gray-600' : ''}
+                        disabled={disabled || !effectiveValue || isLockedFlag}
+                        title={lockTooltip}
+                        className={
+                          !effectiveValue
+                            ? 'bg-gray-500 hover:bg-gray-600 text-white border-gray-500 hover:border-gray-600'
+                            : ''
+                        }
                       >
                         Off
                       </Button>
                     </div>
                   </div>
+                  {isLockedFlag && (
+                    <p className="text-xs text-amber-600">{CITATIONS_LOCK_MESSAGE}</p>
+                  )}
                 </div>
               );
             })}
@@ -436,7 +453,7 @@ export function InboxPageClient({
           </Card>
           <ModernInboxClient
             allowActions={!!allowReviewPromote}
-            allowEmptyCitations={flags.allowEmptyCitations === true}
+            allowEmptyCitations={false}
             tenantId={tenantId}
             reviewFlagEnabled={flags.enableReviewPromote === true}
             hasReviewerAccess={canModerate}
@@ -448,7 +465,7 @@ export function InboxPageClient({
       ) : (
         <LegacyInboxPageClient 
           enableFaqCreation={flags.enableFaqCreation === true}
-          allowEmptyCitations={flags.allowEmptyCitations === true}
+          allowEmptyCitations={false}
         />
       )}
 

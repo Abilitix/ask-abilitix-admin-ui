@@ -6,6 +6,7 @@ export interface RolePermissions {
   canAccessDashboard: boolean;
   canAccessInbox: boolean;
   canAccessDocs: boolean;
+  canAccessFAQs: boolean;
   canAccessSettings: boolean;
   canAccessOnboarding: boolean;
   canAccessDebug: boolean;
@@ -23,6 +24,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessDashboard: true,
     canAccessInbox: true,
     canAccessDocs: true,
+    canAccessFAQs: true,
     canAccessSettings: true,
     canAccessOnboarding: true,
     canAccessDebug: true,
@@ -38,6 +40,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessDashboard: true,
     canAccessInbox: true,
     canAccessDocs: true,
+    canAccessFAQs: true,
     canAccessSettings: true,
     canAccessOnboarding: false,
     canAccessDebug: true,
@@ -53,6 +56,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessDashboard: true,
     canAccessInbox: true,
     canAccessDocs: true,
+    canAccessFAQs: true,
     canAccessSettings: false,
     canAccessOnboarding: false,
     canAccessDebug: false,
@@ -68,6 +72,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessDashboard: false, // Hide dashboard for viewers
     canAccessInbox: false,
     canAccessDocs: false, // Hide docs management for viewers
+    canAccessFAQs: false,
     canAccessSettings: false,
     canAccessOnboarding: false,
     canAccessDebug: true, // Allow Test Chat access
@@ -83,6 +88,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessDashboard: false,
     canAccessInbox: false,
     canAccessDocs: true,
+    canAccessFAQs: false,
     canAccessSettings: false,
     canAccessOnboarding: false,
     canAccessDebug: false,
@@ -114,6 +120,7 @@ export function getVisibleNavItems(role: UserRole, isMobile: boolean = false, us
     { href: "/", label: "Dashboard", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: true },
     { href: "/admin/inbox", label: "Inbox", permission: "canAccessInbox" as keyof RolePermissions, mobileVisible: true },
     { href: "/admin/docs", label: "Docs", permission: "canAccessDocs" as keyof RolePermissions, mobileVisible: true },
+    { href: "/admin/faqs", label: "FAQ Management", permission: "canAccessFAQs" as keyof RolePermissions, mobileVisible: true },
     { href: "/admin/settings", label: "Settings", permission: "canAccessSettings" as keyof RolePermissions, mobileVisible: false },
     { href: "/admin/ai", label: "AI Assistant", permission: "canAccessDebug" as keyof RolePermissions, mobileVisible: false },
     { href: "/pilot", label: "Pilot", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: false },

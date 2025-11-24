@@ -1077,6 +1077,11 @@ export function ModernInboxClient({
     hydrateDocMatches(missing);
   }, [items, hydrateDocMatches]);
 
+  // Bulk selection clear handler (declared early for use in other callbacks)
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
   const handleApplyFilters = useCallback(() => {
     const next: Filters = {
       ref: draftFilters.ref.trim(),
@@ -1162,25 +1167,6 @@ export function ModernInboxClient({
       return next;
     });
   }, [bulkActionLoading]);
-
-  const handleSelectAll = useCallback(() => {
-    if (bulkActionLoading) return;
-    setSelectedIds((prev) => {
-      const pageIds = displayItems.map((item) => item.id);
-      const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
-      const next = new Set(prev);
-      if (allSelected) {
-        pageIds.forEach((id) => next.delete(id));
-      } else {
-        pageIds.forEach((id) => next.add(id));
-      }
-      return next;
-    });
-  }, [displayItems, bulkActionLoading]);
-
-  const clearSelection = useCallback(() => {
-    setSelectedIds(new Set());
-  }, []);
 
   // Bulk approve handler
   const handleBulkApprove = useCallback(async () => {
@@ -1343,6 +1329,21 @@ export function ModernInboxClient({
         : false
     );
   }, [items, filters.docId]);
+
+  const handleSelectAll = useCallback(() => {
+    if (bulkActionLoading) return;
+    setSelectedIds((prev) => {
+      const pageIds = displayItems.map((item) => item.id);
+      const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach((id) => next.delete(id));
+      } else {
+        pageIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, [displayItems, bulkActionLoading]);
 
   useEffect(() => {
     if (!filters.docId || !selectedId) {

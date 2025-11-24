@@ -982,6 +982,53 @@ export function ModernInboxClient({
     return () => resetRefreshTimer();
   }, [loadList, resetRefreshTimer]);
 
+  const hydrateDocMatches = useCallback(
+    async (ids: string[]) => {
+      for (const id of ids) {
+        try {
+          const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}`, {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'include',
+          });
+          if (!response.ok) continue;
+          const json = await response.json().catch(() => null);
+          const detail = json ? normaliseDetail(json) : null;
+          const matches = detail?.topScores ?? null;
+          setItems((prev) =>
+            prev.map((item) =>
+              item.id === id ? { ...item, docMatches: matches } : item
+            )
+          );
+        } catch (err) {
+          console.warn('Failed to hydrate doc matches for inbox item', id, err);
+        } finally {
+          docHydrationRef.current.delete(id);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const missing = items
+      .filter(
+        (item) =>
+          !item.docMatches && !docHydrationRef.current.has(item.id)
+      )
+      .slice(0, 5)
+      .map((item) => item.id);
+    if (!missing.length) return;
+    missing.forEach((id) => docHydrationRef.current.add(id));
+    hydrateDocMatches(missing);
+  }, [items, hydrateDocMatches]);
+
+  // Bulk selection clear handler (declared early for use in other callbacks)
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+>>>>>>> d6ed26d (fix: Resolve TypeScript errors in bulk approve/reject feature)
   const handleApplyFilters = useCallback(() => {
     const next: Filters = {
       ref: draftFilters.ref.trim(),
@@ -1064,25 +1111,6 @@ export function ModernInboxClient({
       return next;
     });
   }, [bulkActionLoading]);
-
-  const handleSelectAll = useCallback(() => {
-    if (bulkActionLoading) return;
-    setSelectedIds((prev) => {
-      const pageIds = displayItems.map((item) => item.id);
-      const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
-      const next = new Set(prev);
-      if (allSelected) {
-        pageIds.forEach((id) => next.delete(id));
-      } else {
-        pageIds.forEach((id) => next.add(id));
-      }
-      return next;
-    });
-  }, [displayItems, bulkActionLoading]);
-
-  const clearSelection = useCallback(() => {
-    setSelectedIds(new Set());
-  }, []);
 
   // Bulk approve handler
   const handleBulkApprove = useCallback(async () => {
@@ -1234,6 +1262,43 @@ export function ModernInboxClient({
     onRegisterActions(actions);
   }, [detail, loadDetail, loadList, onRegisterActions, selectedId]);
 
+  const displayItems = useMemo(() => {
+    if (!filters.docId) {
+      return items;
+    }
+    return items.filter((item) =>
+      Array.isArray(item.docMatches)
+        ? item.docMatches.some((match) => match.docId === filters.docId)
+        : false
+    );
+  }, [items, filters.docId]);
+
+  const handleSelectAll = useCallback(() => {
+    if (bulkActionLoading) return;
+    setSelectedIds((prev) => {
+      const pageIds = displayItems.map((item) => item.id);
+      const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach((id) => next.delete(id));
+      } else {
+        pageIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, [displayItems, bulkActionLoading]);
+
+  useEffect(() => {
+    if (!filters.docId || !selectedId) {
+      return;
+    }
+    const stillVisible = displayItems.some((item) => item.id === selectedId);
+    if (!stillVisible) {
+      setSelectedId(null);
+    }
+  }, [displayItems, filters.docId, selectedId]);
+
+>>>>>>> d6ed26d (fix: Resolve TypeScript errors in bulk approve/reject feature)
   return (
     <div className="space-y-6" key={`${modeKey}:${selectedId ?? 'none'}`}>
       <Card>

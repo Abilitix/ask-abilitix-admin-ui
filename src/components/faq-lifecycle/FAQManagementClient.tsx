@@ -39,6 +39,18 @@ export function FAQManagementClient() {
   const [actionLoading, setActionLoading] = useState<Map<string, boolean>>(new Map());
   const [supersedeModal, setSupersedeModal] = useState<{ open: boolean; obsoleteId: string | null; availableFaqs: FAQ[] }>({
     open: false,
+  // Lock body scroll when supersede modal is open
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (supersedeModal.open) {
+      const original = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = original;
+      };
+    }
+    return;
+  }, [supersedeModal.open]);
     obsoleteId: null,
     availableFaqs: [],
   });
@@ -634,44 +646,43 @@ export function FAQManagementClient() {
       {/* Supersede Modal */}
       {supersedeModal.open && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 py-10 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           role="dialog"
           aria-modal="true"
           aria-label="Supersede FAQ"
         >
-          <Card className="w-full max-w-3xl shadow-2xl">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Supersede FAQ</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCloseSupersede}
-                  disabled={isFaqLoading(supersedeModal.obsoleteId || '')}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+          <Card className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-xl shadow-2xl">
+            <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+              <CardTitle>Supersede FAQ</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCloseSupersede}
+                disabled={isFaqLoading(supersedeModal.obsoleteId || '')}
+                aria-label="Close supersede dialog"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pb-6 pt-4">
               <div className="text-sm text-slate-600">
                 Select the new FAQ that will replace the obsolete one. Only active FAQs with citations are listed.
               </div>
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+              <div className="space-y-2 overflow-y-auto pr-2" style={{ maxHeight: '55vh' }}>
                 {supersedeModal.availableFaqs.map((faq) => (
                   <button
                     key={faq.id}
                     type="button"
                     className="w-full text-left border rounded-md p-3 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     onClick={() => {
-                      if (confirm(`Replace the obsolete FAQ with:\n\n"${truncate(faq.question, 80)}"?`)) {
+                      if (confirm(`Replace the obsolete FAQ with:\n\n"${truncate(faq.question, 110)}"?`)) {
                         handleSupersede(faq.id);
                       }
                     }}
                     disabled={isFaqLoading(supersedeModal.obsoleteId || '')}
                   >
-                    <div className="font-medium text-sm">{truncate(faq.question, 110)}</div>
-                    <div className="text-xs text-slate-500 mt-1">{truncate(faq.answer, 140)}</div>
+                    <div className="font-medium text-sm">{truncate(faq.question, 120)}</div>
+                    <div className="text-xs text-slate-500 mt-1">{truncate(faq.answer, 160)}</div>
                   </button>
                 ))}
                 {supersedeModal.availableFaqs.length === 0 && (
@@ -680,7 +691,7 @@ export function FAQManagementClient() {
                   </div>
                 )}
               </div>
-              <div className="flex justify-end gap-2 pt-4 border-t">
+              <div className="flex justify-end border-t pt-4">
                 <Button
                   variant="outline"
                   onClick={handleCloseSupersede}

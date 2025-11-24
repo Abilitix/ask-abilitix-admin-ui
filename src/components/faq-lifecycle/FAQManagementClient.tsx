@@ -232,7 +232,12 @@ export function FAQManagementClient() {
 
   // Archive FAQ
   const handleArchive = async (faq: FAQ) => {
-    if (!confirm(`Are you sure you want to archive this FAQ?\n\n"${truncate(faq.question, 60)}"`)) {
+    const archiveWarning = 'This only hides the curated answer. The underlying document may still answer via RAG.';
+    if (
+      !confirm(
+        `Are you sure you want to archive this FAQ?\n\n"${truncate(faq.question, 60)}"\n\n${archiveWarning}`
+      )
+    ) {
       return;
     }
 

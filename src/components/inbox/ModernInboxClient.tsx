@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
 const DEFAULT_LIMIT = 25;
 
@@ -433,6 +434,12 @@ export function ModernInboxClient({
   const [citationFieldErrors, setCitationFieldErrors] = useState<CitationFieldErrors[]>([]);
   const [permissionError, setPermissionError] = useState<boolean>(false);
   const [promoteConflict, setPromoteConflict] = useState<PromoteConflict | null>(null);
+  const [docOptions, setDocOptions] = useState<{ id: string; title: string }[]>([]);
+  const [docOptionsLoading, setDocOptionsLoading] = useState<boolean>(false);
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState<boolean>(false);
+  const docHydrationRef = useRef<Set<string>>(new Set());
 
   const filtersRef = useRef<Filters>(DEFAULT_FILTERS);
 
@@ -992,13 +999,14 @@ export function ModernInboxClient({
     setSelectedId(null);
     setDetail(null);
     setDetailError(null);
+    clearSelection(); // Clear bulk selection on filter change
 
     loadList({ append: false }, next);
 
     if (!changed) {
       loadList({ append: false }, next);
     }
-  }, [draftFilters, loadList]);
+  }, [draftFilters, loadList, clearSelection]);
 
   const handleResetFilters = useCallback(() => {
     const alreadyDefault =
@@ -1025,10 +1033,11 @@ export function ModernInboxClient({
     if (refreshTimeoutRef.current) return;
 
     refreshTimeoutRef.current = setTimeout(() => {
+      clearSelection(); // Clear bulk selection on refresh
       loadList({ append: false });
       resetRefreshTimer();
     }, 350);
-  }, [loadList, resetRefreshTimer]);
+  }, [loadList, resetRefreshTimer, clearSelection]);
 
   const handleLoadMore = useCallback(() => {
     if (!nextCursor) return;
@@ -1041,6 +1050,131 @@ export function ModernInboxClient({
     },
     []
   );
+
+  // Bulk selection handlers
+  const handleToggleSelect = useCallback((id: string) => {
+    if (bulkActionLoading) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, [bulkActionLoading]);
+
+  const handleSelectAll = useCallback(() => {
+    if (bulkActionLoading) return;
+    setSelectedIds((prev) => {
+      const pageIds = displayItems.map((item) => item.id);
+      const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach((id) => next.delete(id));
+      } else {
+        pageIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, [displayItems, bulkActionLoading]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  // Bulk approve handler
+  const handleBulkApprove = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const confirmMessage = `Are you sure you want to bulk approve ${ids.length} inbox item(s)?`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const response = await fetch('/api/admin/inbox/bulk-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || `Failed to bulk approve: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.errors && result.errors.length > 0) {
+        toast.error(
+          `Bulk approve completed with errors for ${result.errors.length} of ${ids.length} item(s).`
+        );
+        console.error('Bulk approve errors:', result.errors);
+      } else {
+        toast.success(`Successfully bulk approved ${ids.length} item(s).`);
+      }
+
+      clearSelection();
+      await loadList({ append: false }); // Refresh list
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to bulk approve items';
+      toast.error(errorMessage);
+      console.error('Bulk approve error:', err);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }, [selectedIds, clearSelection, loadList]);
+
+  // Bulk reject handler
+  const handleBulkReject = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const confirmMessage = `Are you sure you want to bulk reject ${ids.length} inbox item(s)?`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const response = await fetch('/api/admin/inbox/bulk-reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || `Failed to bulk reject: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.errors && result.errors.length > 0) {
+        toast.error(
+          `Bulk reject completed with errors for ${result.errors.length} of ${ids.length} item(s).`
+        );
+        console.error('Bulk reject errors:', result.errors);
+      } else {
+        toast.success(`Successfully bulk rejected ${ids.length} item(s).`);
+      }
+
+      clearSelection();
+      await loadList({ append: false }); // Refresh list
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to bulk reject items';
+      toast.error(errorMessage);
+      console.error('Bulk reject error:', err);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }, [selectedIds, clearSelection, loadList]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -1176,6 +1310,49 @@ export function ModernInboxClient({
         </CardContent>
       </Card>
 
+      {/* Bulk Actions Toolbar */}
+      {selectedIds.size > 0 && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-blue-800">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>{selectedIds.size} item(s) selected</span>
+              <Button variant="link" size="sm" onClick={clearSelection} className="text-blue-800">
+                Clear selection
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleBulkApprove}
+                disabled={bulkActionLoading}
+              >
+                {bulkActionLoading ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                )}
+                Bulk Approve ({selectedIds.size})
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleBulkReject}
+                disabled={bulkActionLoading}
+              >
+                {bulkActionLoading ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <XCircle className="h-3 w-3 mr-1" />
+                )}
+                Bulk Reject ({selectedIds.size})
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <InboxList
           items={Array.isArray(items) ? items : []}
@@ -1188,6 +1365,10 @@ export function ModernInboxClient({
           onRefresh={handleRefresh}
           onLoadMore={handleLoadMore}
           nextCursor={nextCursor}
+          selectedIds={selectedIds}
+          onToggleSelect={handleToggleSelect}
+          onSelectAll={handleSelectAll}
+          bulkActionLoading={bulkActionLoading}
         />
 
         <InboxDetailPanel

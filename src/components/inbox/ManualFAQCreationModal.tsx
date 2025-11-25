@@ -165,9 +165,10 @@ export function ManualFAQCreationModal({
     if (!isValid || validateAndPrepareCitations().citations.length === 0) {
       return false;
     }
-    if (requestSmeReview && assignees.length === 0) {
-      return false;
-    }
+    // Phase 2: SME review validation will be added when UI is implemented
+    // if (requestSmeReview && assignees.length === 0) {
+    //   return false;
+    // }
     return true;
   }, [question, answer, requestSmeReview, assignees, validateAndPrepareCitations]);
 
@@ -384,32 +385,7 @@ export function ManualFAQCreationModal({
             )}
           </div>
 
-          {/* SME Review Toggle - Phase 2 feature, disabled for now */}
-          {/* TODO: Enable when Phase 2 is implemented
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="request-sme-review"
-                checked={requestSmeReview}
-                onChange={(e) => setRequestSmeReview(e.target.checked)}
-                disabled={loading}
-                className="h-4 w-4"
-              />
-              <Label htmlFor="request-sme-review" className="cursor-pointer">
-                Request SME Review?
-              </Label>
-            </div>
-            {requestSmeReview && (
-              <div className="space-y-2 pl-6">
-                <Label>Assignees (Required)</Label>
-                <Select>
-                  {/* Assignee dropdown - Phase 2 */}
-                </Select>
-              </div>
-            )}
-          </div>
-          */}
+          {/* SME Review Toggle - Phase 2 feature, will be implemented in Phase 2 */}
         </CardContent>
         <div className="flex justify-end gap-2 p-4 border-t flex-shrink-0">
           <Button variant="outline" onClick={handleClose} disabled={loading}>

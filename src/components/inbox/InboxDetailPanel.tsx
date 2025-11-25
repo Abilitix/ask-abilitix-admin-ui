@@ -12,7 +12,12 @@ import {
   PreparedCitation,
   PromoteConflict,
 } from './ModernInboxClient';
-import { CitationsEditor, CitationRowError, EditableCitation } from './CitationsEditor';
+import {
+  CitationsEditor,
+  CitationRowError,
+  EditableCitation,
+  DocOption,
+} from './CitationsEditor';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
@@ -277,6 +282,10 @@ type InboxDetailPanelProps = {
   fieldErrors: CitationFieldErrors[];
   createAsFaq: boolean;
   setCreateAsFaq: (value: boolean) => void;
+  docOptions?: DocOption[];
+  docOptionsLoading?: boolean;
+  docOptionsError?: string | null;
+  onReloadDocOptions?: () => void;
   onAttach: (payload: { citations: PreparedCitation[] }) => Promise<boolean>;
   onPromote: (payload: {
     citations?: PreparedCitation[];
@@ -307,6 +316,10 @@ export function InboxDetailPanel({
   fieldErrors,
   createAsFaq,
   setCreateAsFaq,
+  docOptions,
+  docOptionsLoading,
+  docOptionsError,
+  onReloadDocOptions,
   onAttach,
   onPromote,
   onClearFieldErrors,
@@ -707,6 +720,10 @@ export function InboxDetailPanel({
             errors={combinedRowErrors}
             readOnly={!allowActions}
             disabled={!allowActions}
+            docOptions={docOptions}
+            docOptionsLoading={docOptionsLoading}
+            docOptionsError={docOptionsError}
+            onReloadDocOptions={onReloadDocOptions}
           />
 
           {generalError && (

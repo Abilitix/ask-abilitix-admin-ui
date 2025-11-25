@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { LegacyInboxList } from './LegacyInboxList';
 import { LegacyInboxStatsCard } from './LegacyInboxStatsCard';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Plus } from 'lucide-react';
+import { ManualFAQCreationModal } from './ManualFAQCreationModal';
+import { Button } from '@/components/ui/button';
 
 export type LegacyInboxItem = {
   id: string;
@@ -29,12 +31,18 @@ type LegacyInboxPageClientProps = {
 };
 
 export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, allowEmptyCitations = false }: LegacyInboxPageClientProps) {
+  const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
   const [items, setItems] = useState<LegacyInboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [docTitles, setDocTitles] = useState<Record<string, string>>({});
   const [docLoading, setDocLoading] = useState(false);
+  const [docTitlesError, setDocTitlesError] = useState<string | null>(null);
+  const docOptions = useMemo(
+    () => Object.entries(docTitles).map(([id, title]) => ({ id, title })),
+    [docTitles]
+  );
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
@@ -386,90 +394,71 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
     fetchItems();
   }, [fetchItems]);
 
-  useEffect(() => {
-    if (items.length === 0) return;
-    
-    let active = true;
-    const loadDocTitles = async () => {
-      try {
-        setDocLoading(true);
-        
-        // Collect all unique doc IDs from suggested_citations
-        const docIds = new Set<string>();
-        items.forEach((item) => {
-          if (item.suggested_citations) {
-            item.suggested_citations.forEach((cite) => {
-              if (cite.doc_id) {
-                docIds.add(cite.doc_id);
-              }
-            });
-          }
-        });
-        
-        if (docIds.size === 0) {
-          setDocLoading(false);
-          return;
-        }
-        
-        console.log('[LegacyInbox] Loading document titles for doc IDs:', Array.from(docIds));
-        
-        // Fetch all documents to get titles (max limit is 100 per Admin API)
-        const response = await fetch('/api/admin/docs?status=all&limit=100');
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(
-            (data && (data.details || data.error)) || 'Failed to load documents'
-          );
-        }
-        if (!active) return;
-        
-        const docsSource =
-          (Array.isArray(data?.docs) && data.docs) ||
-          (Array.isArray(data?.documents) && data.documents) ||
-          [];
-        
-        console.log('[LegacyInbox] Fetched documents:', docsSource.length, 'total');
-        
-        // Map document IDs to titles - include ALL documents, not just those in citations
-        // This ensures we have a complete mapping
-        const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
-          (acc: Record<string, string>, doc: any) => {
-            if (!doc || typeof doc !== 'object') return acc;
-            const id = doc.id;
-            if (!id || typeof id !== 'string') return acc;
-            const title =
-              typeof doc.title === 'string' && doc.title.trim().length > 0
-                ? doc.title.trim()
-                : id;
-            acc[id] = title;
-            return acc;
-          },
-          {}
+  const loadDocOptions = useCallback(async () => {
+    try {
+      setDocLoading(true);
+      setDocTitlesError(null);
+      const response = await fetch('/api/admin/docs?status=all&limit=100', {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.error) {
+        throw new Error(
+          (data && (data.details || data.error)) || 'Failed to load documents'
         );
-        
-        console.log('[LegacyInbox] Mapped document titles:', Object.keys(mapped).length, 'documents');
-        console.log('[LegacyInbox] Looking for:', Array.from(docIds));
-        console.log('[LegacyInbox] Found titles:', Array.from(docIds).map(id => ({ id, title: mapped[id] || 'NOT FOUND' })));
-        
-        setDocTitles(mapped);
-      } catch (err) {
-        console.error('[LegacyInbox] Failed to load document titles:', err);
-      } finally {
-        if (active) {
-          setDocLoading(false);
-        }
       }
-    };
-    
-    loadDocTitles();
-    return () => {
-      active = false;
-    };
-  }, [items]);
+      const docsSource =
+        (Array.isArray(data?.docs) && data.docs) ||
+        (Array.isArray(data?.documents) && data.documents) ||
+        [];
+
+      const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
+        (acc: Record<string, string>, doc: any) => {
+          if (!doc || typeof doc !== 'object') return acc;
+          const id = doc.id;
+          if (!id || typeof id !== 'string') return acc;
+          const title =
+            typeof doc.title === 'string' && doc.title.trim().length > 0
+              ? doc.title.trim()
+              : id;
+          acc[id] = title;
+          return acc;
+        },
+        {}
+      );
+
+      setDocTitles(mapped);
+    } catch (err) {
+      console.error('[LegacyInbox] Failed to load document titles:', err);
+      setDocTitlesError(
+        err instanceof Error ? err.message : 'Failed to load documents'
+      );
+    } finally {
+      setDocLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDocOptions();
+  }, [loadDocOptions]);
 
   return (
     <div className="space-y-6">
-      <LegacyInboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
+      <div className="flex items-center justify-between">
+        <LegacyInboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
+        {enableFaqCreation && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setManualFaqModalOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create FAQ
+          </Button>
+        )}
+      </div>
 
       <LegacyInboxList
         items={items}
@@ -483,6 +472,10 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         onRefresh={fetchItems}
         docTitles={docTitles}
         docLoading={docLoading}
+        docOptions={docOptions}
+        docOptionsLoading={docLoading}
+        docOptionsError={docTitlesError}
+        onReloadDocOptions={loadDocOptions}
         selectedIds={selectedIds}
         onToggleSelect={handleToggleSelect}
         onSelectAll={handleSelectAll}
@@ -490,6 +483,15 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         onBulkApprove={handleBulkApprove}
         onBulkReject={handleBulkReject}
         onClearSelection={clearSelection}
+      />
+
+      {/* Manual FAQ Creation Modal */}
+      <ManualFAQCreationModal
+        open={manualFaqModalOpen}
+        onClose={() => setManualFaqModalOpen(false)}
+        onSuccess={() => {
+          fetchItems();
+        }}
       />
     </div>
   );

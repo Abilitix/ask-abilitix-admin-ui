@@ -524,12 +524,10 @@ export function LegacyInboxList({
                   <TableHead className="w-[200px]">Question</TableHead>
                 <TableHead className="w-[200px]">Document</TableHead>
                 <TableHead className="w-[300px]">Answer</TableHead>
-                <TableHead className="w-[100px]">Source</TableHead>
+                <TableHead className="w-[140px]">Status & Source</TableHead>
                 <TableHead className="w-[120px]">Assignment</TableHead>
-                <TableHead className="w-[100px]">Status</TableHead>
-                <TableHead className="w-[120px]">Created</TableHead>
-                <TableHead className="w-[100px]">PII</TableHead>
-                <TableHead className="w-[150px]">Actions</TableHead>
+                <TableHead className="w-[100px]">Created</TableHead>
+                <TableHead className="w-[180px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -644,116 +642,41 @@ export function LegacyInboxList({
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="w-[100px]">
-                    {renderSourceBadge(item.source_type)}
+                  <TableCell className="w-[140px]">
+                    <div className="flex flex-col gap-1">
+                      {renderStatusBadge(item.status)}
+                      {renderSourceBadge(item.source_type)}
+                      {item.has_pii && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0.5">
+                                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                                PII
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>PII detected in fields: {item.pii_fields?.join(', ') || 'unknown'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="w-[120px]">
                     <AssignmentBadge assignees={item.assignedTo} size="sm" />
                   </TableCell>
-                  <TableCell className="w-[100px]">
-                    {renderStatusBadge(item.status)}
+                  <TableCell className="text-xs text-muted-foreground w-[100px]">
+                    {new Date(item.created_at).toLocaleDateString()}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground w-[120px]">
-                    {formatDate(item.created_at)}
-                  </TableCell>
-                  <TableCell className="w-[100px]">
-                    {item.has_pii ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge variant="destructive" className="flex items-center space-x-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              <span>PII</span>
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>PII detected in fields: {item.pii_fields?.join(', ') || 'unknown'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : (
-                      <Badge variant="secondary">Clean</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="w-[150px]">
+                  <TableCell className="w-[180px]">
                     <div className="flex flex-col gap-1.5">
-                      {enableFaqCreation && (
-                        <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                            checked={faqSelections[item.id] ?? true}
-                            disabled={editingId === item.id}
-                            onChange={(event) =>
-                              setFaqSelections((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.checked,
-                              }))
-                            }
-                          />
-                          <span>Create as FAQ</span>
-                        </label>
-                      )}
-                      {/* Request SME Review button - visible for pending, unassigned items */}
-                      {onRequestReview &&
-                        item.status === 'pending' &&
-                        (!item.assignedTo || item.assignedTo.length === 0) && (
-                          <Button
-                            onClick={() => onRequestReview(item)}
-                            size="sm"
-                            variant="outline"
-                            disabled={editingId === item.id}
-                            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                          >
-                            <ListChecks className="h-3 w-3 mr-1" />
-                            Request Review
-                          </Button>
-                        )}
-                      {/* Citations preview or attach button */}
-                      {item.suggested_citations && item.suggested_citations.length > 0 ? (
-                        <div className="space-y-1">
-                          <div className="text-[10px] text-muted-foreground font-medium">Citations (auto-used):</div>
-                          <div className="flex flex-wrap gap-1">
-                            {item.suggested_citations.slice(0, 2).map((cite, idx) => (
-                              <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0.5 bg-muted/50">
-                                {cite.doc_id.substring(0, 12)}...
-                                {cite.page && <span className="ml-1 text-muted-foreground">p.{cite.page}</span>}
-                              </Badge>
-                            ))}
-                            {item.suggested_citations.length > 2 && (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-muted/50">
-                                +{item.suggested_citations.length - 2}
-                              </Badge>
-                            )}
-                          </div>
-                          <Button
-                            onClick={() => handleOpenAttachModal(item.id)}
-                            size="sm"
-                            variant="ghost"
-                            disabled={editingId === item.id}
-                            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                          >
-                            <Edit2 className="h-3 w-3 mr-1" />
-                            Edit
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => handleOpenAttachModal(item.id)}
-                          size="sm"
-                          variant="ghost"
-                          disabled={editingId === item.id}
-                          className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                        >
-                          <Paperclip className="h-3 w-3 mr-1" />
-                          Attach
-                        </Button>
-                      )}
-                      <div className="flex space-x-2">
+                      {/* Primary actions row */}
+                      <div className="flex gap-1">
                         <Button
                           onClick={() => handleApprove(item.id)}
                           size="sm"
-                          className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
+                          className="flex-1 !bg-green-600 !hover:bg-green-700 !text-white text-xs h-7"
                           disabled={
                             editingId === item.id ||
                             (!allowEmptyCitations &&
@@ -769,26 +692,18 @@ export function LegacyInboxList({
                           }
                         >
                           {actionStates[item.id] === 'approving' ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              Approving...
-                            </>
+                            <Loader2 className="h-3 w-3 animate-spin" />
                           ) : actionStates[item.id] === 'approved' ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Approved
-                            </>
+                            <CheckCircle2 className="h-3 w-3" />
                           ) : (
-                            <>
-                              <Check className="h-4 w-4 mr-1" />
-                              Approve
-                            </>
+                            <Check className="h-3 w-3" />
                           )}
                         </Button>
                         <Button
                           onClick={() => handleReject(item.id)}
                           size="sm"
                           variant="destructive"
+                          className="flex-1 text-xs h-7"
                           disabled={
                             editingId === item.id ||
                             actionStates[item.id] === 'rejecting' ||
@@ -796,22 +711,71 @@ export function LegacyInboxList({
                           }
                         >
                           {actionStates[item.id] === 'rejecting' ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              Rejecting...
-                            </>
+                            <Loader2 className="h-3 w-3 animate-spin" />
                           ) : actionStates[item.id] === 'rejected' ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Rejected
-                            </>
+                            <CheckCircle2 className="h-3 w-3" />
                           ) : (
-                            <>
-                              <X className="h-4 w-4 mr-1" />
-                              Reject
-                            </>
+                            <X className="h-3 w-3" />
                           )}
                         </Button>
+                      </div>
+                      {/* Secondary actions row */}
+                      <div className="flex gap-1 flex-wrap">
+                        {onRequestReview &&
+                          item.status === 'pending' &&
+                          (!item.assignedTo || item.assignedTo.length === 0) && (
+                            <Button
+                              onClick={() => onRequestReview(item)}
+                              size="sm"
+                              variant="outline"
+                              disabled={editingId === item.id}
+                              className="h-6 px-2 text-[10px]"
+                            >
+                              <ListChecks className="h-3 w-3 mr-0.5" />
+                              Review
+                            </Button>
+                          )}
+                        {item.suggested_citations && item.suggested_citations.length > 0 ? (
+                          <Button
+                            onClick={() => handleOpenAttachModal(item.id)}
+                            size="sm"
+                            variant="ghost"
+                            disabled={editingId === item.id}
+                            className="h-6 px-2 text-[10px]"
+                            title={`${item.suggested_citations.length} citation(s)`}
+                          >
+                            <Edit2 className="h-3 w-3 mr-0.5" />
+                            Edit
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => handleOpenAttachModal(item.id)}
+                            size="sm"
+                            variant="ghost"
+                            disabled={editingId === item.id}
+                            className="h-6 px-2 text-[10px]"
+                          >
+                            <Paperclip className="h-3 w-3 mr-0.5" />
+                            Cite
+                          </Button>
+                        )}
+                        {enableFaqCreation && (
+                          <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="h-3 w-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                              checked={faqSelections[item.id] ?? true}
+                              disabled={editingId === item.id}
+                              onChange={(event) =>
+                                setFaqSelections((prev) => ({
+                                  ...prev,
+                                  [item.id]: event.target.checked,
+                                }))
+                              }
+                            />
+                            <span>FAQ</span>
+                          </label>
+                        )}
                       </div>
                     </div>
                   </TableCell>

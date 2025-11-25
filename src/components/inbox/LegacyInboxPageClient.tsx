@@ -64,28 +64,41 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
       setLoading(true);
       setError(null);
 
-      // Fetch all inbox items (no status filter) - we'll filter client-side
-      // This ensures we get both 'pending' and 'needs_review' items
-      const response = await fetch('/api/admin/inbox');
+      // Fetch both 'pending' and 'needs_review' items by making two API calls
+      // The backend API filters by status, so we need to explicitly request both
+      const [pendingResponse, needsReviewResponse] = await Promise.all([
+        fetch('/api/admin/inbox?status=pending'),
+        fetch('/api/admin/inbox?status=needs_review'),
+      ]);
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch inbox items: ${response.status}`);
+      if (!pendingResponse.ok) {
+        throw new Error(`Failed to fetch pending items: ${pendingResponse.status}`);
+      }
+      if (!needsReviewResponse.ok) {
+        throw new Error(`Failed to fetch needs_review items: ${needsReviewResponse.status}`);
       }
 
-      const data = await response.json();
+      const pendingData = await pendingResponse.json();
+      const needsReviewData = await needsReviewResponse.json();
 
-      if (data.error) {
-        throw new Error(data.details || data.error);
+      if (pendingData.error) {
+        throw new Error(pendingData.details || pendingData.error);
+      }
+      if (needsReviewData.error) {
+        throw new Error(needsReviewData.details || needsReviewData.error);
       }
 
-      // Normalize items with Phase 2 fields
-      const rawItems = data.items || [];
-      // Filter to only show pending and needs_review items (exclude approved/rejected)
-      const activeItems = rawItems.filter((item: any) => {
-        const status = item.status || 'pending';
-        return status === 'pending' || status === 'needs_review';
+      // Merge items from both statuses
+      const pendingItems = Array.isArray(pendingData.items) ? pendingData.items : [];
+      const needsReviewItems = Array.isArray(needsReviewData.items) ? needsReviewData.items : [];
+      const rawItems = [...pendingItems, ...needsReviewItems];
+      
+      // Remove duplicates by id (in case backend returns same item in both)
+      const uniqueItems = rawItems.filter((item: any, index: number, self: any[]) => {
+        const id = item.id || item.ref_id;
+        return id && index === self.findIndex((i: any) => (i.id || i.ref_id) === id);
       });
-      const normalizedItems: LegacyInboxItem[] = activeItems.map((item: any) => {
+      const normalizedItems: LegacyInboxItem[] = uniqueItems.map((item: any) => {
         const normalized: LegacyInboxItem = {
           id: item.id || item.ref_id || '',
           question: item.question || '',
@@ -560,6 +573,7 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
   const handleReviewSuccess = useCallback(
     ({ assignedTo, status, reason }: { assignedTo: AssignableMember[]; status?: string; reason?: string }) => {
       if (!selectedItemForReview) return;
+      // Update the item in state immediately for instant feedback
       setItems((prev) =>
         prev.map((item) =>
           item.id === selectedItemForReview.id
@@ -575,8 +589,10 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
       );
       setSmeModalOpen(false);
       setSelectedItemForReview(null);
+      // Refresh from API to ensure we have the latest data including needs_review items
+      setTimeout(() => fetchItems(), 500);
     },
-    [selectedItemForReview]
+    [selectedItemForReview, fetchItems]
   );
 
   return (

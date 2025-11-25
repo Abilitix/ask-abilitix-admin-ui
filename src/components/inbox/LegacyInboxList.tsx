@@ -503,16 +503,34 @@ export function LegacyInboxList({
         </CardHeader>
         <CardContent>
           {assignedToMeOnly && items.length === 0 && !loading && (
-            <div className="py-8 text-center">
-              <p className="text-sm text-muted-foreground mb-2">
-                No items assigned to you.
-              </p>
-              <button
-                onClick={onToggleAssignedToMe}
-                className="text-xs text-blue-600 hover:text-blue-700 underline"
-              >
-                Uncheck "Assigned to me" to see all items
-              </button>
+            <div className="py-12 text-center space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">
+                  No items assigned to you.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  The "Assigned to me" filter is active. Clear it to see all inbox items.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  onClick={onToggleAssignedToMe}
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                >
+                  Clear Filter
+                </Button>
+                <Button
+                  onClick={onRefresh}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                  Refresh
+                </Button>
+              </div>
             </div>
           )}
           {!assignedToMeOnly && items.length === 0 && !loading && !error && (

@@ -275,6 +275,8 @@ type InboxDetailPanelProps = {
   permissionError: boolean;
   promoteConflict: PromoteConflict | null;
   fieldErrors: CitationFieldErrors[];
+  createAsFaq: boolean;
+  setCreateAsFaq: (value: boolean) => void;
   onAttach: (payload: { citations: PreparedCitation[] }) => Promise<boolean>;
   onPromote: (payload: {
     citations?: PreparedCitation[];
@@ -303,6 +305,8 @@ export function InboxDetailPanel({
   permissionError,
   promoteConflict,
   fieldErrors,
+  createAsFaq,
+  setCreateAsFaq,
   onAttach,
   onPromote,
   onClearFieldErrors,
@@ -312,7 +316,6 @@ export function InboxDetailPanel({
   const [clientErrors, setClientErrors] = useState<CitationRowError[]>([]);
   const [showErrors, setShowErrors] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const [createAsFaq, setCreateAsFaq] = useState(true);
   const [questionCopied, setQuestionCopied] = useState(false);
   const [promoteSuccess, setPromoteSuccess] = useState(false);
 
@@ -331,9 +334,9 @@ export function InboxDetailPanel({
     setClientErrors(next.map(() => ({})));
     setShowErrors(false);
     setGeneralError(null);
-    setCreateAsFaq(true);
+    setCreateAsFaq(true); // Reset to true when detail changes
     onClearFieldErrors();
-  }, [detail, onClearFieldErrors]);
+  }, [detail, onClearFieldErrors, setCreateAsFaq]);
 
   useEffect(() => {
     setClientErrors((prev) => {

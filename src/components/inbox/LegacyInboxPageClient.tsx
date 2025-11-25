@@ -298,10 +298,14 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
 
     setBulkActionLoading(true);
     try {
+      // Default to true for bulk approve (consistent with single approve default)
       const response = await fetch('/api/admin/inbox/bulk-approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify({ 
+          ids,
+          as_faq: true, // Default to true for bulk approve
+        }),
         cache: 'no-store',
       });
 

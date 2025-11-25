@@ -15,6 +15,7 @@ import {
   DocOption,
 } from '@/components/inbox/CitationsEditor';
 import { LegacyInboxItem } from './LegacyInboxPageClient';
+import { AssignmentBadge } from './AssignmentBadge';
 import {
   Check,
   X,
@@ -29,6 +30,7 @@ import {
   Copy,
   CheckCircle2,
   XCircle,
+  ListChecks,
 } from 'lucide-react';
 
 type LegacyInboxListProps = {
@@ -47,6 +49,7 @@ type LegacyInboxListProps = {
   docOptionsLoading?: boolean;
   docOptionsError?: string | null;
   onReloadDocOptions?: () => void;
+  onRequestReview?: (item: LegacyInboxItem) => void;
   // Bulk selection props
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
@@ -56,6 +59,63 @@ type LegacyInboxListProps = {
   onBulkReject?: () => void;
   onClearSelection?: () => void;
 };
+
+function renderSourceBadge(source?: string | null) {
+  if (!source) return <Badge variant="outline" className="text-[11px]">Auto</Badge>;
+  const label = source.replace('_', ' ');
+  switch (source) {
+    case 'manual':
+      return (
+        <Badge className="text-[11px] bg-slate-900 text-white" title="Manually created">
+          Manual
+        </Badge>
+      );
+    case 'admin_review':
+      return (
+        <Badge className="text-[11px] bg-purple-100 text-purple-800" title="Requires SME review">
+          Admin review
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-[11px]">
+          {label}
+        </Badge>
+      );
+  }
+}
+
+function renderStatusBadge(status?: string | null) {
+  if (!status) return <Badge variant="outline" className="text-[11px]">Pending</Badge>;
+  switch (status) {
+    case 'pending':
+      return <Badge variant="outline" className="text-[11px]">Pending</Badge>;
+    case 'needs_review':
+      return (
+        <Badge className="text-[11px] bg-amber-100 text-amber-900" title="Needs SME review">
+          Needs Review
+        </Badge>
+      );
+    case 'approved':
+      return (
+        <Badge className="text-[11px] bg-green-100 text-green-900" title="Approved">
+          Approved
+        </Badge>
+      );
+    case 'rejected':
+      return (
+        <Badge className="text-[11px] bg-red-100 text-red-900" title="Rejected">
+          Rejected
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-[11px]">
+          {status}
+        </Badge>
+      );
+  }
+}
 
 function renderDocBadges(
   item: LegacyInboxItem,
@@ -127,6 +187,7 @@ export function LegacyInboxList({
   docOptionsLoading,
   docOptionsError,
   onReloadDocOptions,
+  onRequestReview,
   selectedIds,
   onToggleSelect,
   onSelectAll,
@@ -463,6 +524,9 @@ export function LegacyInboxList({
                   <TableHead className="w-[200px]">Question</TableHead>
                 <TableHead className="w-[200px]">Document</TableHead>
                 <TableHead className="w-[300px]">Answer</TableHead>
+                <TableHead className="w-[100px]">Source</TableHead>
+                <TableHead className="w-[120px]">Assignment</TableHead>
+                <TableHead className="w-[100px]">Status</TableHead>
                 <TableHead className="w-[120px]">Created</TableHead>
                 <TableHead className="w-[100px]">PII</TableHead>
                 <TableHead className="w-[150px]">Actions</TableHead>
@@ -580,6 +644,15 @@ export function LegacyInboxList({
                       </div>
                     )}
                   </TableCell>
+                  <TableCell className="w-[100px]">
+                    {renderSourceBadge(item.source_type)}
+                  </TableCell>
+                  <TableCell className="w-[120px]">
+                    <AssignmentBadge assignees={item.assignedTo} size="sm" />
+                  </TableCell>
+                  <TableCell className="w-[100px]">
+                    {renderStatusBadge(item.status)}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground w-[120px]">
                     {formatDate(item.created_at)}
                   </TableCell>
@@ -621,6 +694,21 @@ export function LegacyInboxList({
                           <span>Create as FAQ</span>
                         </label>
                       )}
+                      {/* Request SME Review button - visible for pending, unassigned items */}
+                      {onRequestReview &&
+                        item.status === 'pending' &&
+                        (!item.assignedTo || item.assignedTo.length === 0) && (
+                          <Button
+                            onClick={() => onRequestReview(item)}
+                            size="sm"
+                            variant="outline"
+                            disabled={editingId === item.id}
+                            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                          >
+                            <ListChecks className="h-3 w-3 mr-1" />
+                            Request Review
+                          </Button>
+                        )}
                       {/* Citations preview or attach button */}
                       {item.suggested_citations && item.suggested_citations.length > 0 ? (
                         <div className="space-y-1">

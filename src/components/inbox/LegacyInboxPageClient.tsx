@@ -6,7 +6,9 @@ import { LegacyInboxStatsCard } from './LegacyInboxStatsCard';
 import { toast } from 'sonner';
 import { CheckCircle2, XCircle, Loader2, Plus } from 'lucide-react';
 import { ManualFAQCreationModal } from './ManualFAQCreationModal';
+import { SMEReviewRequestModal } from './SMEReviewRequestModal';
 import { Button } from '@/components/ui/button';
+import { AssignableMember } from './types';
 
 export type LegacyInboxItem = {
   id: string;
@@ -15,7 +17,12 @@ export type LegacyInboxItem = {
   created_at: string;
   has_pii?: boolean;
   pii_fields?: string[];
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'needs_review';
+  source_type?: 'auto' | 'manual' | 'admin_review' | null;
+  assignedTo?: AssignableMember[] | null;
+  reason?: string | null;
+  assignedAt?: string | null;
+  requestedBy?: AssignableMember | null;
   suggested_citations?: Array<{
     doc_id: string;
     title?: string;
@@ -32,6 +39,8 @@ type LegacyInboxPageClientProps = {
 
 export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, allowEmptyCitations = false }: LegacyInboxPageClientProps) {
   const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
+  const [smeModalOpen, setSmeModalOpen] = useState<boolean>(false);
+  const [selectedItemForReview, setSelectedItemForReview] = useState<LegacyInboxItem | null>(null);
   const [items, setItems] = useState<LegacyInboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +74,54 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         throw new Error(data.details || data.error);
       }
 
-      setItems(data.items || []);
+      // Normalize items with Phase 2 fields
+      const rawItems = data.items || [];
+      const normalizedItems: LegacyInboxItem[] = rawItems.map((item: any) => {
+        const normalized: LegacyInboxItem = {
+          id: item.id || item.ref_id || '',
+          question: item.question || '',
+          answer: item.answer || item.answer_draft || '',
+          created_at: item.created_at || item.asked_at || '',
+          has_pii: item.has_pii || false,
+          pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
+          status: item.status || 'pending',
+          source_type: item.source_type || null,
+          suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
+        };
+
+        // Parse assigned_to
+        if (item.assigned_to) {
+          const assigned = Array.isArray(item.assigned_to) ? item.assigned_to : [];
+          normalized.assignedTo = assigned
+            .map((member: any) => {
+              const id = member.id || member.user_id;
+              if (!id) return null;
+              return {
+                id,
+                email: member.email || '',
+                name: member.name || null,
+                role: member.role || null,
+              };
+            })
+            .filter(Boolean);
+        }
+
+        normalized.reason = item.reason || null;
+        normalized.assignedAt = item.assigned_at || null;
+        if (item.requested_by) {
+          const reqBy = item.requested_by;
+          normalized.requestedBy = {
+            id: reqBy.id || reqBy.user_id || '',
+            email: reqBy.email || '',
+            name: reqBy.name || null,
+            role: reqBy.role || null,
+          };
+        }
+
+        return normalized;
+      });
+
+      setItems(normalizedItems);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load inbox items';
       setError(errorMessage);
@@ -444,6 +500,33 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
     loadDocOptions();
   }, [loadDocOptions]);
 
+  const handleRequestReview = useCallback((item: LegacyInboxItem) => {
+    setSelectedItemForReview(item);
+    setSmeModalOpen(true);
+  }, []);
+
+  const handleReviewSuccess = useCallback(
+    ({ assignedTo, status, reason }: { assignedTo: AssignableMember[]; status?: string; reason?: string }) => {
+      if (!selectedItemForReview) return;
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === selectedItemForReview.id
+            ? {
+                ...item,
+                assignedTo,
+                status: (status as any) || 'needs_review',
+                reason: reason || null,
+                source_type: 'admin_review' as const,
+              }
+            : item
+        )
+      );
+      setSmeModalOpen(false);
+      setSelectedItemForReview(null);
+    },
+    [selectedItemForReview]
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -476,6 +559,7 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         docOptionsLoading={docLoading}
         docOptionsError={docTitlesError}
         onReloadDocOptions={loadDocOptions}
+        onRequestReview={handleRequestReview}
         selectedIds={selectedIds}
         onToggleSelect={handleToggleSelect}
         onSelectAll={handleSelectAll}
@@ -492,6 +576,43 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         onSuccess={() => {
           fetchItems();
         }}
+      />
+
+      {/* SME Review Request Modal */}
+      <SMEReviewRequestModal
+        open={smeModalOpen}
+        inboxId={selectedItemForReview?.id || null}
+        detail={
+          selectedItemForReview
+            ? {
+                id: selectedItemForReview.id,
+                question: selectedItemForReview.question,
+                answerDraft: selectedItemForReview.answer,
+                answerFinal: null,
+                suggestedCitations: [],
+                tags: [],
+                topScores: null,
+                docMatches: null,
+                qHash: null,
+                askedAt: selectedItemForReview.created_at,
+                channel: null,
+                dupCount: 1,
+                promotedPairId: null,
+                promotedAt: null,
+                sourceType: selectedItemForReview.source_type || null,
+                assignedTo: selectedItemForReview.assignedTo || null,
+                reason: selectedItemForReview.reason || null,
+                assignedAt: selectedItemForReview.assignedAt || null,
+                requestedBy: selectedItemForReview.requestedBy || null,
+                status: selectedItemForReview.status,
+              }
+            : null
+        }
+        onClose={() => {
+          setSmeModalOpen(false);
+          setSelectedItemForReview(null);
+        }}
+        onSuccess={handleReviewSuccess}
       />
     </div>
   );

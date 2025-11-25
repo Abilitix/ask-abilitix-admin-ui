@@ -1028,7 +1028,6 @@ export function ModernInboxClient({
     setSelectedIds(new Set());
   }, []);
 
->>>>>>> d6ed26d (fix: Resolve TypeScript errors in bulk approve/reject feature)
   const handleApplyFilters = useCallback(() => {
     const next: Filters = {
       ref: draftFilters.ref.trim(),
@@ -1298,7 +1297,6 @@ export function ModernInboxClient({
     }
   }, [displayItems, filters.docId, selectedId]);
 
->>>>>>> d6ed26d (fix: Resolve TypeScript errors in bulk approve/reject feature)
   return (
     <div className="space-y-6" key={`${modeKey}:${selectedId ?? 'none'}`}>
       <Card>

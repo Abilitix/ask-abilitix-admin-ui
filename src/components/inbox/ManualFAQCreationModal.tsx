@@ -83,7 +83,7 @@ export function ManualFAQCreationModal({
     try {
       setDocOptionsLoading(true);
       setDocOptionsError(null);
-      const response = await fetch('/api/admin/docs?status=all&limit=200', {
+      const response = await fetch('/api/admin/docs?status=all&limit=100', {
         method: 'GET',
         cache: 'no-store',
         credentials: 'include',

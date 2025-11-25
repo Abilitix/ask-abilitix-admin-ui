@@ -26,7 +26,7 @@ const BASE_CARDS: Card[] = [
     key: "inbox",
     href: "/admin/inbox",
     title: "Review Answers",
-    desc: "Review and approve/reject Q&A; copy citations",
+    desc: "Create, review, and approve FAQs; attach citations",
   },
   {
     key: "docs",

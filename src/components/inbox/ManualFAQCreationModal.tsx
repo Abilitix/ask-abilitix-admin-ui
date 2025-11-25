@@ -86,9 +86,10 @@ export function ManualFAQCreationModal({
       const response = await fetch('/api/admin/docs?status=all&limit=200', {
         method: 'GET',
         cache: 'no-store',
+        credentials: 'include',
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
+      if (!response.ok || data?.error) {
         throw new Error(
           (data && (data.details || data.error)) || 'Failed to load documents'
         );

@@ -64,37 +64,48 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
       setLoading(true);
       setError(null);
 
-      // Fetch both 'pending' and 'needs_review' items by making two API calls
-      // The backend API filters by status, so we need to explicitly request both
-      const [pendingResponse, needsReviewResponse] = await Promise.all([
-        fetch('/api/admin/inbox?status=pending'),
-        fetch('/api/admin/inbox?status=needs_review'),
-      ]);
+      // Fetch pending items (always supported)
+      const pendingResponse = await fetch('/api/admin/inbox?status=pending');
 
       if (!pendingResponse.ok) {
-        throw new Error(`Failed to fetch pending items: ${pendingResponse.status}`);
-      }
-      if (!needsReviewResponse.ok) {
-        throw new Error(`Failed to fetch needs_review items: ${needsReviewResponse.status}`);
+        throw new Error(`Failed to fetch inbox items: ${pendingResponse.status}`);
       }
 
       const pendingData = await pendingResponse.json();
-      const needsReviewData = await needsReviewResponse.json();
 
       if (pendingData.error) {
         throw new Error(pendingData.details || pendingData.error);
       }
-      if (needsReviewData.error) {
-        throw new Error(needsReviewData.details || needsReviewData.error);
+
+      // Try to fetch needs_review items, but handle gracefully if backend doesn't support it
+      let needsReviewItems: any[] = [];
+      try {
+        const needsReviewResponse = await fetch('/api/admin/inbox?status=needs_review');
+        if (needsReviewResponse.ok) {
+          const needsReviewData = await needsReviewResponse.json();
+          if (!needsReviewData.error && Array.isArray(needsReviewData.items)) {
+            needsReviewItems = needsReviewData.items;
+          }
+        }
+        // If 422 or other error, just continue with empty array (backend doesn't support this status filter)
+      } catch (err) {
+        // Silently ignore - backend may not support needs_review status filter
+        console.warn('Could not fetch needs_review items, continuing with pending only:', err);
       }
 
       // Merge items from both statuses
       const pendingItems = Array.isArray(pendingData.items) ? pendingData.items : [];
-      const needsReviewItems = Array.isArray(needsReviewData.items) ? needsReviewData.items : [];
       const rawItems = [...pendingItems, ...needsReviewItems];
       
-      // Remove duplicates by id (in case backend returns same item in both)
-      const uniqueItems = rawItems.filter((item: any, index: number, self: any[]) => {
+      // Filter to only show pending and needs_review items (exclude approved/rejected)
+      // This ensures we show items that were assigned even if backend doesn't support status filter
+      const activeItems = rawItems.filter((item: any) => {
+        const status = item.status || 'pending';
+        return status === 'pending' || status === 'needs_review';
+      });
+      
+      // Remove duplicates by id
+      const uniqueItems = activeItems.filter((item: any, index: number, self: any[]) => {
         const id = item.id || item.ref_id;
         return id && index === self.findIndex((i: any) => (i.id || i.ref_id) === id);
       });

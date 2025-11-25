@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -23,6 +23,8 @@ const EMPTY_CITATION: EditableCitation = {
   spanEnd: '',
   spanText: '',
 };
+
+const DRAFT_STORAGE_KEY = 'manualFaqCreationDraft';
 
 type ManualFAQCreationModalProps = {
   open: boolean;
@@ -48,9 +50,9 @@ export function ManualFAQCreationModal({
   const [docOptionsLoading, setDocOptionsLoading] = useState(false);
   const [docOptionsError, setDocOptionsError] = useState<string | null>(null);
 
-  // Reset form when modal closes
-  const handleClose = useCallback(() => {
-    if (loading) return;
+  const draftLoadedRef = useRef(false);
+
+  const resetForm = useCallback(() => {
     setQuestion('');
     setAnswer('');
     setCitations([{ ...EMPTY_CITATION }]);
@@ -60,15 +62,28 @@ export function ManualFAQCreationModal({
     setErrors([]);
     setTagInput('');
     setDocOptionsError(null);
+    draftLoadedRef.current = false;
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+    }
+  }, []);
+
+  const handleClose = useCallback(() => {
+    if (loading) return;
     onClose();
   }, [loading, onClose]);
+
+  const handleReset = useCallback(() => {
+    if (loading) return;
+    resetForm();
+  }, [loading, resetForm]);
 
   const loadDocOptions = useCallback(async () => {
     if (!open) return;
     try {
       setDocOptionsLoading(true);
       setDocOptionsError(null);
-      const response = await fetch('/api/admin/docs?status=active&limit=200', {
+      const response = await fetch('/api/admin/docs?status=all&limit=200', {
         method: 'GET',
         cache: 'no-store',
       });
@@ -98,10 +113,22 @@ export function ManualFAQCreationModal({
               : typeof doc.name === 'string' && doc.name.trim().length > 0
                 ? doc.name.trim()
                 : id;
-          return { id, title };
+          const status =
+            typeof doc.status === 'string'
+              ? doc.status.toLowerCase()
+              : typeof doc.state === 'string'
+                ? doc.state.toLowerCase()
+                : 'active';
+          return { id, title, status };
         })
-        .filter(Boolean) as DocOption[];
-      setDocOptions(mapped);
+        .filter(Boolean) as Array<{ id: string; title: string; status?: string }>;
+
+      const activeDocs = mapped.filter((doc) => !doc.status || doc.status === 'active');
+      const finalDocs = (activeDocs.length > 0 ? activeDocs : mapped).map((doc) => ({
+        id: doc.id,
+        title: doc.title,
+      }));
+      setDocOptions(finalDocs);
     } catch (error) {
       console.error('Manual FAQ doc options error:', error);
       setDocOptionsError(
@@ -116,6 +143,48 @@ export function ManualFAQCreationModal({
     if (!open) return;
     loadDocOptions();
   }, [open, loadDocOptions]);
+
+  useEffect(() => {
+    if (!open || draftLoadedRef.current) return;
+    try {
+      if (typeof window === 'undefined') {
+        draftLoadedRef.current = true;
+        return;
+      }
+      const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+      if (!raw) {
+        draftLoadedRef.current = true;
+        return;
+      }
+      const draft = JSON.parse(raw);
+      if (draft.question) setQuestion(draft.question);
+      if (draft.answer) setAnswer(draft.answer);
+      if (Array.isArray(draft.citations) && draft.citations.length > 0) {
+        setCitations(draft.citations);
+      }
+      if (Array.isArray(draft.tags)) setTags(draft.tags);
+    } catch (error) {
+      console.error('Failed to load manual FAQ draft:', error);
+    } finally {
+      draftLoadedRef.current = true;
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    try {
+      if (typeof window === 'undefined') return;
+      const payload = {
+        question,
+        answer,
+        citations,
+        tags,
+      };
+      sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(payload));
+    } catch (error) {
+      console.error('Failed to save manual FAQ draft:', error);
+    }
+  }, [open, question, answer, citations, tags]);
 
   // Validate citations and convert to API format
   const validateAndPrepareCitations = useCallback((): {
@@ -298,6 +367,7 @@ export function ManualFAQCreationModal({
 
       const data = await response.json();
       toast.success('FAQ draft created and sent to inbox');
+      resetForm();
       handleClose();
       onSuccess();
     } catch (err) {
@@ -306,7 +376,7 @@ export function ManualFAQCreationModal({
     } finally {
       setLoading(false);
     }
-  }, [isFormValid, loading, question, answer, tags, requestSmeReview, assignees, validateAndPrepareCitations, handleClose, onSuccess]);
+  }, [isFormValid, loading, question, answer, tags, requestSmeReview, assignees, validateAndPrepareCitations, handleClose, onSuccess, resetForm]);
 
   if (!open) return null;
 
@@ -457,6 +527,9 @@ export function ManualFAQCreationModal({
         <div className="flex justify-end gap-2 p-4 border-t flex-shrink-0">
           <Button variant="outline" onClick={handleClose} disabled={loading}>
             Cancel
+          </Button>
+          <Button variant="ghost" onClick={handleReset} disabled={loading}>
+            Reset
           </Button>
           <Button onClick={handleSubmit} disabled={!isFormValid || loading}>
             {loading ? (

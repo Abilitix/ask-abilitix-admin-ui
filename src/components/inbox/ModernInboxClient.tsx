@@ -1571,6 +1571,10 @@ export function ModernInboxClient({
           fieldErrors={citationFieldErrors}
           createAsFaq={createAsFaq}
           setCreateAsFaq={setCreateAsFaq}
+          docOptions={docOptions}
+          docOptionsLoading={docOptionsLoading}
+          docOptionsError={docOptionsError}
+          onReloadDocOptions={loadDocOptions}
           onAttach={handleAttach}
           onPromote={handlePromote}
           onClearFieldErrors={clearFieldErrors}

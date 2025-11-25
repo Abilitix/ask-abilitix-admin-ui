@@ -735,8 +735,14 @@ export function LegacyInboxList({
         </div>
       </CardContent>
       {attachModalOpen && typeof window !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleCloseAttachModal}>
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col m-4 bg-background shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/30 backdrop-blur-[2px]"
+          onClick={handleCloseAttachModal}
+        >
+          <Card
+            className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col m-4 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <CardHeader className="flex-shrink-0">
               <CardTitle>Attach Citations</CardTitle>
               <p className="text-sm text-muted-foreground">

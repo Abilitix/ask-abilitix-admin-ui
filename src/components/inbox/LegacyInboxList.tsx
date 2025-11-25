@@ -641,8 +641,8 @@ export function LegacyInboxList({
                         )}
                       {/* Citations preview or attach button */}
                       {item.suggested_citations && item.suggested_citations.length > 0 ? (
-                        <div className="space-y-1">
-                          <div className="text-[10px] text-muted-foreground font-medium">Citations (auto-used):</div>
+                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                          <span className="font-medium">Citations (auto-used):</span>
                           <div className="flex flex-wrap gap-1">
                             {item.suggested_citations.slice(0, 2).map((cite, idx) => (
                               <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0.5 bg-muted/50">

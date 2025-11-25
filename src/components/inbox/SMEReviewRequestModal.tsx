@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -229,17 +230,15 @@ export function SMEReviewRequestModal({
     [inboxId, reason, reasonError, selected, submitting, members, onClose, onSuccess]
   );
 
-  if (!open) {
-    return null;
-  }
-
   const questionPreview = detail?.question ?? '—';
   const answerPreview = detail?.answerDraft ?? detail?.answerFinal ?? '—';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] px-4">
+  if (!open) return null;
+
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] px-4">
       <div className="w-full max-w-3xl">
-        <Card className="shadow-2xl border-slate-200">
+        <Card className="shadow-2xl border-slate-200 bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Request SME Review</CardTitle>
             <button
@@ -374,6 +373,9 @@ export function SMEReviewRequestModal({
       </div>
     </div>
   );
+
+  if (typeof window === 'undefined') return null;
+  return createPortal(modalContent, document.body);
 }
 
 function LabelledText({ title, children }: { title: string; children: ReactNode }) {

@@ -59,6 +59,38 @@ type LegacyInboxListProps = {
   onClearSelection?: () => void;
 };
 
+function renderStatusBadge(status?: string | null) {
+  if (!status || status === 'pending') {
+    return <Badge variant="outline" className="text-[10px]">Pending</Badge>;
+  }
+  switch (status) {
+    case 'needs_review':
+      return (
+        <Badge className="text-[10px] bg-amber-100 text-amber-900 border-amber-300" title="Assigned for SME review">
+          Needs Review
+        </Badge>
+      );
+    case 'approved':
+      return (
+        <Badge className="text-[10px] bg-green-100 text-green-900 border-green-300" title="Approved">
+          Approved
+        </Badge>
+      );
+    case 'rejected':
+      return (
+        <Badge className="text-[10px] bg-red-100 text-red-900 border-red-300" title="Rejected">
+          Rejected
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-[10px]">
+          {status}
+        </Badge>
+      );
+  }
+}
+
 function renderDocBadges(
   item: LegacyInboxItem,
   docTitles?: Record<string, string>,
@@ -467,7 +499,7 @@ export function LegacyInboxList({
                 <TableHead className="w-[200px]">Document</TableHead>
                 <TableHead className="w-[300px]">Answer</TableHead>
                 <TableHead className="w-[120px]">Created</TableHead>
-                <TableHead className="w-[100px]">PII</TableHead>
+                <TableHead className="w-[120px]">Status & PII</TableHead>
                 <TableHead className="w-[200px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -586,24 +618,25 @@ export function LegacyInboxList({
                   <TableCell className="text-sm text-muted-foreground w-[120px]">
                     {formatDate(item.created_at)}
                   </TableCell>
-                  <TableCell className="w-[100px]">
-                    {item.has_pii ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge variant="destructive" className="flex items-center space-x-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              <span>PII</span>
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>PII detected in fields: {item.pii_fields?.join(', ') || 'unknown'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : (
-                      <Badge variant="secondary">Clean</Badge>
-                    )}
+                  <TableCell className="w-[120px]">
+                    <div className="flex flex-col gap-1">
+                      {renderStatusBadge(item.status)}
+                      {item.has_pii && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0.5 flex items-center gap-0.5 w-fit">
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                PII
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>PII detected in fields: {item.pii_fields?.join(', ') || 'unknown'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="w-[200px]">
                     <div className="flex flex-col gap-1.5">

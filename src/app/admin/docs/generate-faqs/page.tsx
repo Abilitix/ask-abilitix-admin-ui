@@ -29,9 +29,6 @@ export default async function GenerateFAQsPage() {
             Generate FAQs from your active documents
           </p>
         </div>
-        <div className="text-sm text-slate-600">
-          Signed in as {user.email} ({user.role})
-        </div>
       </div>
       
       <FAQGenerationClient />

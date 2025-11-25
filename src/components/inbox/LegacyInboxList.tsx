@@ -57,6 +57,9 @@ type LegacyInboxListProps = {
   onBulkApprove?: () => void;
   onBulkReject?: () => void;
   onClearSelection?: () => void;
+  // Assigned to me filter
+  assignedToMeOnly?: boolean;
+  onToggleAssignedToMe?: () => void;
 };
 
 function renderStatusBadge(status?: string | null) {
@@ -169,6 +172,8 @@ export function LegacyInboxList({
   onBulkApprove,
   onBulkReject,
   onClearSelection,
+  assignedToMeOnly = false,
+  onToggleAssignedToMe,
 }: LegacyInboxListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
@@ -471,10 +476,23 @@ export function LegacyInboxList({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium flex items-center space-x-2">
-            <Inbox className="h-4 w-4" />
-            <span>Inbox Items ({items.length})</span>
-          </CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-sm font-medium flex items-center space-x-2">
+              <Inbox className="h-4 w-4" />
+              <span>Inbox Items ({items.length})</span>
+            </CardTitle>
+            {onToggleAssignedToMe && (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  checked={assignedToMeOnly}
+                  onChange={onToggleAssignedToMe}
+                />
+                <span>Assigned to me</span>
+              </label>
+            )}
+          </div>
           <Button onClick={onRefresh} variant="ghost" size="icon" title="Refresh inbox">
             <RefreshCw className="h-4 w-4" />
           </Button>

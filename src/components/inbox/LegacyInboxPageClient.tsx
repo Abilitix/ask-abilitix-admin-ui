@@ -55,6 +55,8 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [assignedToMeOnly, setAssignedToMeOnly] = useState(false);
 
   const fetchItems = useCallback(async () => {
     if (disabled) return;
@@ -500,6 +502,49 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
     loadDocOptions();
   }, [loadDocOptions]);
 
+  // Fetch current user ID for "Assigned to me" filter
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'include',
+        });
+        const data = await response.json().catch(() => null);
+        if (!active || !data) return;
+        const id =
+          typeof data?.user?.id === 'string'
+            ? data.user.id
+            : typeof data?.user_id === 'string'
+              ? data.user_id
+              : typeof data?.id === 'string'
+                ? data.id
+                : null;
+        if (active) {
+          setCurrentUserId(id ?? null);
+        }
+      } catch {
+        if (active) {
+          setCurrentUserId(null);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Filter items based on "Assigned to me" toggle
+  const filteredItems = useMemo(() => {
+    if (!assignedToMeOnly || !currentUserId) return items;
+    return items.filter((item) => {
+      if (!item.assignedTo || item.assignedTo.length === 0) return false;
+      return item.assignedTo.some((member) => member.id === currentUserId);
+    });
+  }, [items, assignedToMeOnly, currentUserId]);
+
   const handleRequestReview = useCallback((item: LegacyInboxItem) => {
     setSelectedItemForReview(item);
     setSmeModalOpen(true);
@@ -544,7 +589,7 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
       </div>
 
       <LegacyInboxList
-        items={items}
+        items={filteredItems}
         loading={loading}
         error={error}
         enableFaqCreation={enableFaqCreation}
@@ -567,6 +612,8 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         onBulkApprove={handleBulkApprove}
         onBulkReject={handleBulkReject}
         onClearSelection={clearSelection}
+        assignedToMeOnly={assignedToMeOnly}
+        onToggleAssignedToMe={() => setAssignedToMeOnly((prev) => !prev)}
       />
 
       {/* Manual FAQ Creation Modal */}

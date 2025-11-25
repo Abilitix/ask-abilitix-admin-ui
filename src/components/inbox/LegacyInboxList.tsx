@@ -631,11 +631,11 @@ export function LegacyInboxList({
                           <Button
                             onClick={() => onRequestReview(item)}
                             size="sm"
-                            variant="outline"
+                            variant="default"
                             disabled={editingId === item.id}
-                            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                            className="h-7 px-3 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white"
                           >
-                            <ListChecks className="h-3 w-3 mr-1" />
+                            <ListChecks className="h-3.5 w-3.5 mr-1.5" />
                             Request Review
                           </Button>
                         )}

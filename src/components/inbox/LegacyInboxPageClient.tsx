@@ -64,34 +64,52 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
       setLoading(true);
       setError(null);
 
-      // Try fetching without status filter first (to get all items including needs_review)
-      // If that fails or returns nothing, fall back to status=pending
-      let response = await fetch('/api/admin/inbox');
-      let data: any = null;
-
-      if (!response.ok || response.status === 422) {
-        // If no status filter doesn't work, try with pending
-        response = await fetch('/api/admin/inbox?status=pending');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch inbox items: ${response.status}`);
-        }
+      // Fetch pending items (always supported)
+      const pendingResponse = await fetch('/api/admin/inbox?status=pending');
+      if (!pendingResponse.ok) {
+        throw new Error(`Failed to fetch inbox items: ${pendingResponse.status}`);
       }
 
-      const text = await response.text();
-      if (text) {
+      const pendingText = await pendingResponse.text();
+      let pendingData: any = null;
+      if (pendingText) {
         try {
-          data = JSON.parse(text);
+          pendingData = JSON.parse(pendingText);
         } catch (parseErr) {
           throw new Error('Failed to parse inbox response');
         }
       }
 
-      if (data?.error) {
-        throw new Error(data.details || data.error);
+      if (pendingData?.error) {
+        throw new Error(pendingData.details || pendingData.error);
       }
 
-      // Get all items from response
-      const rawItems = Array.isArray(data?.items) ? data.items : [];
+      // Try to fetch needs_review items separately (backend may not support this status filter)
+      let needsReviewItems: any[] = [];
+      try {
+        const needsReviewResponse = await fetch('/api/admin/inbox?status=needs_review');
+        if (needsReviewResponse.ok) {
+          const needsReviewText = await needsReviewResponse.text();
+          if (needsReviewText) {
+            try {
+              const needsReviewData = JSON.parse(needsReviewText);
+              if (!needsReviewData?.error && Array.isArray(needsReviewData.items)) {
+                needsReviewItems = needsReviewData.items;
+              }
+            } catch {
+              // Ignore parse errors for needs_review
+            }
+          }
+        }
+        // If 422 or other error, just continue with empty array (backend doesn't support this status filter)
+      } catch (err) {
+        // Silently ignore - backend may not support needs_review status filter
+        console.warn('Could not fetch needs_review items:', err);
+      }
+
+      // Merge items from both statuses
+      const pendingItems = Array.isArray(pendingData?.items) ? pendingData.items : [];
+      const rawItems = [...pendingItems, ...needsReviewItems];
       
       // Filter to only show pending and needs_review items (exclude approved/rejected)
       // This ensures we show items that were assigned

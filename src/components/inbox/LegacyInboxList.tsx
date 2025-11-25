@@ -9,7 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
-import { CitationsEditor, EditableCitation } from '@/components/inbox/CitationsEditor';
+import {
+  CitationsEditor,
+  EditableCitation,
+  DocOption,
+} from '@/components/inbox/CitationsEditor';
 import { LegacyInboxItem } from './LegacyInboxPageClient';
 import {
   Check,
@@ -39,6 +43,10 @@ type LegacyInboxListProps = {
   onRefresh: () => void;
   docTitles?: Record<string, string>;
   docLoading?: boolean;
+  docOptions?: DocOption[];
+  docOptionsLoading?: boolean;
+  docOptionsError?: string | null;
+  onReloadDocOptions?: () => void;
   // Bulk selection props
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
@@ -115,6 +123,10 @@ export function LegacyInboxList({
   onRefresh,
   docTitles,
   docLoading,
+  docOptions,
+  docOptionsLoading,
+  docOptionsError,
+  onReloadDocOptions,
   selectedIds,
   onToggleSelect,
   onSelectAll,
@@ -739,6 +751,10 @@ export function LegacyInboxList({
                 readOnly={false}
                 disabled={attachLoading}
                 maxCount={3}
+                docOptions={docOptions}
+                docOptionsLoading={docOptionsLoading}
+                docOptionsError={docOptionsError}
+                onReloadDocOptions={onReloadDocOptions}
               />
             </CardContent>
             <div className="flex justify-end gap-2 p-4 border-t flex-shrink-0">

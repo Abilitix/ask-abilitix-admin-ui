@@ -443,6 +443,7 @@ export function ModernInboxClient({
   const [promoteConflict, setPromoteConflict] = useState<PromoteConflict | null>(null);
   const [docOptions, setDocOptions] = useState<{ id: string; title: string }[]>([]);
   const [docOptionsLoading, setDocOptionsLoading] = useState<boolean>(false);
+  const [docOptionsError, setDocOptionsError] = useState<string | null>(null);
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState<boolean>(false);
@@ -454,54 +455,63 @@ export function ModernInboxClient({
 
   const filtersRef = useRef<Filters>(DEFAULT_FILTERS);
 
-  useEffect(() => {
-    let active = true;
-    const loadDocs = async () => {
-      try {
-        setDocOptionsLoading(true);
-        const response = await fetch('/api/admin/docs?status=active&limit=200', {
-          method: 'GET',
-          cache: 'no-store',
-          credentials: 'include',
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(
-            (data && (data.details || data.error)) || 'Failed to load documents'
-          );
-        }
-        if (!active) return;
-        const docsSource =
-          (Array.isArray(data?.docs) && data.docs) ||
-          (Array.isArray(data?.documents) && data.documents) ||
-          [];
-        const mapped = (Array.isArray(docsSource) ? docsSource : [])
-          .map((doc: any) => {
-            if (!doc || typeof doc !== 'object') return null;
-            const id = doc.id;
-            if (!id || typeof id !== 'string') return null;
-            const title =
-              typeof doc.title === 'string' && doc.title.trim().length > 0
-                ? doc.title.trim()
-                : id;
-            return { id, title };
-          })
-          .filter(Boolean) as { id: string; title: string }[];
-        setDocOptions(mapped);
-      } catch (err) {
-        console.error('Failed to load documents for inbox filter:', err);
-      } finally {
-        if (active) {
-          setDocOptionsLoading(false);
-        }
+  const loadDocOptions = useCallback(async () => {
+    try {
+      setDocOptionsLoading(true);
+      setDocOptionsError(null);
+      const response = await fetch('/api/admin/docs?status=all&limit=100', {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.error) {
+        throw new Error(
+          (data && (data.details || data.error)) || 'Failed to load documents'
+        );
       }
-    };
+      const docsSource =
+        (Array.isArray(data?.docs) && data.docs) ||
+        (Array.isArray(data?.documents) && data.documents) ||
+        [];
+      const mapped = (Array.isArray(docsSource) ? docsSource : [])
+        .map((doc: any) => {
+          if (!doc || typeof doc !== 'object') return null;
+          const id = doc.id;
+          if (!id || typeof id !== 'string') return null;
+          const title =
+            typeof doc.title === 'string' && doc.title.trim().length > 0
+              ? doc.title.trim()
+              : id;
+          const status =
+            typeof doc.status === 'string'
+              ? doc.status.toLowerCase()
+              : typeof doc.state === 'string'
+                ? doc.state.toLowerCase()
+                : 'active';
+          return { id, title, status };
+        })
+        .filter(Boolean) as Array<{ id: string; title: string; status?: string }>;
 
-    loadDocs();
-    return () => {
-      active = false;
-    };
+      const activeDocs = mapped.filter((doc) => !doc.status || doc.status === 'active');
+      const finalDocs = (activeDocs.length > 0 ? activeDocs : mapped).map((doc) => ({
+        id: doc.id,
+        title: doc.title,
+      }));
+      setDocOptions(finalDocs);
+    } catch (err) {
+      console.error('Failed to load documents for inbox filter:', err);
+      setDocOptionsError(
+        err instanceof Error ? err.message : 'Failed to load documents'
+      );
+    } finally {
+      setDocOptionsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadDocOptions();
+  }, [loadDocOptions]);
 
   const resetRefreshTimer = useCallback(() => {
     if (refreshTimeoutRef.current) {

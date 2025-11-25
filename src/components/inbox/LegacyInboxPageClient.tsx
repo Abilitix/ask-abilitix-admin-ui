@@ -64,7 +64,9 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/admin/inbox?status=pending');
+      // Fetch all inbox items (no status filter) - we'll filter client-side
+      // This ensures we get both 'pending' and 'needs_review' items
+      const response = await fetch('/api/admin/inbox');
 
       if (!response.ok) {
         throw new Error(`Failed to fetch inbox items: ${response.status}`);
@@ -78,7 +80,12 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
 
       // Normalize items with Phase 2 fields
       const rawItems = data.items || [];
-      const normalizedItems: LegacyInboxItem[] = rawItems.map((item: any) => {
+      // Filter to only show pending and needs_review items (exclude approved/rejected)
+      const activeItems = rawItems.filter((item: any) => {
+        const status = item.status || 'pending';
+        return status === 'pending' || status === 'needs_review';
+      });
+      const normalizedItems: LegacyInboxItem[] = activeItems.map((item: any) => {
         const normalized: LegacyInboxItem = {
           id: item.id || item.ref_id || '',
           question: item.question || '',

@@ -482,14 +482,18 @@ export function LegacyInboxList({
               <span>Inbox Items ({items.length})</span>
             </CardTitle>
             {onToggleAssignedToMe && (
-              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+              <label className="flex items-center gap-2 text-xs cursor-pointer hover:text-foreground transition-colors">
                 <input
                   type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className={`h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${
+                    assignedToMeOnly ? 'ring-2 ring-blue-500' : ''
+                  }`}
                   checked={assignedToMeOnly}
                   onChange={onToggleAssignedToMe}
                 />
-                <span>Assigned to me</span>
+                <span className={assignedToMeOnly ? 'font-semibold text-blue-600' : 'text-muted-foreground'}>
+                  Assigned to me
+                </span>
               </label>
             )}
           </div>
@@ -498,8 +502,27 @@ export function LegacyInboxList({
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
+          {assignedToMeOnly && items.length === 0 && !loading && (
+            <div className="py-8 text-center">
+              <p className="text-sm text-muted-foreground mb-2">
+                No items assigned to you.
+              </p>
+              <button
+                onClick={onToggleAssignedToMe}
+                className="text-xs text-blue-600 hover:text-blue-700 underline"
+              >
+                Uncheck "Assigned to me" to see all items
+              </button>
+            </div>
+          )}
+          {!assignedToMeOnly && items.length === 0 && !loading && !error && (
+            <div className="py-8 text-center">
+              <p className="text-sm text-muted-foreground">No inbox items found.</p>
+            </div>
+          )}
+          {items.length > 0 && (
+            <div className="overflow-x-auto">
+              <Table>
               <TableHeader>
                 <TableRow>
                   {selectedIds !== undefined && onToggleSelect && onSelectAll && (
@@ -802,7 +825,8 @@ export function LegacyInboxList({
             </TableBody>
           </Table>
         </div>
-      </CardContent>
+          )}
+        </CardContent>
       {attachModalOpen && typeof window !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/30 backdrop-blur-[2px]"

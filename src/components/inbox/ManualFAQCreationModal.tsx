@@ -1,12 +1,17 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CitationsEditor, EditableCitation, CitationRowError } from './CitationsEditor';
+import {
+  CitationsEditor,
+  EditableCitation,
+  CitationRowError,
+  DocOption,
+} from './CitationsEditor';
 import { PreparedCitation } from './ModernInboxClient';
 import { toast } from 'sonner';
 import { Loader2, X } from 'lucide-react';
@@ -39,6 +44,9 @@ export function ManualFAQCreationModal({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<CitationRowError[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [docOptions, setDocOptions] = useState<DocOption[]>([]);
+  const [docOptionsLoading, setDocOptionsLoading] = useState(false);
+  const [docOptionsError, setDocOptionsError] = useState<string | null>(null);
 
   // Reset form when modal closes
   const handleClose = useCallback(() => {
@@ -51,8 +59,63 @@ export function ManualFAQCreationModal({
     setAssignees([]);
     setErrors([]);
     setTagInput('');
+    setDocOptionsError(null);
     onClose();
   }, [loading, onClose]);
+
+  const loadDocOptions = useCallback(async () => {
+    if (!open) return;
+    try {
+      setDocOptionsLoading(true);
+      setDocOptionsError(null);
+      const response = await fetch('/api/admin/docs?status=active&limit=200', {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          (data && (data.details || data.error)) || 'Failed to load documents'
+        );
+      }
+      const docsSource =
+        (Array.isArray(data?.docs) && data.docs) ||
+        (Array.isArray(data?.documents) && data.documents) ||
+        [];
+      const mapped = docsSource
+        .map((doc: any) => {
+          if (!doc || typeof doc !== 'object') return null;
+          const id =
+            typeof doc.id === 'string'
+              ? doc.id
+              : typeof doc.doc_id === 'string'
+                ? doc.doc_id
+                : null;
+          if (!id) return null;
+          const title =
+            typeof doc.title === 'string' && doc.title.trim().length > 0
+              ? doc.title.trim()
+              : typeof doc.name === 'string' && doc.name.trim().length > 0
+                ? doc.name.trim()
+                : id;
+          return { id, title };
+        })
+        .filter(Boolean) as DocOption[];
+      setDocOptions(mapped);
+    } catch (error) {
+      console.error('Manual FAQ doc options error:', error);
+      setDocOptionsError(
+        error instanceof Error ? error.message : 'Failed to load documents'
+      );
+    } finally {
+      setDocOptionsLoading(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    loadDocOptions();
+  }, [open, loadDocOptions]);
 
   // Validate citations and convert to API format
   const validateAndPrepareCitations = useCallback((): {
@@ -170,7 +233,7 @@ export function ManualFAQCreationModal({
     //   return false;
     // }
     return true;
-  }, [question, answer, requestSmeReview, assignees, validateAndPrepareCitations]);
+  }, [question, answer, validateAndPrepareCitations]);
 
   // Handle tag input
   const handleAddTag = useCallback(() => {
@@ -249,14 +312,14 @@ export function ManualFAQCreationModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/30 backdrop-blur-[2px]"
       onClick={handleClose}
       role="dialog"
       aria-modal="true"
       aria-label="Create FAQ Manually"
     >
       <Card
-        className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col m-4 bg-background shadow-lg"
+        className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col m-4 bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <CardHeader className="flex-shrink-0 flex flex-row items-center justify-between border-b">
@@ -331,6 +394,10 @@ export function ManualFAQCreationModal({
               readOnly={false}
               disabled={loading}
               maxCount={3}
+              docOptions={docOptions}
+              docOptionsLoading={docOptionsLoading}
+              docOptionsError={docOptionsError}
+              onReloadDocOptions={loadDocOptions}
             />
           </div>
 

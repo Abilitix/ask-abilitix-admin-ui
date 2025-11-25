@@ -8,6 +8,11 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Plus, Trash2 } from 'lucide-react';
 
+export type DocOption = {
+  id: string;
+  title: string;
+};
+
 export type EditableCitation = {
   docId: string;
   page: string;
@@ -32,6 +37,10 @@ type CitationsEditorProps = {
   readOnly?: boolean;
   disabled?: boolean;
   maxCount?: number;
+  docOptions?: DocOption[];
+  docOptionsLoading?: boolean;
+  docOptionsError?: string | null;
+  onReloadDocOptions?: () => void;
 };
 
 const EMPTY_CITATION: EditableCitation = {
@@ -49,6 +58,10 @@ export function CitationsEditor({
   readOnly = false,
   disabled = false,
   maxCount = 3,
+  docOptions,
+  docOptionsLoading = false,
+  docOptionsError = null,
+  onReloadDocOptions,
 }: CitationsEditorProps) {
   const canEdit = !readOnly && !disabled;
   const safeValue = Array.isArray(value) ? value : [];
@@ -85,37 +98,84 @@ export function CitationsEditor({
           return (
             <Card key={index} className="border border-border/60">
               <CardContent className="space-y-4 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor={`citation-doc-${index}`}>Document ID</Label>
-                    <Input
-                      id={`citation-doc-${index}`}
-                      value={citation.docId}
-                      disabled={!canEdit}
-                      placeholder="UUID..."
-                      onChange={(event) =>
-                        updateCitation(index, { docId: event.target.value })
-                      }
-                      className={cn(
-                        rowErrors.docId ? 'border-destructive focus-visible:ring-destructive' : ''
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 space-y-2">
+                      <Label htmlFor={`citation-doc-${index}`}>Document ID</Label>
+                      <Input
+                        id={`citation-doc-${index}`}
+                        value={citation.docId}
+                        disabled={!canEdit}
+                        placeholder="UUID..."
+                        onChange={(event) =>
+                          updateCitation(index, { docId: event.target.value })
+                        }
+                        className={cn(
+                          rowErrors.docId ? 'border-destructive focus-visible:ring-destructive' : ''
+                        )}
+                      />
+                      {rowErrors.docId && (
+                        <p className="text-xs text-destructive">{rowErrors.docId}</p>
                       )}
-                    />
-                    {rowErrors.docId && (
-                      <p className="text-xs text-destructive">{rowErrors.docId}</p>
+                    </div>
+                    {showRemove && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeCitation(index)}
+                        disabled={!canEdit}
+                        className="shrink-0 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Remove citation</span>
+                      </Button>
                     )}
                   </div>
-                  {showRemove && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeCitation(index)}
-                      disabled={!canEdit}
-                      className="shrink-0 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Remove citation</span>
-                    </Button>
+
+                  {Array.isArray(docOptions) && docOptions.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>Or select from available documents</span>
+                        <div className="flex items-center gap-2">
+                          {docOptionsLoading && <span>Loading…</span>}
+                          {docOptionsError && (
+                            <button
+                              type="button"
+                              onClick={onReloadDocOptions}
+                              className="underline hover:text-foreground"
+                            >
+                              Retry
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="max-h-36 overflow-y-auto rounded-md border border-border/70 bg-muted/30">
+                        {docOptionsLoading ? (
+                          <p className="p-3 text-xs text-muted-foreground">Loading documents…</p>
+                        ) : docOptions.length === 0 ? (
+                          <p className="p-3 text-xs text-muted-foreground">
+                            No documents available. Upload documents in the Docs tab first.
+                          </p>
+                        ) : (
+                          docOptions.map((doc) => (
+                            <button
+                              type="button"
+                              key={`${doc.id}-${index}`}
+                              onClick={() => updateCitation(index, { docId: doc.id })}
+                              disabled={!canEdit}
+                              className={cn(
+                                'w-full px-3 py-2 text-left text-sm hover:bg-muted/80',
+                                citation.docId === doc.id ? 'bg-muted/60 font-medium' : ''
+                              )}
+                            >
+                              <div>{doc.title}</div>
+                              <div className="text-[11px] text-muted-foreground">{doc.id}</div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
 

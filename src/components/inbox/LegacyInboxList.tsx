@@ -482,19 +482,32 @@ export function LegacyInboxList({
               <span>Inbox Items ({items.length})</span>
             </CardTitle>
             {onToggleAssignedToMe && (
-              <label className="flex items-center gap-2 text-xs cursor-pointer hover:text-foreground transition-colors">
-                <input
-                  type="checkbox"
-                  className={`h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${
-                    assignedToMeOnly ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                  checked={assignedToMeOnly}
-                  onChange={onToggleAssignedToMe}
-                />
-                <span className={assignedToMeOnly ? 'font-semibold text-blue-600' : 'text-muted-foreground'}>
-                  Assigned to me
-                </span>
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-2 text-xs cursor-pointer hover:text-foreground transition-colors">
+                  <input
+                    type="checkbox"
+                    className={`h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${
+                      assignedToMeOnly ? 'ring-2 ring-blue-500' : ''
+                    }`}
+                    checked={assignedToMeOnly}
+                    onChange={onToggleAssignedToMe}
+                  />
+                  <span className={assignedToMeOnly ? 'font-semibold text-blue-600' : 'text-muted-foreground'}>
+                    Assigned to me
+                  </span>
+                </label>
+                {assignedToMeOnly && (
+                  <Button
+                    onClick={onToggleAssignedToMe}
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                    title="Clear filter"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
             )}
           </div>
           <Button onClick={onRefresh} variant="ghost" size="icon" title="Refresh inbox">

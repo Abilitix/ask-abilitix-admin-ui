@@ -445,6 +445,8 @@ export function ModernInboxClient({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState<boolean>(false);
   const docHydrationRef = useRef<Set<string>>(new Set());
+  // Create as FAQ state (shared between single and bulk approve)
+  const [createAsFaq, setCreateAsFaq] = useState<boolean>(true);
 
   const filtersRef = useRef<Filters>(DEFAULT_FILTERS);
 
@@ -1036,6 +1038,11 @@ export function ModernInboxClient({
     return () => resetRefreshTimer();
   }, [loadList, resetRefreshTimer]);
 
+  // Reset createAsFaq to true when selectedId changes
+  useEffect(() => {
+    setCreateAsFaq(true);
+  }, [selectedId]);
+
   const hydrateDocMatches = useCallback(
     async (ids: string[]) => {
       for (const id of ids) {
@@ -1183,7 +1190,10 @@ export function ModernInboxClient({
       const response = await fetch('/api/admin/inbox/bulk-approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify({ 
+          ids,
+          as_faq: createAsFaq,
+        }),
         cache: 'no-store',
       });
 
@@ -1212,7 +1222,7 @@ export function ModernInboxClient({
     } finally {
       setBulkActionLoading(false);
     }
-  }, [selectedIds, clearSelection, loadList]);
+  }, [selectedIds, clearSelection, loadList, createAsFaq]);
 
   // Bulk reject handler
   const handleBulkReject = useCallback(async () => {
@@ -1533,6 +1543,8 @@ export function ModernInboxClient({
           permissionError={permissionError}
           promoteConflict={promoteConflict}
           fieldErrors={citationFieldErrors}
+          createAsFaq={createAsFaq}
+          setCreateAsFaq={setCreateAsFaq}
           onAttach={handleAttach}
           onPromote={handlePromote}
           onClearFieldErrors={clearFieldErrors}

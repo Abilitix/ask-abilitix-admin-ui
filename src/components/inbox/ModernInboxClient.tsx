@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Plus } from 'lucide-react';
+import { ManualFAQCreationModal } from './ManualFAQCreationModal';
 
 const DEFAULT_LIMIT = 25;
 
@@ -62,6 +63,7 @@ export type InboxListItem = {
   tags: string[];
   dupCount: number;
   docMatches: InboxTopScore[] | null;
+  source_type?: 'auto' | 'manual' | 'admin_review' | null;
 };
 
 export type InboxTopScore = {
@@ -447,6 +449,8 @@ export function ModernInboxClient({
   const docHydrationRef = useRef<Set<string>>(new Set());
   // Create as FAQ state (shared between single and bulk approve)
   const [createAsFaq, setCreateAsFaq] = useState<boolean>(true);
+  // Manual FAQ creation modal state
+  const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
 
   const filtersRef = useRef<Filters>(DEFAULT_FILTERS);
 
@@ -1369,7 +1373,19 @@ export function ModernInboxClient({
     <div className="space-y-6" key={`${modeKey}:${selectedId ?? 'none'}`}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Filters</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Filters</CardTitle>
+            {enableFaqCreation && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setManualFaqModalOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create FAQ
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <form
@@ -1551,6 +1567,15 @@ export function ModernInboxClient({
           onClearAlerts={clearActionAlerts}
         />
       </div>
+
+      {/* Manual FAQ Creation Modal */}
+      <ManualFAQCreationModal
+        open={manualFaqModalOpen}
+        onClose={() => setManualFaqModalOpen(false)}
+        onSuccess={() => {
+          handleRefresh();
+        }}
+      />
     </div>
   );
 }

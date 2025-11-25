@@ -4,7 +4,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { LegacyInboxList } from './LegacyInboxList';
 import { LegacyInboxStatsCard } from './LegacyInboxStatsCard';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Plus } from 'lucide-react';
+import { ManualFAQCreationModal } from './ManualFAQCreationModal';
+import { Button } from '@/components/ui/button';
 
 export type LegacyInboxItem = {
   id: string;
@@ -29,6 +31,7 @@ type LegacyInboxPageClientProps = {
 };
 
 export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, allowEmptyCitations = false }: LegacyInboxPageClientProps) {
+  const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
   const [items, setItems] = useState<LegacyInboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -469,7 +472,19 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
 
   return (
     <div className="space-y-6">
-      <LegacyInboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
+      <div className="flex items-center justify-between">
+        <LegacyInboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
+        {enableFaqCreation && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setManualFaqModalOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create FAQ
+          </Button>
+        )}
+      </div>
 
       <LegacyInboxList
         items={items}
@@ -490,6 +505,15 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         onBulkApprove={handleBulkApprove}
         onBulkReject={handleBulkReject}
         onClearSelection={clearSelection}
+      />
+
+      {/* Manual FAQ Creation Modal */}
+      <ManualFAQCreationModal
+        open={manualFaqModalOpen}
+        onClose={() => setManualFaqModalOpen(false)}
+        onSuccess={() => {
+          fetchItems();
+        }}
       />
     </div>
   );

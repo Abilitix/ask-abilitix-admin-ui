@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, XCircle, Loader2, Plus } from 'lucide-react';
 import { ManualFAQCreationModal } from './ManualFAQCreationModal';
+import { SMEReviewRequestModal } from './SMEReviewRequestModal';
+import { AssignableMember } from './types';
 
 const DEFAULT_LIMIT = 25;
 
@@ -48,11 +50,18 @@ export type PreparedCitation = {
   };
 };
 
+type StatusFilter = '' | 'pending' | 'needs_review';
+type AssignedFilter = '' | 'me' | 'unassigned';
+type SourceFilter = '' | 'auto' | 'manual' | 'admin_review';
+
 type Filters = {
   ref: string;
   tag: string;
   qHash: string;
   docId: string;
+  status: StatusFilter;
+  assigned: AssignedFilter;
+  sourceType: SourceFilter;
 };
 
 export type InboxListItem = {
@@ -63,7 +72,12 @@ export type InboxListItem = {
   tags: string[];
   dupCount: number;
   docMatches: InboxTopScore[] | null;
-  source_type?: 'auto' | 'manual' | 'admin_review' | null;
+  sourceType?: SourceFilter | string | null;
+  assignedTo?: AssignableMember[] | null;
+  status?: string | null;
+  reason?: string | null;
+  assignedAt?: string | null;
+  requestedBy?: AssignableMember | null;
 };
 
 export type InboxTopScore = {
@@ -155,6 +169,29 @@ function parseTopScores(raw: any): InboxTopScore[] | null {
   return scores.length > 0 ? scores : null;
 }
 
+function normaliseMember(raw: any): AssignableMember | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const id =
+    typeof raw.id === 'string'
+      ? raw.id
+      : typeof raw.user_id === 'string'
+        ? raw.user_id
+        : null;
+  if (!id) return null;
+  return {
+    id,
+    email: typeof raw.email === 'string' ? raw.email : '',
+    name: typeof raw.name === 'string' ? raw.name : null,
+    role: typeof raw.role === 'string' ? raw.role : null,
+  };
+}
+
+function normaliseMembers(raw: any): AssignableMember[] | null {
+  if (!Array.isArray(raw)) return null;
+  const members = raw.map((entry) => normaliseMember(entry)).filter(Boolean) as AssignableMember[];
+  return members.length ? members : null;
+}
+
 function normaliseListItem(raw: any): InboxListItem | null {
   if (!raw || typeof raw !== 'object') return null;
   const idValue = raw.id ?? raw.ref_id;
@@ -184,6 +221,23 @@ function normaliseListItem(raw: any): InboxListItem | null {
         ? raw.duplicate_count
         : null;
 
+  const sourceType =
+    typeof raw.source_type === 'string'
+      ? raw.source_type
+      : typeof raw.sourceType === 'string'
+        ? raw.sourceType
+        : null;
+  const assignedTo = normaliseMembers(raw.assigned_to ?? raw.assignedTo);
+  const reason = typeof raw.reason === 'string' ? raw.reason : null;
+  const assignedAt =
+    typeof raw.assigned_at === 'string'
+      ? raw.assigned_at
+      : typeof raw.assignedAt === 'string'
+        ? raw.assignedAt
+        : null;
+  const requestedBy = normaliseMember(raw.requested_by ?? raw.requestedBy);
+  const status = typeof raw.status === 'string' ? raw.status : null;
+
   return {
     id: String(idValue),
     qHash,
@@ -192,6 +246,12 @@ function normaliseListItem(raw: any): InboxListItem | null {
     tags,
     dupCount: dupCountRaw && dupCountRaw >= 1 ? dupCountRaw : 1,
     docMatches: parseTopScores(raw.top_scores),
+    sourceType,
+    assignedTo,
+    reason,
+    assignedAt,
+    requestedBy,
+    status,
   };
 }
 
@@ -234,7 +294,22 @@ function normaliseDetail(raw: any): InboxDetail | null {
         : typeof raw.published_at === 'string'
           ? raw.published_at
           : null,
-    status: typeof raw.status === 'string' ? raw.status : null,
+    status: typeof raw.status === 'string' ? raw.status : base.status ?? null,
+    assignedTo: normaliseMembers(raw.assigned_to ?? raw.assignedTo) ?? base.assignedTo ?? null,
+    reason: typeof raw.reason === 'string' ? raw.reason : base.reason ?? null,
+    assignedAt:
+      typeof raw.assigned_at === 'string'
+        ? raw.assigned_at
+        : typeof raw.assignedAt === 'string'
+          ? raw.assignedAt
+          : base.assignedAt ?? null,
+    requestedBy: normaliseMember(raw.requested_by ?? raw.requestedBy) ?? base.requestedBy ?? null,
+    sourceType:
+      typeof raw.source_type === 'string'
+        ? raw.source_type
+        : typeof raw.sourceType === 'string'
+          ? raw.sourceType
+          : base.sourceType ?? null,
   };
 }
 
@@ -291,6 +366,9 @@ const DEFAULT_FILTERS: Filters = {
   tag: 'no_source',
   qHash: '',
   docId: '',
+  status: 'pending',
+  assigned: '',
+  sourceType: '',
 };
 
 function createEmptyFieldErrors(count: number): CitationFieldErrors[] {
@@ -452,6 +530,9 @@ export function ModernInboxClient({
   const [createAsFaq, setCreateAsFaq] = useState<boolean>(true);
   // Manual FAQ creation modal state
   const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
+  const [smeModalOpen, setSmeModalOpen] = useState<boolean>(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
   const filtersRef = useRef<Filters>(DEFAULT_FILTERS);
 
@@ -538,7 +619,11 @@ export function ModernInboxClient({
           params.set('tag', activeFilters.tag);
         }
 
-        params.set('status', 'pending');
+        const statusParam =
+          activeFilters.status && activeFilters.status.length > 0
+            ? activeFilters.status
+            : 'pending';
+        params.set('status', statusParam);
 
         if (activeFilters.ref) {
           params.set('ref', activeFilters.ref);
@@ -1052,6 +1137,45 @@ export function ModernInboxClient({
     return () => resetRefreshTimer();
   }, [loadList, resetRefreshTimer]);
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'include',
+        });
+        const data = await response.json().catch(() => null);
+        if (!active || !data) return;
+        const id =
+          typeof data?.user?.id === 'string'
+            ? data.user.id
+            : typeof data?.user_id === 'string'
+              ? data.user_id
+              : typeof data?.id === 'string'
+                ? data.id
+                : null;
+        const email =
+          typeof data?.email === 'string'
+            ? data.email
+            : typeof data?.user?.email === 'string'
+              ? data.user.email
+              : null;
+        setCurrentUserId(id ?? null);
+        setCurrentUserEmail(email ?? null);
+      } catch {
+        if (active) {
+          setCurrentUserId(null);
+          setCurrentUserEmail(null);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Reset createAsFaq to true when selectedId changes
   useEffect(() => {
     setCreateAsFaq(true);
@@ -1109,13 +1233,10 @@ export function ModernInboxClient({
       tag: draftFilters.tag,
       qHash: draftFilters.qHash.trim(),
       docId: draftFilters.docId,
+      status: draftFilters.status,
+      assigned: draftFilters.assigned,
+      sourceType: draftFilters.sourceType,
     };
-
-    const changed =
-      filtersRef.current.ref !== next.ref ||
-      filtersRef.current.tag !== next.tag ||
-      filtersRef.current.qHash !== next.qHash ||
-      filtersRef.current.docId !== next.docId;
 
     filtersRef.current = next;
     setFilters(next);
@@ -1125,10 +1246,6 @@ export function ModernInboxClient({
     clearSelection(); // Clear bulk selection on filter change
 
     loadList({ append: false }, next);
-
-    if (!changed) {
-      loadList({ append: false }, next);
-    }
   }, [draftFilters, loadList, clearSelection]);
 
   const handleResetFilters = useCallback(() => {
@@ -1136,7 +1253,10 @@ export function ModernInboxClient({
       filtersRef.current.ref === DEFAULT_FILTERS.ref &&
       filtersRef.current.tag === DEFAULT_FILTERS.tag &&
       filtersRef.current.qHash === DEFAULT_FILTERS.qHash &&
-      filtersRef.current.docId === DEFAULT_FILTERS.docId;
+      filtersRef.current.docId === DEFAULT_FILTERS.docId &&
+      filtersRef.current.status === DEFAULT_FILTERS.status &&
+      filtersRef.current.assigned === DEFAULT_FILTERS.assigned &&
+      filtersRef.current.sourceType === DEFAULT_FILTERS.sourceType;
 
     setDraftFilters(DEFAULT_FILTERS);
     filtersRef.current = DEFAULT_FILTERS;
@@ -1305,6 +1425,9 @@ export function ModernInboxClient({
       tag: filtersRef.current.tag,
       qHash: filtersRef.current.qHash,
       docId: filtersRef.current.docId,
+      status: filtersRef.current.status,
+      assigned: filtersRef.current.assigned,
+      sourceType: filtersRef.current.sourceType,
     };
   }, [filters]);
 
@@ -1317,7 +1440,10 @@ export function ModernInboxClient({
 
     const actions: ModernInboxActions = {
       applyNoSourceFilter: () => {
-        const next: Filters = { ref: '', tag: 'no_source', qHash: '', docId: '' };
+        const next: Filters = {
+          ...DEFAULT_FILTERS,
+          tag: 'no_source',
+        };
         setDraftFilters(next);
         filtersRef.current = next;
         setFilters(next);
@@ -1344,15 +1470,51 @@ export function ModernInboxClient({
   }, [detail, loadDetail, loadList, onRegisterActions, selectedId]);
 
   const displayItems = useMemo(() => {
-    if (!filters.docId) {
-      return items;
-    }
-    return items.filter((item) =>
-      Array.isArray(item.docMatches)
-        ? item.docMatches.some((match) => match.docId === filters.docId)
-        : false
-    );
-  }, [items, filters.docId]);
+    return items.filter((item) => {
+      if (
+        filters.docId &&
+        !(
+          Array.isArray(item.docMatches) &&
+          item.docMatches.some((match) => match.docId === filters.docId)
+        )
+      ) {
+        return false;
+      }
+
+      if (filters.sourceType && (item.sourceType || 'auto') !== filters.sourceType) {
+        return false;
+      }
+
+      if (filters.assigned === 'me') {
+        if (!currentUserId && !currentUserEmail) {
+          return false;
+        }
+        const matches = Array.isArray(item.assignedTo)
+          ? item.assignedTo.some(
+              (member) =>
+                (currentUserId && member.id === currentUserId) ||
+                (currentUserEmail && member.email === currentUserEmail)
+            )
+          : false;
+        if (!matches) {
+          return false;
+        }
+      } else if (filters.assigned === 'unassigned') {
+        if (Array.isArray(item.assignedTo) && item.assignedTo.length > 0) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [items, filters.docId, filters.sourceType, filters.assigned, currentUserId, currentUserEmail]);
+
+  const detailAllowsRequestReview =
+    Boolean(detail) &&
+    allowActions &&
+    hasReviewerAccess &&
+    detail?.status === 'pending' &&
+    (!Array.isArray(detail?.assignedTo) || detail.assignedTo.length === 0);
 
   const handleSelectAll = useCallback(() => {
     if (bulkActionLoading) return;
@@ -1370,14 +1532,14 @@ export function ModernInboxClient({
   }, [displayItems, bulkActionLoading]);
 
   useEffect(() => {
-    if (!filters.docId || !selectedId) {
+    if (!selectedId) {
       return;
     }
     const stillVisible = displayItems.some((item) => item.id === selectedId);
     if (!stillVisible) {
       setSelectedId(null);
     }
-  }, [displayItems, filters.docId, selectedId]);
+  }, [displayItems, selectedId]);
 
   return (
     <div className="space-y-6" key={`${modeKey}:${selectedId ?? 'none'}`}>
@@ -1399,7 +1561,7 @@ export function ModernInboxClient({
         </CardHeader>
         <CardContent>
           <form
-            className="grid gap-4 md:grid-cols-5"
+            className="grid gap-4 md:grid-cols-6"
             onSubmit={(event) => {
               event.preventDefault();
               handleApplyFilters();
@@ -1473,6 +1635,60 @@ export function ModernInboxClient({
                   }))
                 }
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inbox-status-filter">Status</Label>
+              <select
+                id="inbox-status-filter"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={draftFilters.status}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({
+                    ...prev,
+                    status: event.target.value as StatusFilter,
+                  }))
+                }
+              >
+                <option value="pending">Pending</option>
+                <option value="needs_review">Needs review</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inbox-assigned-filter">Assignment</Label>
+              <select
+                id="inbox-assigned-filter"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={draftFilters.assigned}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({
+                    ...prev,
+                    assigned: event.target.value as AssignedFilter,
+                  }))
+                }
+              >
+                <option value="">All</option>
+                <option value="me">Assigned to me</option>
+                <option value="unassigned">Unassigned</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inbox-source-filter">Source</Label>
+              <select
+                id="inbox-source-filter"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={draftFilters.sourceType}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({
+                    ...prev,
+                    sourceType: event.target.value as SourceFilter,
+                  }))
+                }
+              >
+                <option value="">All</option>
+                <option value="manual">Manual</option>
+                <option value="auto">Auto</option>
+                <option value="admin_review">Admin review</option>
+              </select>
             </div>
             <div className="flex items-end gap-2">
               <Button type="submit" size="sm" className="w-24">
@@ -1575,6 +1791,8 @@ export function ModernInboxClient({
           docOptionsLoading={docOptionsLoading}
           docOptionsError={docOptionsError}
           onReloadDocOptions={loadDocOptions}
+          canRequestReview={detailAllowsRequestReview}
+          onRequestReview={() => setSmeModalOpen(true)}
           onAttach={handleAttach}
           onPromote={handlePromote}
           onClearFieldErrors={clearFieldErrors}
@@ -1588,6 +1806,40 @@ export function ModernInboxClient({
         onClose={() => setManualFaqModalOpen(false)}
         onSuccess={() => {
           handleRefresh();
+        }}
+      />
+      <SMEReviewRequestModal
+        open={smeModalOpen}
+        inboxId={selectedId}
+        detail={detail}
+        onClose={() => setSmeModalOpen(false)}
+        onSuccess={({ assignedTo, status, reason }) => {
+          if (!selectedId) return;
+          const timestamp = new Date().toISOString();
+          setDetail((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  assignedTo,
+                  status: status ?? prev.status,
+                  reason: reason ?? prev.reason,
+                  assignedAt: timestamp,
+                }
+              : prev
+          );
+          setItems((prev) =>
+            prev.map((item) =>
+              item.id === selectedId
+                ? {
+                    ...item,
+                    assignedTo,
+                    status: status ?? item.status,
+                    reason: reason ?? item.reason,
+                    assignedAt: timestamp,
+                  }
+                : item
+            )
+          );
         }}
       />
     </div>

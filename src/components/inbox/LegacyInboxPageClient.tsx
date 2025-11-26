@@ -350,7 +350,74 @@ export function LegacyInboxPageClient({
       }
 
       toast.success('Citations attached ✓');
-      await fetchItems(); // Refresh to get updated item
+      
+      // Fetch only the updated item instead of refreshing entire list
+      try {
+        const detailResponse = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}`, {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (detailResponse.ok) {
+          const detailData = await detailResponse.json();
+          if (detailData && !detailData.error) {
+            // Normalize the item using the same logic as fetchItems
+            const item = detailData;
+            const normalized: LegacyInboxItem = {
+              id: item.id || item.ref_id || id,
+              question: item.question || '',
+              answer: item.answer || item.answer_draft || '',
+              created_at: item.created_at || item.asked_at || '',
+              has_pii: item.has_pii || false,
+              pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
+              status: item.status || 'pending',
+              source_type: item.source_type || null,
+              suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
+            };
+
+            // Parse assigned_to
+            if (item.assigned_to) {
+              const assigned = Array.isArray(item.assigned_to) ? item.assigned_to : [];
+              normalized.assignedTo = assigned
+                .map((member: any) => {
+                  const id = member.id || member.user_id;
+                  if (!id) return null;
+                  return {
+                    id,
+                    email: member.email || '',
+                    name: member.name || null,
+                    role: member.role || null,
+                  };
+                })
+                .filter(Boolean);
+            }
+
+            normalized.reason = item.reason || null;
+            normalized.assignedAt = item.assigned_at || null;
+            if (item.requested_by) {
+              const reqBy = item.requested_by;
+              normalized.requestedBy = {
+                id: reqBy.id || reqBy.user_id || '',
+                email: reqBy.email || '',
+                name: reqBy.name || null,
+                role: reqBy.role || null,
+              };
+            }
+
+            // Update only this item in state
+            setItems((prev) =>
+              prev.map((existingItem) =>
+                existingItem.id === id ? normalized : existingItem
+              )
+            );
+          }
+        }
+      } catch (detailErr) {
+        // If single item fetch fails, fall back to full refresh
+        console.warn('[attach-citations] Failed to fetch updated item, falling back to full refresh:', detailErr);
+        await fetchItems();
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to attach citations';
       toast.error(`Attachment failed: ${errorMessage}`);
@@ -633,8 +700,7 @@ export function LegacyInboxPageClient({
       );
       setSmeModalOpen(false);
       setSelectedItemForReview(null);
-      // Refresh from API to ensure we have the latest data including needs_review items
-      setTimeout(() => fetchItems(), 500);
+      // State already updated optimistically above - no need for full refresh
     },
     [selectedItemForReview, fetchItems]
   );

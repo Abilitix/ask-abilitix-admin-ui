@@ -18,6 +18,8 @@ import {
   EditableCitation,
   DocOption,
 } from './CitationsEditor';
+import { AssignmentBadge } from './AssignmentBadge';
+import { AssignableMember } from './types';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
@@ -286,6 +288,8 @@ type InboxDetailPanelProps = {
   docOptionsLoading?: boolean;
   docOptionsError?: string | null;
   onReloadDocOptions?: () => void;
+  canRequestReview?: boolean;
+  onRequestReview?: () => void;
   onAttach: (payload: { citations: PreparedCitation[] }) => Promise<boolean>;
   onPromote: (payload: {
     citations?: PreparedCitation[];
@@ -320,6 +324,8 @@ export function InboxDetailPanel({
   docOptionsLoading,
   docOptionsError,
   onReloadDocOptions,
+  canRequestReview,
+  onRequestReview,
   onAttach,
   onPromote,
   onClearFieldErrors,
@@ -540,6 +546,18 @@ export function InboxDetailPanel({
 
   const showNoSource = tags.includes('no_source');
   const isPromoted = Boolean(detail.promotedPairId);
+  const assignedMembers: AssignableMember[] = Array.isArray((detail as any).assignedTo)
+    ? ((detail as any).assignedTo as AssignableMember[])
+    : [];
+  const assignedAt = detail.assignedAt ?? (detail as any).assigned_at ?? null;
+  const assignmentReason = detail.reason ?? (detail as any).reason ?? null;
+  const requestedBy = (detail as any).requestedBy as AssignableMember | undefined;
+  const showRequestButton = Boolean(
+    canRequestReview &&
+      typeof onRequestReview === 'function' &&
+      detail.status === 'pending' &&
+      assignedMembers.length === 0
+  );
 
   let actionsDisabledReason: 'promoted' | 'flag' | 'permission' | null = null;
   if (isPromoted) {
@@ -585,6 +603,37 @@ export function InboxDetailPanel({
         <CardTitle className="text-base">Details</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Assignment
+              </div>
+              {showRequestButton && (
+                <Button size="sm" onClick={onRequestReview}>
+                  Request SME review
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <AssignmentBadge assignees={assignedMembers} size="sm" />
+              {requestedBy && (
+                <div className="text-[11px] text-slate-500">
+                  Requested by {requestedBy.name || requestedBy.email || requestedBy.id}
+                  {assignedAt ? ` · ${formatRelativeTime(assignedAt).relative}` : ''}
+                </div>
+              )}
+              {assignmentReason && (
+                <div className="rounded-md border border-amber-200 bg-white p-2 text-xs text-slate-700">
+                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+                    Reason
+                  </div>
+                  <p className="text-slate-700">{assignmentReason}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
         {isPromoted ? (
           <div className="flex flex-col gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
             <div className="flex items-center gap-2">

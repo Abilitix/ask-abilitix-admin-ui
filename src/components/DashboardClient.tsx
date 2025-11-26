@@ -86,29 +86,49 @@ export default function DashboardClient({ user }: DashboardClientProps) {
     });
   }
 
+  const hasCards = cards.length > 0;
+  const viewerEmptyState = !hasCards && user.role === "viewer";
+
   return (
     <div className="mx-auto max-w-6xl px-4 space-y-10">
       <section>
         <h2 className="text-sm font-semibold text-slate-700 mb-4">
           Dashboard Features
         </h2>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {cards.map((c) => (
-            <NoPrefetchLink
-              key={c.key}
-              href={c.href}
-              prefetch={false}
-              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
-            >
-              <div className="text-base font-semibold text-slate-900">
-                {c.title}
-              </div>
-              <div className="mt-2 text-sm leading-relaxed text-slate-600">
-                {c.desc}
-              </div>
-            </NoPrefetchLink>
-          ))}
-        </div>
+        {hasCards ? (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {cards.map((c) => (
+              <NoPrefetchLink
+                key={c.key}
+                href={c.href}
+                prefetch={false}
+                className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+              >
+                <div className="text-base font-semibold text-slate-900">
+                  {c.title}
+                </div>
+                <div className="mt-2 text-sm leading-relaxed text-slate-600">
+                  {c.desc}
+                </div>
+              </NoPrefetchLink>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
+            {viewerEmptyState ? (
+              <p>
+                Your role is set to <strong>Viewer</strong>. Use the “AI Assistant”
+                link in the menu to test the chatbot—uploads and settings are
+                handled by administrators.
+              </p>
+            ) : (
+              <p>
+                No modules available for your role yet. Please contact an admin
+                if you believe this is incorrect.
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {showPilot && (

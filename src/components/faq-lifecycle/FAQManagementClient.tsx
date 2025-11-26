@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, Search, Archive, ArchiveRestore, RefreshCw, X, RotateCcw } from 'lucide-react';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import type { FAQ, FAQStatus, FAQListResponse } from '@/lib/types/faq-lifecycle';
 
 type StatusFilter = FAQStatus | 'all';
@@ -50,6 +51,21 @@ export function FAQManagementClient() {
     open: false,
     obsoleteIds: [],
     availableFaqs: [],
+  });
+  const [confirmationDialog, setConfirmationDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    confirmText: string;
+    variant: 'default' | 'destructive' | 'warning';
+    onConfirm: (() => void) | null;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    variant: 'warning',
+    onConfirm: null,
   });
 
   // Lock body scroll when supersede modal is open
@@ -319,65 +335,95 @@ export function FAQManagementClient() {
       ? isFaqLoading(supersedeModal.obsoleteIds[0])
       : false;
 
+  const showConfirmationDialog = (config: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'default' | 'destructive' | 'warning';
+    onConfirm: () => void;
+  }) => {
+    setConfirmationDialog({
+      open: true,
+      title: config.title,
+      message: config.message,
+      confirmText: config.confirmText ?? 'Confirm',
+      variant: config.variant ?? 'warning',
+      onConfirm: config.onConfirm,
+    });
+  };
+
   // Archive FAQ
-  const handleArchive = async (faq: FAQ) => {
-    const archiveWarning = 'This only hides the curated answer. The underlying document may still answer via RAG.';
-    if (
-      !confirm(
-        `Are you sure you want to archive this FAQ?\n\n"${truncate(faq.question, 60)}"\n\n${archiveWarning}`
-      )
-    ) {
-      return;
-    }
+  const handleArchive = (faq: FAQ) => {
+    const archiveWarning =
+      'This only hides the curated answer. The underlying document may still answer via RAG.';
 
-    setFaqLoading(faq.id, true);
-    try {
-      const response = await fetch(`/api/admin/faqs/${faq.id}/archive`, {
-        method: 'POST',
-      });
+    const executeArchive = async () => {
+      setFaqLoading(faq.id, true);
+      try {
+        const response = await fetch(`/api/admin/faqs/${faq.id}/archive`, {
+          method: 'POST',
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || `Failed to archive FAQ: ${response.status}`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.details || `Failed to archive FAQ: ${response.status}`);
+        }
+
+        toast.success('FAQ archived successfully');
+        await fetchFAQs(); // Refresh list
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to archive FAQ';
+        toast.error(errorMessage);
+        console.error('Archive error:', err);
+      } finally {
+        setFaqLoading(faq.id, false);
       }
+    };
 
-      toast.success('FAQ archived successfully');
-      await fetchFAQs(); // Refresh list
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to archive FAQ';
-      toast.error(errorMessage);
-      console.error('Archive error:', err);
-    } finally {
-      setFaqLoading(faq.id, false);
-    }
+    showConfirmationDialog({
+      title: 'Archive FAQ?',
+      message: `Are you sure you want to archive this FAQ?\n\n"${truncate(
+        faq.question,
+        60
+      )}"\n\n${archiveWarning}`,
+      confirmText: 'Archive',
+      variant: 'warning',
+      onConfirm: executeArchive,
+    });
   };
 
   // Unarchive FAQ
-  const handleUnarchive = async (faq: FAQ) => {
-    if (!confirm(`Are you sure you want to unarchive this FAQ?\n\n"${truncate(faq.question, 60)}"`)) {
-      return;
-    }
+  const handleUnarchive = (faq: FAQ) => {
+    const executeUnarchive = async () => {
+      setFaqLoading(faq.id, true);
+      try {
+        const response = await fetch(`/api/admin/faqs/${faq.id}/unarchive`, {
+          method: 'POST',
+        });
 
-    setFaqLoading(faq.id, true);
-    try {
-      const response = await fetch(`/api/admin/faqs/${faq.id}/unarchive`, {
-        method: 'POST',
-      });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.details || `Failed to unarchive FAQ: ${response.status}`);
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || `Failed to unarchive FAQ: ${response.status}`);
+        toast.success('FAQ unarchived successfully');
+        await fetchFAQs(); // Refresh list
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to unarchive FAQ';
+        toast.error(errorMessage);
+        console.error('Unarchive error:', err);
+      } finally {
+        setFaqLoading(faq.id, false);
       }
+    };
 
-      toast.success('FAQ unarchived successfully');
-      await fetchFAQs(); // Refresh list
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to unarchive FAQ';
-      toast.error(errorMessage);
-      console.error('Unarchive error:', err);
-    } finally {
-      setFaqLoading(faq.id, false);
-    }
+    showConfirmationDialog({
+      title: 'Unarchive FAQ?',
+      message: `Are you sure you want to unarchive this FAQ?\n\n"${truncate(faq.question, 60)}"`,
+      confirmText: 'Unarchive',
+      variant: 'default',
+      onConfirm: executeUnarchive,
+    });
   };
 
   // Fetch active FAQs and open supersede modal
@@ -476,70 +522,83 @@ export function FAQManagementClient() {
     }
   };
 
-  const handleBulkArchive = async () => {
+  const handleBulkArchive = () => {
     if (selectedActiveIds.length === 0) {
       toast.info('Select active FAQs to archive');
       return;
     }
-    if (
-      !confirm(
-        `Archive ${selectedActiveIds.length} selected FAQ(s)?\n\nThis only hides the curated answer. The underlying document may still answer via RAG.`
-      )
-    ) {
-      return;
-    }
-    setBulkActionLoading(true);
-    try {
-      const response = await fetch('/api/admin/faqs/bulk-archive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedActiveIds }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || `Failed to archive FAQs: ${response.status}`);
+
+    const executeBulkArchive = async () => {
+      setBulkActionLoading(true);
+      try {
+        const response = await fetch('/api/admin/faqs/bulk-archive', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: selectedActiveIds }),
+        });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.details || `Failed to archive FAQs: ${response.status}`);
+        }
+        toast.success(`Archived ${selectedActiveIds.length} FAQ(s)`);
+        clearSelection();
+        await fetchFAQs();
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to archive FAQs';
+        toast.error(errorMessage);
+        console.error('Bulk archive error:', err);
+      } finally {
+        setBulkActionLoading(false);
       }
-      toast.success(`Archived ${selectedActiveIds.length} FAQ(s)`);
-      clearSelection();
-      await fetchFAQs();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to archive FAQs';
-      toast.error(errorMessage);
-      console.error('Bulk archive error:', err);
-    } finally {
-      setBulkActionLoading(false);
-    }
+    };
+
+    showConfirmationDialog({
+      title: `Archive ${selectedActiveIds.length} FAQ${selectedActiveIds.length > 1 ? 's' : ''}?`,
+      message:
+        'This only hides the curated answers. The underlying documents may still answer via RAG.',
+      confirmText: 'Archive FAQs',
+      variant: 'warning',
+      onConfirm: executeBulkArchive,
+    });
   };
 
-  const handleBulkUnarchive = async () => {
+  const handleBulkUnarchive = () => {
     if (selectedArchivedIds.length === 0) {
       toast.info('Select archived FAQs to unarchive');
       return;
     }
-    if (!confirm(`Unarchive ${selectedArchivedIds.length} selected FAQ(s)?`)) {
-      return;
-    }
-    setBulkActionLoading(true);
-    try {
-      const response = await fetch('/api/admin/faqs/bulk-unarchive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedArchivedIds }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || `Failed to unarchive FAQs: ${response.status}`);
+
+    const executeBulkUnarchive = async () => {
+      setBulkActionLoading(true);
+      try {
+        const response = await fetch('/api/admin/faqs/bulk-unarchive', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: selectedArchivedIds }),
+        });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.details || `Failed to unarchive FAQs: ${response.status}`);
+        }
+        toast.success(`Unarchived ${selectedArchivedIds.length} FAQ(s)`);
+        clearSelection();
+        await fetchFAQs();
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to unarchive FAQs';
+        toast.error(errorMessage);
+        console.error('Bulk unarchive error:', err);
+      } finally {
+        setBulkActionLoading(false);
       }
-      toast.success(`Unarchived ${selectedArchivedIds.length} FAQ(s)`);
-      clearSelection();
-      await fetchFAQs();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to unarchive FAQs';
-      toast.error(errorMessage);
-      console.error('Bulk unarchive error:', err);
-    } finally {
-      setBulkActionLoading(false);
-    }
+    };
+
+    showConfirmationDialog({
+      title: `Unarchive ${selectedArchivedIds.length} FAQ${selectedArchivedIds.length > 1 ? 's' : ''}?`,
+      message: 'The selected FAQs will be restored and can appear in responses again.',
+      confirmText: 'Unarchive FAQs',
+      variant: 'default',
+      onConfirm: executeBulkUnarchive,
+    });
   };
 
   return (
@@ -918,11 +977,17 @@ export function FAQManagementClient() {
                       key={faq.id}
                       type="button"
                       className="w-full text-left border rounded-md p-3 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                      onClick={() => {
-                        if (confirm(`Replace the obsolete FAQ with:\n\n"${truncate(faq.question, 120)}"?`)) {
-                          handleSupersede(faq.id);
-                        }
-                      }}
+                      onClick={() =>
+                        showConfirmationDialog({
+                          title: modalIsBulk
+                            ? 'Confirm replacement FAQ'
+                            : 'Use this FAQ to supersede?',
+                          message: `Replace the obsolete FAQ(s) with:\n\n"${truncate(faq.question, 120)}"`,
+                          confirmText: modalIsBulk ? 'Replace FAQs' : 'Use this FAQ',
+                          variant: 'warning',
+                          onConfirm: () => handleSupersede(faq.id),
+                        })
+                      }
                       disabled={supersedeModalLoading}
                     >
                       <div className="font-medium text-sm">{truncate(faq.question, 140)}</div>
@@ -949,6 +1014,19 @@ export function FAQManagementClient() {
           </div>
         </div>
       )}
+      <ConfirmationDialog
+        open={confirmationDialog.open}
+        onClose={() => setConfirmationDialog((prev) => ({ ...prev, open: false }))}
+        onConfirm={() => {
+          const action = confirmationDialog.onConfirm;
+          setConfirmationDialog((prev) => ({ ...prev, open: false }));
+          action?.();
+        }}
+        title={confirmationDialog.title}
+        message={confirmationDialog.message}
+        confirmText={confirmationDialog.confirmText}
+        variant={confirmationDialog.variant}
+      />
     </div>
   );
 }

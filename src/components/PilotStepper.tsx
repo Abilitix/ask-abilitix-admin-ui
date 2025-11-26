@@ -31,6 +31,7 @@ function getActive(path: string): Step["key"] | null {
 export default function PilotStepper() {
   const pathname = usePathname();
   const [userRole, setUserRole] = useState<UserRole | undefined>();
+  const [roleLoaded, setRoleLoaded] = useState(false);
   
   if (!SHOW_STEPPER) return null;
 
@@ -49,6 +50,10 @@ export default function PilotStepper() {
         }
       } catch {
         // Ignore errors, role will remain undefined
+      } finally {
+        if (alive) {
+          setRoleLoaded(true);
+        }
       }
     })();
     return () => { alive = false; };
@@ -57,14 +62,28 @@ export default function PilotStepper() {
   const active = getActive(pathname || "");
   
   // Filter steps based on user role
-  const visibleSteps = userRole === 'viewer' 
-    ? STEPS.filter(step => step.key === 'chat') // Only show Test Chat for viewers
-    : STEPS; // Show all steps for other roles
+  const visibleSteps = !roleLoaded
+    ? []
+    : userRole === 'viewer'
+      ? STEPS.filter(step => step.key === 'chat') // Only show Test Chat for viewers
+      : userRole === 'curator'
+        ? STEPS.filter(step => step.key !== 'settings') // Curators shouldn't see settings step
+        : STEPS; // Owners/Admins see all steps
 
   return (
     <div className="w-full border-b bg-white/80 backdrop-blur">
       <div className="mx-auto max-w-6xl px-4">
         <nav className="flex items-center gap-2 overflow-x-auto py-2 text-xs text-slate-600" aria-label="Pilot steps">
+          {!roleLoaded && (
+            <div className="flex items-center gap-2">
+              {[1, 2, 3].map((key) => (
+                <div
+                  key={key}
+                  className="h-7 w-32 animate-pulse rounded-full border border-slate-200 bg-slate-100"
+                />
+              ))}
+            </div>
+          )}
           {visibleSteps.map((s, i) => {
             const isActive = s.key === active;
             return (

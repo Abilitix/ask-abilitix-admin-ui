@@ -29,7 +29,7 @@ const DRAFT_STORAGE_KEY = 'manualFaqCreationDraft';
 type ManualFAQCreationModalProps = {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (inboxId: string | null) => void;
 };
 
 export function ManualFAQCreationModal({
@@ -361,7 +361,19 @@ export function ManualFAQCreationModal({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.details || errorData.error || 'Failed to create FAQ';
+        
+        // Handle 409 Conflict (duplicate FAQ or inbox item)
+        if (response.status === 409) {
+          const errorCode = errorData.detail?.error?.code || errorData.error?.code;
+          if (errorCode === 'duplicate_faq_exists' || errorCode === 'duplicate_inbox_item') {
+            const duplicateMessage = errorData.detail?.error?.message || errorData.error?.message || errorData.details ||
+              'This question already exists as a pending review or approved FAQ.';
+            toast.error(duplicateMessage);
+            return;
+          }
+        }
+        
+        const errorMessage = errorData.details || errorData.error || errorData.detail?.error?.message || 'Failed to create FAQ';
         toast.error(errorMessage);
         return;
       }
@@ -370,7 +382,8 @@ export function ManualFAQCreationModal({
       toast.success('FAQ draft created and sent to inbox');
       resetForm();
       handleClose();
-      onSuccess();
+      // Pass the inbox_id to onSuccess so we can fetch only the new item
+      onSuccess(data?.inbox_id || null);
     } catch (err) {
       console.error('Manual FAQ creation error:', err);
       toast.error('Failed to create FAQ. Please try again.');

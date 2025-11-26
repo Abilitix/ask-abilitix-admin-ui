@@ -119,11 +119,43 @@ export function LegacyInboxPageClient({
         }),
       ]);
 
+      // Enhanced error handling with response body logging
       if (!pendingResponse.ok) {
-        throw new Error(`Failed to fetch pending items: ${pendingResponse.status}`);
+        const pendingErrorText = await pendingResponse.text().catch(() => '');
+        const pendingErrorData = pendingErrorText ? (() => {
+          try { return JSON.parse(pendingErrorText); } catch { return null; }
+        })() : null;
+        
+        console.error('[LegacyInbox] Pending items fetch failed:', {
+          status: pendingResponse.status,
+          statusText: pendingResponse.statusText,
+          url: pendingUrl,
+          errorData: pendingErrorData,
+          errorText: pendingErrorText.substring(0, 500),
+        });
+        
+        const errorMsg = pendingErrorData?.details || pendingErrorData?.error || pendingErrorText || 
+          `Failed to fetch pending items: ${pendingResponse.status}`;
+        throw new Error(errorMsg);
       }
+      
       if (!needsReviewResponse.ok) {
-        throw new Error(`Failed to fetch needs_review items: ${needsReviewResponse.status}`);
+        const needsReviewErrorText = await needsReviewResponse.text().catch(() => '');
+        const needsReviewErrorData = needsReviewErrorText ? (() => {
+          try { return JSON.parse(needsReviewErrorText); } catch { return null; }
+        })() : null;
+        
+        console.error('[LegacyInbox] Needs review items fetch failed:', {
+          status: needsReviewResponse.status,
+          statusText: needsReviewResponse.statusText,
+          url: needsReviewUrl,
+          errorData: needsReviewErrorData,
+          errorText: needsReviewErrorText.substring(0, 500),
+        });
+        
+        const errorMsg = needsReviewErrorData?.details || needsReviewErrorData?.error || needsReviewErrorText || 
+          `Failed to fetch needs_review items: ${needsReviewResponse.status}`;
+        throw new Error(errorMsg);
       }
 
       const pendingText = await pendingResponse.text();
@@ -166,11 +198,19 @@ export function LegacyInboxPageClient({
           pendingCount: pendingItems.length,
           needsReviewCount: needsReviewItems.length,
           totalRawCount: rawItems.length,
+          pendingResponseStatus: pendingResponse.status,
+          needsReviewResponseStatus: needsReviewResponse.status,
           sampleItem: rawItems[0] ? {
             id: rawItems[0].id || rawItems[0].ref_id,
             status: rawItems[0].status,
             assigned_to: rawItems[0].assigned_to,
+            assigned_to_type: typeof rawItems[0].assigned_to,
+            assigned_to_is_array: Array.isArray(rawItems[0].assigned_to),
           } : null,
+          allItemsAssignedTo: rawItems.map((item: any) => ({
+            id: item.id || item.ref_id,
+            assigned_to: item.assigned_to,
+          })),
         });
       }
       
@@ -750,13 +790,13 @@ export function LegacyInboxPageClient({
                 : null;
         if (active) {
           setCurrentUserId(id ?? null);
-          // Debug logging for user ID
-          if (assignedToMeOnly) {
-            console.log('[LegacyInbox] Current user ID fetched:', {
-              id,
-              fullData: data,
-            });
-          }
+          // Debug logging for user ID (always log when fetching)
+          console.log('[LegacyInbox] Current user ID fetched:', {
+            id,
+            hasId: !!id,
+            idType: typeof id,
+            fullData: data,
+          });
         }
       } catch {
         if (active) {

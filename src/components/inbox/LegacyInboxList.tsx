@@ -510,7 +510,13 @@ export function LegacyInboxList({
               </div>
             )}
           </div>
-          <Button onClick={onRefresh} variant="ghost" size="icon" title="Refresh inbox">
+          <Button 
+            onClick={onRefresh} 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 flex-shrink-0"
+            title="Refresh inbox"
+          >
             <RefreshCw className="h-4 w-4" />
           </Button>
         </CardHeader>
@@ -536,7 +542,7 @@ export function LegacyInboxList({
                 </Button>
                 <Button
                   onClick={onRefresh}
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   className="h-8"
                 >

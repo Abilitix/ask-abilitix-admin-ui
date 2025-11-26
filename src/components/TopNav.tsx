@@ -153,6 +153,7 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
   const filteredNavItems = navItems.filter((it) =>
     it.href === '/admin/inbox' ? inboxEnabled : true
   );
+  const isRoleLoading = !effectiveRole;
 
   const isActive = (href: string) =>
     pathname === href || (pathname && pathname.startsWith(href + "/"));
@@ -268,22 +269,33 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
               )}
 
               <nav className="flex-1 overflow-y-auto px-2 py-2 divide-y divide-slate-200 text-slate-900">
-                {filteredNavItems.map((it) => (
-                  <Link
-                    key={it.href}
-                    href={it.href}
-                    onClick={close}
-                    aria-current={isActive(it.href) ? "page" : undefined}
-                    className={[
-                      "block break-words px-3 py-3 text-[15px] hover:bg-slate-50 focus:bg-slate-50 focus:outline-none",
-                      isActive(it.href)
-                        ? "bg-slate-50 font-medium border-l-2 border-slate-300"
-                        : "bg-white",
-                    ].join(" ")}
-                  >
-                    {it.label}
-                  </Link>
-                ))}
+                {isRoleLoading && (
+                  <div className="space-y-2 px-1 py-2">
+                    {[1, 2, 3, 4].map((idx) => (
+                      <div
+                        key={idx}
+                        className="h-10 animate-pulse rounded-xl border border-slate-200 bg-slate-50"
+                      />
+                    ))}
+                  </div>
+                )}
+                {!isRoleLoading &&
+                  filteredNavItems.map((it) => (
+                    <Link
+                      key={it.href}
+                      href={it.href}
+                      onClick={close}
+                      aria-current={isActive(it.href) ? "page" : undefined}
+                      className={[
+                        "block break-words px-3 py-3 text-[15px] hover:bg-slate-50 focus:bg-slate-50 focus:outline-none",
+                        isActive(it.href)
+                          ? "bg-slate-50 font-medium border-l-2 border-slate-300"
+                          : "bg-white",
+                      ].join(" ")}
+                    >
+                      {it.label}
+                    </Link>
+                  ))}
               </nav>
 
               <div className="border-t px-2 py-3">

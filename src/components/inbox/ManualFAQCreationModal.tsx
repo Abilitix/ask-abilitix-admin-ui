@@ -29,7 +29,7 @@ const DRAFT_STORAGE_KEY = 'manualFaqCreationDraft';
 type ManualFAQCreationModalProps = {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (inboxId: string | null) => void;
 };
 
 export function ManualFAQCreationModal({
@@ -382,7 +382,8 @@ export function ManualFAQCreationModal({
       toast.success('FAQ draft created and sent to inbox');
       resetForm();
       handleClose();
-      onSuccess();
+      // Pass the inbox_id to onSuccess so we can fetch only the new item
+      onSuccess(data?.inbox_id || null);
     } catch (err) {
       console.error('Manual FAQ creation error:', err);
       toast.error('Failed to create FAQ. Please try again.');

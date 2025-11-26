@@ -58,7 +58,7 @@ export function SMEReviewRequestModal({
     setMembersLoading(true);
     setMembersError(null);
     try {
-      const response = await fetch('/api/admin/members?role=admin,curator', {
+      const response = await fetch('/api/admin/members?role=admin,curator,owner', {
         method: 'GET',
         cache: 'no-store',
         credentials: 'include',

@@ -1050,8 +1050,82 @@ export function LegacyInboxPageClient({
       <ManualFAQCreationModal
         open={manualFaqModalOpen}
         onClose={() => setManualFaqModalOpen(false)}
-        onSuccess={() => {
-          fetchItems();
+        onSuccess={async (inboxId) => {
+          if (inboxId) {
+            // Fetch only the newly created item instead of refreshing entire list
+            try {
+              const detailResponse = await fetch(`/api/admin/inbox/${encodeURIComponent(inboxId)}`, {
+                method: 'GET',
+                credentials: 'include',
+                cache: 'no-store',
+              });
+              const detailData = await detailResponse.json().catch(() => null);
+
+              if (detailResponse.ok && detailData) {
+                // Normalize the item using the same logic as fetchItems
+                const item = detailData;
+                const normalized: LegacyInboxItem = {
+                  id: item.id || item.ref_id || '',
+                  question: item.question || '',
+                  answer: item.answer || item.answer_draft || '',
+                  created_at: item.created_at || item.asked_at || '',
+                  has_pii: item.has_pii || false,
+                  pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
+                  status: item.status || 'pending',
+                  source_type: item.source_type || null,
+                  suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
+                };
+
+                // Parse assigned_to
+                if (item.assigned_to) {
+                  const assigned = Array.isArray(item.assigned_to) ? item.assigned_to : [];
+                  normalized.assignedTo = assigned
+                    .map((member: any) => {
+                      const id = member.id || member.user_id;
+                      if (!id) return null;
+                      return {
+                        id,
+                        email: member.email || '',
+                        name: member.name || null,
+                        role: member.role || null,
+                      };
+                    })
+                    .filter(Boolean);
+                }
+
+                normalized.reason = item.reason || null;
+                normalized.assignedAt = item.assigned_at || null;
+                if (item.requested_by) {
+                  const reqBy = item.requested_by;
+                  normalized.requestedBy = {
+                    id: reqBy.id || reqBy.user_id || '',
+                    email: reqBy.email || '',
+                    name: reqBy.name || null,
+                    role: reqBy.role || null,
+                  };
+                }
+
+                // Add the new item to the list (prepend to show at top)
+                setItems((prev) => {
+                  // Check if item already exists (avoid duplicates)
+                  if (prev.some((existing) => existing.id === normalized.id)) {
+                    return prev;
+                  }
+                  return [normalized, ...prev];
+                });
+              } else {
+                // Fallback to full refresh if single item fetch fails
+                await fetchItems();
+              }
+            } catch (detailErr) {
+              // If single item fetch fails, fall back to full refresh
+              console.warn('[manual-faq] Failed to fetch new item, falling back to full refresh:', detailErr);
+              await fetchItems();
+            }
+          } else {
+            // No inbox_id returned, fallback to full refresh
+            await fetchItems();
+          }
         }}
       />
 

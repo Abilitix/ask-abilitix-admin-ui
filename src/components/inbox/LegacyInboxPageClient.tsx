@@ -9,6 +9,7 @@ import { ManualFAQCreationModal } from './ManualFAQCreationModal';
 import { SMEReviewRequestModal } from './SMEReviewRequestModal';
 import { Button } from '@/components/ui/button';
 import { AssignableMember } from './types';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 export type LegacyInboxItem = {
   id: string;
@@ -78,6 +79,20 @@ export function LegacyInboxPageClient({
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [assignedToMeOnly, setAssignedToMeOnly] = useState(false);
+  // Confirmation dialog state
+  const [confirmationDialog, setConfirmationDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    variant: 'default' | 'destructive' | 'warning';
+    onConfirm: () => void;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    variant: 'default',
+    onConfirm: () => {},
+  });
 
   const fetchItems = useCallback(async () => {
     if (disabled) return;
@@ -650,58 +665,63 @@ export function LegacyInboxPageClient({
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
 
-    const confirmMessage = `Are you sure you want to bulk approve ${ids.length} inbox item(s)?`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+    setConfirmationDialog({
+      open: true,
+      title: 'Bulk Approve Items',
+      message: `Are you sure you want to bulk approve ${ids.length} inbox item(s)? This action will promote these items to FAQs.`,
+      variant: 'default',
+      onConfirm: async () => {
+        setConfirmationDialog((prev) => ({ ...prev, open: false }));
 
-    setBulkActionLoading(true);
-    try {
-      // Default to true for bulk approve (consistent with single approve default)
-      const response = await fetch('/api/admin/inbox/bulk-approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ids,
-          as_faq: true, // Default to true for bulk approve
-        }),
-        cache: 'no-store',
-      });
+        setBulkActionLoading(true);
+        try {
+          // Default to true for bulk approve (consistent with single approve default)
+          const response = await fetch('/api/admin/inbox/bulk-approve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              ids,
+              as_faq: true, // Default to true for bulk approve
+            }),
+            cache: 'no-store',
+          });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || `Failed to bulk approve: ${response.status}`);
-      }
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.details || `Failed to bulk approve: ${response.status}`);
+          }
 
-      const result = await response.json();
+          const result = await response.json();
 
-      if (result.errors && result.errors.length > 0) {
-        // Partial failure: remove only successful items, keep failed ones
-        const failedIds = new Set(result.errors.map((e: any) => e.id || e.item_id).filter(Boolean));
-        const successfulIds = ids.filter(id => !failedIds.has(id));
-        
-        // Optimistically remove successful items
-        setItems((prev) => prev.filter((item) => !successfulIds.includes(item.id)));
-        
-        toast.error(
-          `Bulk approve completed with errors for ${result.errors.length} of ${ids.length} item(s).`
-        );
-        console.error('Bulk approve errors:', result.errors);
-      } else {
-        // All successful: optimistically remove all items
-        setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
-        toast.success(`Successfully bulk approved ${ids.length} item(s).`);
-      }
+          if (result.errors && result.errors.length > 0) {
+            // Partial failure: remove only successful items, keep failed ones
+            const failedIds = new Set(result.errors.map((e: any) => e.id || e.item_id).filter(Boolean));
+            const successfulIds = ids.filter(id => !failedIds.has(id));
+            
+            // Optimistically remove successful items
+            setItems((prev) => prev.filter((item) => !successfulIds.includes(item.id)));
+            
+            toast.error(
+              `Bulk approve completed with errors for ${result.errors.length} of ${ids.length} item(s).`
+            );
+            console.error('Bulk approve errors:', result.errors);
+          } else {
+            // All successful: optimistically remove all items
+            setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
+            toast.success(`Successfully bulk approved ${ids.length} item(s).`);
+          }
 
-      clearSelection();
-      // No fetchItems() needed - optimistic update handles it
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to bulk approve items';
-      toast.error(errorMessage);
-      console.error('Bulk approve error:', err);
-    } finally {
-      setBulkActionLoading(false);
-    }
+          clearSelection();
+          // No fetchItems() needed - optimistic update handles it
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to bulk approve items';
+          toast.error(errorMessage);
+          console.error('Bulk approve error:', err);
+        } finally {
+          setBulkActionLoading(false);
+        }
+      },
+    });
   }, [selectedIds, clearSelection, fetchItems]);
 
   // Bulk reject handler
@@ -709,54 +729,59 @@ export function LegacyInboxPageClient({
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
 
-    const confirmMessage = `Are you sure you want to bulk reject ${ids.length} inbox item(s)?`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+    setConfirmationDialog({
+      open: true,
+      title: 'Bulk Reject Items',
+      message: `Are you sure you want to bulk reject ${ids.length} inbox item(s)? This action cannot be undone.`,
+      variant: 'destructive',
+      onConfirm: async () => {
+        setConfirmationDialog((prev) => ({ ...prev, open: false }));
 
-    setBulkActionLoading(true);
-    try {
-      const response = await fetch('/api/admin/inbox/bulk-reject', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
-        cache: 'no-store',
-      });
+        setBulkActionLoading(true);
+        try {
+          const response = await fetch('/api/admin/inbox/bulk-reject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids }),
+            cache: 'no-store',
+          });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || `Failed to bulk reject: ${response.status}`);
-      }
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.details || `Failed to bulk reject: ${response.status}`);
+          }
 
-      const result = await response.json();
+          const result = await response.json();
 
-      if (result.errors && result.errors.length > 0) {
-        // Partial failure: remove only successful items, keep failed ones
-        const failedIds = new Set(result.errors.map((e: any) => e.id || e.item_id).filter(Boolean));
-        const successfulIds = ids.filter(id => !failedIds.has(id));
-        
-        // Optimistically remove successful items
-        setItems((prev) => prev.filter((item) => !successfulIds.includes(item.id)));
-        
-        toast.error(
-          `Bulk reject completed with errors for ${result.errors.length} of ${ids.length} item(s).`
-        );
-        console.error('Bulk reject errors:', result.errors);
-      } else {
-        // All successful: optimistically remove all items
-        setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
-        toast.success(`Successfully bulk rejected ${ids.length} item(s).`);
-      }
+          if (result.errors && result.errors.length > 0) {
+            // Partial failure: remove only successful items, keep failed ones
+            const failedIds = new Set(result.errors.map((e: any) => e.id || e.item_id).filter(Boolean));
+            const successfulIds = ids.filter(id => !failedIds.has(id));
+            
+            // Optimistically remove successful items
+            setItems((prev) => prev.filter((item) => !successfulIds.includes(item.id)));
+            
+            toast.error(
+              `Bulk reject completed with errors for ${result.errors.length} of ${ids.length} item(s).`
+            );
+            console.error('Bulk reject errors:', result.errors);
+          } else {
+            // All successful: optimistically remove all items
+            setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
+            toast.success(`Successfully bulk rejected ${ids.length} item(s).`);
+          }
 
-      clearSelection();
-      // No fetchItems() needed - optimistic update handles it
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to bulk reject items';
-      toast.error(errorMessage);
-      console.error('Bulk reject error:', err);
-    } finally {
-      setBulkActionLoading(false);
-    }
+          clearSelection();
+          // No fetchItems() needed - optimistic update handles it
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to bulk reject items';
+          toast.error(errorMessage);
+          console.error('Bulk reject error:', err);
+        } finally {
+          setBulkActionLoading(false);
+        }
+      },
+    });
   }, [selectedIds, clearSelection, fetchItems]);
 
   useEffect(() => {
@@ -1164,6 +1189,18 @@ export function LegacyInboxPageClient({
           setSelectedItemForReview(null);
         }}
         onSuccess={handleReviewSuccess}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        open={confirmationDialog.open}
+        onClose={() => setConfirmationDialog((prev) => ({ ...prev, open: false }))}
+        onConfirm={confirmationDialog.onConfirm}
+        title={confirmationDialog.title}
+        message={confirmationDialog.message}
+        variant={confirmationDialog.variant}
+        loading={bulkActionLoading}
+        confirmText={confirmationDialog.variant === 'destructive' ? 'Reject' : 'Approve'}
       />
     </div>
   );

@@ -38,6 +38,11 @@ export async function GET(request: NextRequest) {
       forwardParams.set('q_hash', qHash);
     }
 
+    const assignedToMe = searchParams.get('assigned_to_me');
+    if (assignedToMe) {
+      forwardParams.set('assigned_to_me', assignedToMe);
+    }
+
     const queryString = forwardParams.toString();
     const path = `/admin/inbox${queryString ? `?${queryString}` : ''}`;
 

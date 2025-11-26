@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,6 +57,8 @@ type LegacyInboxListProps = {
   onBulkApprove?: () => void;
   onBulkReject?: () => void;
   onClearSelection?: () => void;
+  currentUserId?: string | null;
+  userRole?: string;
 };
 
 function renderStatusBadge(status?: string | null) {
@@ -169,7 +171,31 @@ export function LegacyInboxList({
   onBulkApprove,
   onBulkReject,
   onClearSelection,
+  currentUserId,
+  userRole,
 }: LegacyInboxListProps) {
+  // Helper: Check if user can act on item (assignee OR admin)
+  const canActOnItem = useCallback((item: LegacyInboxItem): boolean => {
+    // If item is not assigned, anyone with role can act (existing behavior)
+    if (!item.assignedTo || item.assignedTo.length === 0) {
+      return true;
+    }
+    
+    // If item is assigned, check ownership
+    const isAdmin = userRole && ['owner', 'admin'].includes(userRole);
+    if (isAdmin) {
+      return true; // Admin override
+    }
+    
+    // Check if current user is assignee
+    if (currentUserId) {
+      const isAssignee = item.assignedTo.some((member) => member.id === currentUserId);
+      return isAssignee;
+    }
+    
+    return false;
+  }, [currentUserId, userRole]);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
   const [faqSelections, setFaqSelections] = useState<Record<string, boolean>>({});
@@ -571,7 +597,7 @@ export function LegacyInboxList({
                     </div>
                   </TableCell>
                   <TableCell className="w-[300px]">
-                    {editingId === item.id ? (
+                        {editingId === item.id ? (
                       <div className="space-y-2">
                         <Textarea
                           value={editedAnswers[item.id] ?? item.answer}
@@ -602,18 +628,23 @@ export function LegacyInboxList({
                           {editedAnswers[item.id] || item.answer}
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Button
-                            onClick={() => startEditing(item.id, editedAnswers[item.id] || item.answer)}
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                          >
-                            <Edit2 className="h-3 w-3 mr-1" />
-                            Edit Answer
-                          </Button>
-                          <Badge variant="outline" className="text-xs">
-                            Click to edit
-                          </Badge>
+                          {/* Show Edit Answer button only if user can act on item (assignee OR admin) */}
+                          {canActOnItem(item) && (
+                            <Button
+                              onClick={() => startEditing(item.id, editedAnswers[item.id] || item.answer)}
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              <Edit2 className="h-3 w-3 mr-1" />
+                              Edit Answer
+                            </Button>
+                          )}
+                          {canActOnItem(item) && (
+                            <Badge variant="outline" className="text-xs">
+                              Click to edit
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     )}
@@ -692,6 +723,23 @@ export function LegacyInboxList({
                               </Badge>
                             )}
                           </div>
+                          {/* Show Edit button only if user can act on item (assignee OR admin) */}
+                          {canActOnItem(item) && (
+                            <Button
+                              onClick={() => handleOpenAttachModal(item.id)}
+                              size="sm"
+                              variant="ghost"
+                              disabled={editingId === item.id}
+                              className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        /* Show Attach button only if user can act on item (assignee OR admin) */
+                        canActOnItem(item) && (
                           <Button
                             onClick={() => handleOpenAttachModal(item.id)}
                             size="sm"
@@ -699,41 +747,32 @@ export function LegacyInboxList({
                             disabled={editingId === item.id}
                             className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                           >
-                            <Edit2 className="h-3 w-3 mr-1" />
-                            Edit
+                            <Paperclip className="h-3 w-3 mr-1" />
+                            Attach
                           </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => handleOpenAttachModal(item.id)}
-                          size="sm"
-                          variant="ghost"
-                          disabled={editingId === item.id}
-                          className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                        >
-                          <Paperclip className="h-3 w-3 mr-1" />
-                          Attach
-                        </Button>
+                        )
                       )}
                       <div className="flex space-x-2">
-                        <Button
-                          onClick={() => handleApprove(item.id)}
-                          size="sm"
-                          className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
-                          disabled={
-                            editingId === item.id ||
-                            (!allowEmptyCitations &&
-                              (!item.suggested_citations || item.suggested_citations.length === 0)) ||
-                            actionStates[item.id] === 'approving' ||
-                            actionStates[item.id] === 'approved'
-                          }
-                          title={
-                            !allowEmptyCitations &&
-                            (!item.suggested_citations || item.suggested_citations.length === 0)
-                              ? 'Attach citations first'
-                              : 'Approve and automatically generate embeddings'
-                          }
-                        >
+                        {/* Show Approve button only if user can act on item (assignee OR admin) */}
+                        {canActOnItem(item) && (
+                          <Button
+                            onClick={() => handleApprove(item.id)}
+                            size="sm"
+                            className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
+                            disabled={
+                              editingId === item.id ||
+                              (!allowEmptyCitations &&
+                                (!item.suggested_citations || item.suggested_citations.length === 0)) ||
+                              actionStates[item.id] === 'approving' ||
+                              actionStates[item.id] === 'approved'
+                            }
+                            title={
+                              !allowEmptyCitations &&
+                              (!item.suggested_citations || item.suggested_citations.length === 0)
+                                ? 'Attach citations first'
+                                : 'Approve and automatically generate embeddings'
+                            }
+                          >
                           {actionStates[item.id] === 'approving' ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -750,17 +789,20 @@ export function LegacyInboxList({
                               Approve
                             </>
                           )}
-                        </Button>
-                        <Button
-                          onClick={() => handleReject(item.id)}
-                          size="sm"
-                          variant="destructive"
-                          disabled={
-                            editingId === item.id ||
-                            actionStates[item.id] === 'rejecting' ||
-                            actionStates[item.id] === 'rejected'
-                          }
-                        >
+                          </Button>
+                        )}
+                        {/* Show Reject button only if user can act on item (assignee OR admin) */}
+                        {canActOnItem(item) && (
+                          <Button
+                            onClick={() => handleReject(item.id)}
+                            size="sm"
+                            variant="destructive"
+                            disabled={
+                              editingId === item.id ||
+                              actionStates[item.id] === 'rejecting' ||
+                              actionStates[item.id] === 'rejected'
+                            }
+                          >
                           {actionStates[item.id] === 'rejecting' ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -777,7 +819,8 @@ export function LegacyInboxList({
                               Reject
                             </>
                           )}
-                        </Button>
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </TableCell>

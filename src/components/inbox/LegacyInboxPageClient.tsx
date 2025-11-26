@@ -44,6 +44,7 @@ type LegacyInboxPageClientProps = {
   updatingKey?: string | null;
   tenantId?: string;
   tenantSlug?: string;
+  userRole?: string;
 };
 
 export function LegacyInboxPageClient({ 
@@ -56,6 +57,7 @@ export function LegacyInboxPageClient({
   updatingKey,
   tenantId,
   tenantSlug,
+  userRole,
 }: LegacyInboxPageClientProps) {
   const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
   const [smeModalOpen, setSmeModalOpen] = useState<boolean>(false);
@@ -83,10 +85,19 @@ export function LegacyInboxPageClient({
       setLoading(true);
       setError(null);
 
+      // Build query parameters - use backend filter when "Assigned to Me" is active
+      const pendingParams = new URLSearchParams({ status: 'pending' });
+      const needsReviewParams = new URLSearchParams({ status: 'needs_review' });
+      
+      if (assignedToMeOnly) {
+        pendingParams.set('assigned_to_me', 'true');
+        needsReviewParams.set('assigned_to_me', 'true');
+      }
+
       // Fetch both pending and needs_review items (backend now supports both)
       const [pendingResponse, needsReviewResponse] = await Promise.all([
-        fetch('/api/admin/inbox?status=pending'),
-        fetch('/api/admin/inbox?status=needs_review'),
+        fetch(`/api/admin/inbox?${pendingParams.toString()}`),
+        fetch(`/api/admin/inbox?${needsReviewParams.toString()}`),
       ]);
 
       if (!pendingResponse.ok) {
@@ -195,7 +206,7 @@ export function LegacyInboxPageClient({
     } finally {
       setLoading(false);
     }
-  }, [disabled]);
+  }, [disabled, assignedToMeOnly]);
 
   const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true) => {
     try {
@@ -256,6 +267,14 @@ export function LegacyInboxPageClient({
       }
 
       if (!response.ok || data.error) {
+        // Handle 403 Forbidden (ownership check failed)
+        if (response.status === 403) {
+          const forbiddenMessage = data.detail?.error?.message || data.error?.message || data.details || 
+            'Only assignees or admins can modify assigned items';
+          toast.error(`Permission denied: ${forbiddenMessage}`);
+          throw new Error(forbiddenMessage);
+        }
+        
         // Parse detailed validation errors from backend
         let errorMessage = data.details || data.error || data.message || `Failed to ${isFaq ? 'promote' : 'approve'}: ${response.status} ${response.statusText}`;
         
@@ -319,35 +338,43 @@ export function LegacyInboxPageClient({
         console.error('[attach-citations] Failed to parse response:', parseErr);
       }
 
-      if (!response.ok) {
-        // Parse detailed validation errors from backend
-        let errorMessage = data.details || data.error || data.message || `Failed to attach citations: ${response.status} ${response.statusText}`;
-        
-        // Check for detailed field errors (Admin API format)
-        if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
-          const fieldErrors = data.detail.error.fields
-            .map((field: any) => {
-              const fieldPath = field.field || '';
-              const message = field.message || 'Invalid value';
-              return `${fieldPath}: ${message}`;
-            })
-            .join(', ');
-          
-          if (fieldErrors) {
-            errorMessage = `Validation errors: ${fieldErrors}`;
+        if (!response.ok) {
+          // Handle 403 Forbidden (ownership check failed)
+          if (response.status === 403) {
+            const forbiddenMessage = data.detail?.error?.message || data.error?.message || data.details || 
+              'Only assignees or admins can modify assigned items';
+            toast.error(`Permission denied: ${forbiddenMessage}`);
+            throw new Error(forbiddenMessage);
           }
+          
+          // Parse detailed validation errors from backend
+          let errorMessage = data.details || data.error || data.message || `Failed to attach citations: ${response.status} ${response.statusText}`;
+          
+          // Check for detailed field errors (Admin API format)
+          if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
+            const fieldErrors = data.detail.error.fields
+              .map((field: any) => {
+                const fieldPath = field.field || '';
+                const message = field.message || 'Invalid value';
+                return `${fieldPath}: ${message}`;
+              })
+              .join(', ');
+            
+            if (fieldErrors) {
+              errorMessage = `Validation errors: ${fieldErrors}`;
+            }
+          }
+          
+          console.error('[attach-citations] API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            data,
+            citations,
+            errorCode: data.detail?.error?.code,
+            fieldErrors: data.detail?.error?.fields,
+          });
+          throw new Error(errorMessage);
         }
-        
-        console.error('[attach-citations] API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          data,
-          citations,
-          errorCode: data.detail?.error?.code,
-          fieldErrors: data.detail?.error?.fields,
-        });
-        throw new Error(errorMessage);
-      }
 
       toast.success('Citations attached ✓');
       
@@ -438,6 +465,14 @@ export function LegacyInboxPageClient({
       const data = await response.json();
 
       if (!response.ok || data.error) {
+        // Handle 403 Forbidden (ownership check failed)
+        if (response.status === 403) {
+          const forbiddenMessage = data.detail?.error?.message || data.error?.message || data.details || 
+            'Only assignees or admins can modify assigned items';
+          toast.error(`Permission denied: ${forbiddenMessage}`);
+          throw new Error(forbiddenMessage);
+        }
+        
         throw new Error(data.details || data.error || `Failed to reject: ${response.status}`);
       }
 
@@ -667,14 +702,9 @@ export function LegacyInboxPageClient({
     };
   }, []);
 
-  // Filter items based on "Assigned to me" toggle
-  const filteredItems = useMemo(() => {
-    if (!assignedToMeOnly || !currentUserId) return items;
-    return items.filter((item) => {
-      if (!item.assignedTo || item.assignedTo.length === 0) return false;
-      return item.assignedTo.some((member) => member.id === currentUserId);
-    });
-  }, [items, assignedToMeOnly, currentUserId]);
+  // No client-side filtering needed - backend handles it via assigned_to_me query parameter
+  // Keep filteredItems for backward compatibility (just returns items as-is)
+  const filteredItems = useMemo(() => items, [items]);
 
   const handleRequestReview = useCallback((item: LegacyInboxItem) => {
     setSelectedItemForReview(item);
@@ -860,6 +890,8 @@ export function LegacyInboxPageClient({
         onBulkApprove={handleBulkApprove}
         onBulkReject={handleBulkReject}
         onClearSelection={clearSelection}
+        currentUserId={currentUserId}
+        userRole={userRole}
       />
 
       {/* Manual FAQ Creation Modal */}

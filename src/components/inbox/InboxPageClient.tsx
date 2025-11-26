@@ -354,6 +354,7 @@ export function InboxPageClient({
           updatingKey={updatingKey}
           tenantId={tenantId}
           tenantSlug={tenantSlug}
+          userRole={userRole}
         />
       )}
 

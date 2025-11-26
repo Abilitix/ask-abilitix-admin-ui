@@ -95,9 +95,28 @@ export function LegacyInboxPageClient({
       }
 
       // Fetch both pending and needs_review items (backend now supports both)
+      const pendingUrl = `/api/admin/inbox?${pendingParams.toString()}`;
+      const needsReviewUrl = `/api/admin/inbox?${needsReviewParams.toString()}`;
+      
+      // Debug logging for assigned_to_me filter
+      if (assignedToMeOnly) {
+        console.log('[LegacyInbox] Fetching with assigned_to_me filter:', {
+          currentUserId,
+          pendingUrl,
+          needsReviewUrl,
+        });
+      }
+      
+      // CRITICAL: Use credentials: 'include' for session-based auth (required for assigned_to_me filter)
       const [pendingResponse, needsReviewResponse] = await Promise.all([
-        fetch(`/api/admin/inbox?${pendingParams.toString()}`),
-        fetch(`/api/admin/inbox?${needsReviewParams.toString()}`),
+        fetch(pendingUrl, {
+          credentials: 'include',
+          cache: 'no-store',
+        }),
+        fetch(needsReviewUrl, {
+          credentials: 'include',
+          cache: 'no-store',
+        }),
       ]);
 
       if (!pendingResponse.ok) {
@@ -140,6 +159,20 @@ export function LegacyInboxPageClient({
       const pendingItems = Array.isArray(pendingData?.items) ? pendingData.items : [];
       const needsReviewItems = Array.isArray(needsReviewData?.items) ? needsReviewData.items : [];
       const rawItems = [...pendingItems, ...needsReviewItems];
+      
+      // Debug logging for assigned_to_me filter
+      if (assignedToMeOnly) {
+        console.log('[LegacyInbox] Received items from backend:', {
+          pendingCount: pendingItems.length,
+          needsReviewCount: needsReviewItems.length,
+          totalRawCount: rawItems.length,
+          sampleItem: rawItems[0] ? {
+            id: rawItems[0].id || rawItems[0].ref_id,
+            status: rawItems[0].status,
+            assigned_to: rawItems[0].assigned_to,
+          } : null,
+        });
+      }
       
       // Filter to only show pending and needs_review items (exclude approved/rejected)
       // This ensures we show items that were assigned
@@ -202,6 +235,14 @@ export function LegacyInboxPageClient({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load inbox items';
       setError(errorMessage);
+      
+      // Enhanced error handling for assigned_to_me filter
+      if (assignedToMeOnly && err instanceof Error) {
+        if (errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
+          toast.error('Session authentication required for "Assigned to Me" filter. Please refresh the page.');
+        }
+      }
+      
       toast.error(`Failed to load inbox: ${errorMessage}`);
     } finally {
       setLoading(false);
@@ -690,6 +731,13 @@ export function LegacyInboxPageClient({
                 : null;
         if (active) {
           setCurrentUserId(id ?? null);
+          // Debug logging for user ID
+          if (assignedToMeOnly) {
+            console.log('[LegacyInbox] Current user ID fetched:', {
+              id,
+              fullData: data,
+            });
+          }
         }
       } catch {
         if (active) {

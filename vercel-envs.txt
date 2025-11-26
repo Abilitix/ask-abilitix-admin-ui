@@ -1,0 +1,39 @@
+
+ name                                       value             				  	environments                        created    
+ SESSION_TTL_MINUTES                        Encrypted           				Development, Preview, Production    24h ago    
+ NEXT_PUBLIC_API_BASE                       https://ask-abilitix-admin-api.onrender.com         Production, Preview, Development    24h ago    
+ ADMIN_API_BASE                             https://ask-abilitix-admin-api.onrender.com		Production, Preview, Development    1d ago     
+ NEXT_PUBLIC_ALLOW_PASSWORD_LOGIN           Encrypted           				Production, Preview, Development    2d ago     
+ NEXT_PUBLIC_RENDER_MARKDOWN                Encrypted           				Production, Preview, Development    12d ago    
+ TZ_DEFAULT                                 Encrypted           				Development, Preview, Production    14d ago    
+ NEXT_PUBLIC_SUPERADMIN_EMAILS              Encrypted           				Development, Preview, Production    14d ago    
+ NEXT_PUBLIC_ENABLE_VERIFY_PREFLIGHT        Encrypted           				Development, Preview, Production    19d ago    
+ NEXT_PUBLIC_ENABLE_TUS_UI                  Encrypted           				Production, Preview, Development    26d ago    
+ ADMIN_API_URL                              https://api.abilitix.com.au				Development, Preview, Production    26d ago    
+ DEFAULT_TENANT_ID                          Encrypted           				Production, Preview, Development    26d ago    
+ ADMIN_API_TOKEN                            Encrypted           				Development, Preview, Production    26d ago    
+ NEXT_PUBLIC_HIDE_OLD_RAG                   Encrypted           				Production, Preview, Development    31d ago    
+ ASK_SSE_ENABLE                             Encrypted           				Development, Preview, Production    31d ago    
+ SUPABASE_SERVICE_ROLE                      Encrypted           				Development, Preview, Production    32d ago    
+ SUPABASE_URL                               Encrypted           				Development, Preview, Production    32d ago    
+ NEXT_PUBLIC_ENABLE_RAG_NEW                 Encrypted           				Production, Preview, Development    32d ago    
+ NEXT_PUBLIC_SHOW_PILOT_LINK                Encrypted           				Development, Preview, Production    33d ago    
+ NEXT_PUBLIC_SUSPEND_CLIENT_AUTH            Encrypted           				Development, Preview, Production    33d ago    
+ ADMIN_API                                  https://ask-abilitix-admin-api.onrender.com		Production, Preview, Development    38d ago    
+ NEXT_PUBLIC_APP_BASE_URL                   https://app.abilitix.com.au				Development, Preview, Production    38d ago    
+ PUBLIC_SIGNUP_KEY                          Encrypted           				Development, Preview, Production    38d ago    
+ COOKIE_NAME                                Encrypted           				Development, Preview, Production    38d ago    
+ NEXT_PUBLIC_ADMIN_API                      https://ask-abilitix-admin-api.onrender.com		Production, Preview, Development    38d ago    
+ NEXT_PUBLIC_TW_CDN                         Encrypted           				Production, Preview, Development    42d ago    
+ NEXT_PUBLIC_ASK_BASE                       Encrypted           				Development, Preview, Production    43d ago    
+ NEXT_PUBLIC_TENANT_SLUG                    Encrypted           				Development, Preview, Production    43d ago    
+ NEXT_PUBLIC_APP_URL                        https://app.abilitix.com.au				Production, Preview, Development    43d ago    
+ NEXT_PUBLIC_API_URL                        Encrypted           				Production, Preview, Development    43d ago    
+ ADMIN_BASE                                 https://ask-abilitix-admin-api.onrender.com		Production, Preview, Development    43d ago    
+ ASK_BASE                                   https://ask-abilitix-runtime.onrender.com		Production, Preview, Development    43d ago    
+ DEMO_MODE                                  Encrypted           				Production, Preview, Development    43d ago    
+ EMAIL_PROVIDER                             Encrypted           				Production, Preview, Development    43d ago    
+ MAILTRAP_TOKEN                             Encrypted           				Production, Preview, Development    43d ago    
+ EMAIL_FROM                                 Encrypted           				Production, Preview, Development    43d ago    
+ X_DEBUG_KEY                                Encrypted           				Production, Preview, Development    43d ago    
+

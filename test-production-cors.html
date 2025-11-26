@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Production Runtime API CORS</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Test Production Runtime API CORS</h1>
+    <p>This tests if production Runtime API (<code>https://ask-abilitix-runtime.onrender.com</code>) returns CORS headers.</p>
+    
+    <div id="origin-check" style="background: #fff3cd; padding: 10px; border: 1px solid #ffc107; border-radius: 4px; margin: 10px 0;">
+        <strong>Current Origin:</strong> <code id="current-origin">Checking...</code>
+        <br>
+        <span id="origin-status"></span>
+    </div>
+    
+    <p><strong>Important:</strong> You must open this from <code>http://localhost:8000/test-production-cors.html</code>, NOT <code>file://</code></p>
+    
+    <button onclick="testProductionCORS()">Test Production CORS</button>
+    <div id="result"></div>
+
+    <script>
+        // Check origin on page load
+        window.addEventListener('load', function() {
+            const originCheck = document.getElementById('origin-check');
+            const currentOrigin = document.getElementById('current-origin');
+            const originStatus = document.getElementById('origin-status');
+            
+            const origin = window.location.origin || 'null';
+            const protocol = window.location.protocol || 'file:';
+            
+            currentOrigin.textContent = origin;
+            
+            if (protocol === 'file:' || origin === 'null' || origin === '') {
+                originStatus.innerHTML = '<span style="color: red;">❌ WRONG: You\'re using file://. Use http://localhost:8000/test-production-cors.html instead!</span>';
+                originCheck.style.background = '#f8d7da';
+                originCheck.style.borderColor = '#dc3545';
+            } else if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+                originStatus.innerHTML = '<span style="color: green;">✅ CORRECT: Using web server. Ready to test!</span>';
+                originCheck.style.background = '#d1e7dd';
+                originCheck.style.borderColor = '#28a745';
+            } else {
+                originStatus.innerHTML = '<span style="color: orange;">⚠️ Using different origin: ' + origin + '</span>';
+            }
+        });
+        
+        async function testProductionCORS() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<p>Testing production Runtime API CORS...</p>';
+
+            const origin = window.location.origin || 'null';
+            const protocol = window.location.protocol || 'file:';
+            
+            // Warn if using file://
+            if (protocol === 'file:' || origin === 'null' || origin === '') {
+                result.innerHTML = '<p style="color: red;"><strong>❌ ERROR: You must open this from a web server!</strong></p>';
+                result.innerHTML += '<p>Do this:</p>';
+                result.innerHTML += '<ol>';
+                result.innerHTML += '<li>Make sure web server is running: <code>python -m http.server 8000</code></li>';
+                result.innerHTML += '<li>Open in browser: <code>http://localhost:8000/test-production-cors.html</code></li>';
+                result.innerHTML += '</ol>';
+                return;
+            }
+            
+            result.innerHTML += `<p>Testing from origin: <code>${origin}</code></p>`;
+
+            // Test OPTIONS preflight
+            try {
+                console.log('Testing OPTIONS preflight on production...');
+                const optionsResponse = await fetch('https://ask-abilitix-runtime.onrender.com/ask', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type,x-tenant-slug,X-Widget-Key'
+                    }
+                });
+
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': optionsResponse.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': optionsResponse.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': optionsResponse.headers.get('Access-Control-Allow-Headers'),
+                    'Access-Control-Max-Age': optionsResponse.headers.get('Access-Control-Max-Age'),
+                    'Status': optionsResponse.status
+                };
+
+                console.log('OPTIONS Response:', corsHeaders);
+
+                let html = '<h2>OPTIONS Preflight Test:</h2>';
+                html += '<pre>' + JSON.stringify(corsHeaders, null, 2) + '</pre>';
+
+                if (corsHeaders['Access-Control-Allow-Origin']) {
+                    html += '<p class="success">✅ CORS headers present in production!</p>';
+                    html += '<p class="success">✅ Production Runtime API has CORS fix deployed</p>';
+                } else {
+                    html += '<p class="error">❌ CORS headers missing - Production Runtime API NOT deployed yet</p>';
+                    html += '<p class="error">Runtime needs to deploy the CORS fix to production</p>';
+                }
+
+                result.innerHTML = html;
+
+            } catch (error) {
+                result.innerHTML = '<p class="error">❌ Test failed: ' + error.message + '</p>';
+                result.innerHTML += '<p class="error">This might mean:</p>';
+                result.innerHTML += '<ul>';
+                result.innerHTML += '<li>Production Runtime API hasn\'t deployed CORS fix yet</li>';
+                result.innerHTML += '<li>Or you\'re testing from file:// (use http://localhost:8000)</li>';
+                result.innerHTML += '</ul>';
+                console.error('CORS test error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+

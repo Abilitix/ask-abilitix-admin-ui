@@ -1,0 +1,97 @@
+[33md7f96bc[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mpreview[m[33m, [m[1;31morigin/preview[m[33m)[m fix: make supersede modal accessible and centered
+[33mc67ea0a[m fix: close supersede state initializer
+[33mba7a513[m fix: center supersede modal and lock body scroll
+[33m7983864[m fix: improve supersede modal usability
+[33mb5ebca0[m fix: lock allowEmptyCitations toggle
+[33m4455e4f[m chore: clarify FAQ archive warning
+[33m5f69cb8[m feat: FAQ Lifecycle Phase 2 - Single Actions Complete
+[33m2f367d2[m fix: Align navigation naming consistency
+[33m45c8421[m feat: FAQ Lifecycle Phase 1 Complete - Add document filter, update navigation
+[33m9413f0f[m fix: Add FAQ Management to navigation via roles.ts - Add canAccessFAQs permission to RolePermissions - Grant FAQ access to owner, admin, curator roles - Add FAQ Management to navItems in getVisibleNavItems - Navigation.tsx was not used - TopNav uses roles.ts instead
+[33mb986660[m feat: FAQ Lifecycle Management Phase 1 - List View
+[33m8e4af98[m fix: Move copy button to bottom left of widget answers
+[33m76ca018[m feat: Add copy button to widget answers with green tick feedback
+[33mfb6ec94[m feat: Add sessionId-based isolation to Admin UI chat for user privacy
+[33m778d3a6[m Add markdown link and header support to widget formatting
+[33m2d10651[m Add rich text formatting to widget: clickable links, code blocks, inline code, and enhanced markdown support
+[33mbaadb4a[m Fix widget localStorage: Persist sessionId across page refreshes for message persistence
+[33mc754c72[m Fix widget localStorage: Add session isolation for privacy (tenant + sessionId in storage key)
+[33mb551d41[m Add localStorage persistence to widget: save/restore chat messages with tenant isolation
+[33m1391d74[m Improve widget UI/UX: enhance typography, spacing, and layout to match industry standards
+[33mef2c555[m Fix widget key mismatch: Add proxy routes for widget config and rotate-key
+[33m42484b9[m Fix widget.js: Use correct Runtime API URL (ask-abilitix-api.onrender.com instead of ask-abilitix-runtime.onrender.com)
+[33mfe4f177[m Add comprehensive logging to widget.js for CORS debugging
+[33m8c9d661[m Fix widget.js: Add null check for close button to prevent TypeError
+[33md34f754[m feat: add widget.js with Runtime API integration
+[33mb19f265[m fix: type payload.updates array in saveThemeSettings to resolve TypeScript error
+[33m7ac3076[m feat: add Phase 2+ theme customization UI with color pickers, title, welcome message, and position settings
+[33m041eb69[m fix: add Toaster component to layout and improve widget toggle error handling
+[33m07a2338[m feat: add widget enabled toggle switch with API integration
+[33m5902220[m feat: add visual feedback for approve/reject/promote buttons with loading and success states
+[33m310181e[m fix: center-align document badges in inbox table
+[33m6560892[m fix: add checkmark feedback to widget copy buttons and prevent full refresh on key rotation
+[33ma943406[m feat: add checkmark feedback when copying inbox questions
+[33m1b1d0dc[m feat: add copy question button to inbox items with hover reveal
+[33m99fc9d2[m fix: move copy snippet button outside textarea and remove redundant rotate widget key button
+[33m9604947[m feat: add website widget settings section to admin settings page
+[33mbb06d1f[m docs: update FAQ generation plan with completion status
+[33m5f0d5a4[m fix: reduce document fetch limit to 100 to comply with Admin API validation
+[33m8498042[m fix: fetch document titles from all statuses for legacy badges
+[33md1632da[m fix: improve document title loading logic and add debug logging
+[33m490cae9[m fix: show document names instead of IDs in legacy inbox badges
+[33m2e268b5[m feat: add document badges to legacy inbox
+[33ma6a1d1d[m fix: hydrate inbox doc badges by loading detail metadata
+[33m7c9e02b[m feat: add document source badges and filter to inbox list
+[33mc896f22[m feat: improve Generate FAQs button visibility with prominent blue styling
+[33mc1be96d[m fix: improve FAQ generation error handling for backend runtime errors
+[33m610969c[m fix: add /admin prefix and cookie forwarding to catch-all proxy route for FAQ generation
+[33m8de54bc[m feat: add Generate FAQs button to Documents page header
+[33m48d30c5[m feat: add FAQ generation UI - core functionality for document to FAQ workflow
+[33medda79e[m fix: include citations in legacy inbox FAQ promotion payload
+[33mc73f2eb[m fix: remove duplicate Inbox heading from LegacyInboxPageClient
+[33me9935ed[m Merge branch 'main' of https://github.com/Abilitix/ask-abilitix-admin-ui into preview
+[33m17aaf7f[m fix: persist flags in localStorage to prevent reset on navigation
+[33mbc32490[m fix: flag persistence, citation format with type field, and improved error handling
+[33mc7a8162[m fix: improve modal visibility with portal and compact button styling
+[33m7326789[m feat: fix flag sync bug, add hybrid citations, and improve flag toggle colors
+[33m110adb2[m fix: request and parse INBOX.ENABLE_REVIEW_PROMOTE key correctly
+[33m93719be[m fix: use updates array format for tenant settings API payload
+[33m3991451[m fix: pass enableFaqCreation prop to LegacyInboxList
+[33mbfba293[m feat: add Enable FAQ Creation tenant flag and fix modern inbox consistency
+[33m3b06c54[m fix: use /promote endpoint for FAQ creation, /approve for regular QA pairs in legacy inbox
+[33m37faac4[m fix: use /promote endpoint in legacy inbox to support is_faq parameter
+[33m02113bf[m feat: add Create as FAQ checkbox to modern and legacy inbox panels
+[33m30de1c2[m feat: Use runtime is_faq field for FAQ/QA Pair labeling
+[33m2dd6a76[m fix: Phase 1 - Enhanced answer labeling with debug logs and stale match data workaround
+[33m0b77c76[m fix: Phase 1 - Enhanced answer type labeling with debug logging
+[33m5189299[m fix: Phase 1 - Fix answer type labeling to only show FAQ when fast path matched
+[33m343ba00[m feat: Phase 1 - Fix answer type labeling bug and add enhanced labels
+[33mee2968e[m fix: add tenant isolation to sticky chat storage
+[33mb129952[m feat: surface ask meta in ChatInterface and label db/qa_pair answers as Approved FAQ
+[33mbf30635[m chore: rollback ChatInterface FAQ label changes
+[33mbef37d2[m feat: surface ask source metadata and label db/qa_pair answers as Approved FAQ
+[33me6692df[m feat: treat db/qa_pair ask answers as Approved FAQ in AskResultCard
+[33md46e0b0[m feat: surface ask source_detail and label qa_pair answers as Approved FAQ
+[33m22d00d4[m Approved FAQ answer (from qa_pair):
+[33m0ca5277[m feat: add sticky chat with localStorage and copy button
+[33ma83d34e[m feat: add sticky chat persistence and copy button
+[33ma96bacd[m feat: add sticky chat persistence and copy button
+[33m172e238[m fix: PR3 inbox defensive programming and API probe safety-belt
+[33m176256c[m PR3: harden modern inbox against undefined array crashes
+[33m2008fff[m PR3: comprehensive guards for modern inbox API responses
+[33m23d1e30[m PR3: add additional array guards in modern inbox
+[33m36cd20e[m PR3: guard modern inbox against undefined array access
+[33m2f2b796[m PR3: citations editor, attach/promote flows, telemetry
+[33mce603d4[m PR3: citations editor, attach/promote flows, QA link
+[33m2d6d131[m[33m ([m[1;33mtag: [m[1;33mpreview-pr3-citations-ready-2025-11-14[m[33m, [m[1;33mtag: [m[1;33mpreview-pr2-citations-stable-2025-11-11[m[33m)[m Loosen preview cookie domain for preview logon
+[33m9880ee4[m Setup of PREVIEW_LOGIN_PROXY=1
+[33mcb45f82[m Added debugging for preview logon
+[33me97c715[m Fix issues with cookies in preview
+[33mae5c209[m The proxy now forwards both next and next_url when it derives a preview origin
+[33m60b470a[m Added debugging lots to see why sign in to vercel preview is not working
+[33mdf95e2e[m Sign in fix for preview logon to handle origin
+[33ma7a0f7c[m Preview signin
+[33m3f24d18[m Preview env support: add helpers, secure cookies, restore verify proxy
+[33mce04631[m Preview: PR2 inbox UI updates
+[33ma2326c4[m PR2 - Inbox Preview
+[33mc035e6c[m Preview: PR2 inbox UI updates

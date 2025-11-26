@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Test - Preview (with localStorage)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            border-left: 4px solid #2196f3;
+        }
+        .test-steps {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .url-selector {
+            background: #fff3cd;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            border-left: 4px solid #ffc107;
+        }
+        select {
+            padding: 8px;
+            font-size: 14px;
+            width: 100%;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Widget Test - Preview (with localStorage)</h1>
+    
+    <div class="url-selector">
+        <h3>🔗 Select Widget URL:</h3>
+        <select id="widgetUrl" onchange="updateWidgetUrl()">
+            <option value="local">Local: public/widget.js (for immediate testing)</option>
+            <option value="preview1">Preview 1: https://ask-abilitix-admin-ui.vercel.app/widget.js</option>
+            <option value="preview2">Preview 2: https://ask-abilitix-admin-ui-git-preview.vercel.app/widget.js</option>
+            <option value="production">Production: https://app.abilitix.com.au/widget.js (old version)</option>
+        </select>
+        <p><strong>Current URL:</strong> <span id="currentUrl">public/widget.js</span></p>
+    </div>
+    
+    <div class="info">
+        <h3>📋 Testing Theme Customization & localStorage Persistence</h3>
+        <p><strong>This test includes theme attributes:</strong></p>
+        <ul>
+            <li>Primary Color: <code>#4b2f46</code></li>
+            <li>Accent Color: <code>#05940f</code></li>
+            <li>Title: <code>Chat Assistant</code></li>
+            <li>Welcome Message: <code>How can I help you?</code></li>
+            <li>Position: <code>bottom-right</code></li>
+        </ul>
+        <p>Use "Local" for immediate testing, or try preview/production URLs.</p>
+    </div>
+    
+    <div class="test-steps">
+        <h3>🧪 Test Steps:</h3>
+        <ol>
+            <li><strong>Select widget URL</strong> from dropdown above</li>
+            <li><strong>Open the widget</strong> (click the chat button)</li>
+            <li><strong>✅ Verify Theme:</strong> Check widget uses custom colors (#4b2f46 primary, #05940f accent)</li>
+            <li><strong>✅ Verify Title:</strong> Should show "Chat Assistant"</li>
+            <li><strong>✅ Verify Welcome:</strong> Should show "How can I help you?"</li>
+            <li><strong>Send 2-3 messages</strong> to the widget</li>
+            <li><strong>Refresh this page</strong> (F5 or Ctrl+R)</li>
+            <li><strong>Open the widget again</strong></li>
+            <li><strong>✅ Expected:</strong> Your previous messages should be restored!</li>
+        </ol>
+    </div>
+    
+    <div class="info">
+        <h3>🔍 Debug Info:</h3>
+        <p>Open browser DevTools (F12) → Console tab to see widget logs</p>
+        <p>Open DevTools → Application tab → Local Storage to see stored messages</p>
+        <p>Storage key format: <code>ask_abilitix_widget_chat_{tenant}_{sessionId}</code></p>
+    </div>
+    
+    <!-- Widget embed (will be updated by JavaScript) -->
+    <div id="widget-container"></div>
+    
+    <script>
+        const widgetUrls = {
+            local: 'public/widget.js',
+            preview1: 'https://ask-abilitix-admin-ui.vercel.app/widget.js',
+            preview2: 'https://ask-abilitix-admin-ui-git-preview.vercel.app/widget.js',
+            production: 'https://app.abilitix.com.au/widget.js'
+        };
+        
+        function updateWidgetUrl() {
+            const select = document.getElementById('widgetUrl');
+            const url = widgetUrls[select.value];
+            document.getElementById('currentUrl').textContent = url;
+            
+            // Remove old widget script
+            const oldScript = document.querySelector('script[data-tenant]');
+            if (oldScript) {
+                oldScript.remove();
+            }
+            
+            // Remove old widget container
+            const oldContainer = document.getElementById('abilitix-widget-container');
+            if (oldContainer) {
+                oldContainer.remove();
+            }
+            
+            // Add new widget script with theme attributes
+            const script = document.createElement('script');
+            script.src = url + '?v=' + Date.now(); // Cache bust
+            script.setAttribute('data-tenant', 'abilitix-pilot');
+            script.setAttribute('data-widget-key', 'wid_lOLMLeoo9rUrySS4AD2hp7qIOGjuVO90');
+            script.setAttribute('data-theme-primary', '#4b2f46');
+            script.setAttribute('data-theme-accent', '#05940f');
+            script.setAttribute('data-title', 'Chat Assistant');
+            script.setAttribute('data-welcome-message', 'How can I help you?');
+            script.setAttribute('data-position', 'bottom-right');
+            document.body.appendChild(script);
+            
+            console.log('Widget URL updated to:', url);
+        }
+        
+        // Initialize with local by default
+        updateWidgetUrl();
+        
+        // Log localStorage activity
+        const originalSetItem = localStorage.setItem;
+        const originalGetItem = localStorage.getItem;
+        
+        localStorage.setItem = function(key, value) {
+            if (key.includes('widget_chat')) {
+                console.log('💾 localStorage SET:', key, JSON.parse(value));
+            }
+            return originalSetItem.apply(this, arguments);
+        };
+        
+        localStorage.getItem = function(key) {
+            if (key.includes('widget_chat')) {
+                const value = originalGetItem.apply(this, arguments);
+                if (value) {
+                    console.log('📖 localStorage GET:', key, JSON.parse(value));
+                }
+            }
+            return originalGetItem.apply(this, arguments);
+        };
+        
+        // Check if messages are already stored
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                // Find all widget chat keys (they include sessionId)
+                const widgetKeys = Object.keys(localStorage).filter(key => 
+                    key.startsWith('ask_abilitix_widget_chat_abilitix-pilot_')
+                );
+                
+                if (widgetKeys.length > 0) {
+                    console.log(`✅ Found ${widgetKeys.length} stored conversation(s):`);
+                    widgetKeys.forEach(key => {
+                        const stored = localStorage.getItem(key);
+                        if (stored) {
+                            const parsed = JSON.parse(stored);
+                            const sessionId = key.split('_').pop();
+                            console.log(`  - Session ${sessionId}: ${parsed.messages.length} messages`);
+                        }
+                    });
+                } else {
+                    console.log('ℹ️ No stored messages found (this is normal for first load)');
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
+

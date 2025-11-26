@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .debug-panel {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 2px solid #333;
+        }
+        .error { color: red; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        pre {
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Widget Debug Test Page</h1>
+    
+    <div class="debug-panel">
+        <h2>Debug Information</h2>
+        <div id="debug-output">Loading...</div>
+        <button onclick="runDebugCheck()">Refresh Debug Check</button>
+        <button onclick="testWidgetJS()">Test Widget.js Load</button>
+        <button onclick="showAllElements()">Show All Widget Elements</button>
+    </div>
+
+    <div class="debug-panel">
+        <h2>Widget Status</h2>
+        <div id="status-output">Checking...</div>
+    </div>
+
+    <div class="debug-panel">
+        <h2>Console Logs</h2>
+        <div id="console-output"></div>
+    </div>
+
+    <div style="height: 200vh; padding: 20px; background: #e0e0e0; margin-top: 20px;">
+        <h2>Scroll Test Area</h2>
+        <p>Scroll down to test if widget stays visible.</p>
+        <p style="margin-top: 100vh;">Scrolled! Widget should still be visible.</p>
+    </div>
+
+    <script>
+        // Capture console logs
+        const consoleOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const logEntry = document.createElement('div');
+            logEntry.style.cssText = 'padding: 5px; border-bottom: 1px solid #ddd; font-size: 12px;';
+            logEntry.textContent = '[LOG] ' + args.join(' ');
+            consoleOutput.appendChild(logEntry);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            const logEntry = document.createElement('div');
+            logEntry.style.cssText = 'padding: 5px; border-bottom: 1px solid #ddd; font-size: 12px; color: red;';
+            logEntry.textContent = '[ERROR] ' + args.join(' ');
+            consoleOutput.appendChild(logEntry);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            const logEntry = document.createElement('div');
+            logEntry.style.cssText = 'padding: 5px; border-bottom: 1px solid #ddd; font-size: 12px; color: orange;';
+            logEntry.textContent = '[WARN] ' + args.join(' ');
+            consoleOutput.appendChild(logEntry);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+
+        function runDebugCheck() {
+            const debugOutput = document.getElementById('debug-output');
+            const statusOutput = document.getElementById('status-output');
+            
+            let html = '<h3>Debug Check Results:</h3><pre>';
+            
+            // Check 1: Script tag exists
+            const scriptTag = document.querySelector('script[src*="widget.js"]');
+            html += '1. Script tag exists: ' + (scriptTag ? '✅ YES' : '❌ NO') + '\n';
+            if (scriptTag) {
+                html += '   - src: ' + scriptTag.src + '\n';
+                html += '   - data-tenant: ' + (scriptTag.getAttribute('data-tenant') || 'MISSING') + '\n';
+                html += '   - data-widget-key: ' + (scriptTag.getAttribute('data-widget-key') ? 'PRESENT' : 'MISSING') + '\n';
+            }
+            
+            // Check 2: Widget container exists
+            const widgetContainer = document.getElementById('abilitix-widget-container');
+            html += '\n2. Widget container exists: ' + (widgetContainer ? '✅ YES' : '❌ NO') + '\n';
+            if (widgetContainer) {
+                const styles = window.getComputedStyle(widgetContainer);
+                html += '   - display: ' + styles.display + '\n';
+                html += '   - visibility: ' + styles.visibility + '\n';
+                html += '   - opacity: ' + styles.opacity + '\n';
+                html += '   - position: ' + styles.position + '\n';
+                html += '   - z-index: ' + styles.zIndex + '\n';
+                html += '   - bottom: ' + styles.bottom + '\n';
+                html += '   - right/left: ' + (styles.right || styles.left) + '\n';
+            }
+            
+            // Check 3: Widget button exists
+            const widgetButton = document.getElementById('abilitix-widget-button');
+            html += '\n3. Widget button exists: ' + (widgetButton ? '✅ YES' : '❌ NO') + '\n';
+            if (widgetButton) {
+                const styles = window.getComputedStyle(widgetButton);
+                html += '   - display: ' + styles.display + '\n';
+                html += '   - visibility: ' + styles.visibility + '\n';
+                html += '   - opacity: ' + styles.opacity + '\n';
+                html += '   - width: ' + styles.width + '\n';
+                html += '   - height: ' + styles.height + '\n';
+                html += '   - position: ' + styles.position + '\n';
+            }
+            
+            // Check 4: All widget elements
+            const allWidgetElements = document.querySelectorAll('[id*="widget"], [class*="widget"], [data-widget]');
+            html += '\n4. All widget-related elements: ' + allWidgetElements.length + ' found\n';
+            allWidgetElements.forEach((el, i) => {
+                html += '   [' + i + '] ' + el.tagName + '#' + (el.id || 'no-id') + '.' + (el.className || 'no-class') + '\n';
+            });
+            
+            // Check 5: Network requests
+            html += '\n5. Network check: Open DevTools (F12) → Network tab → Look for widget.js\n';
+            html += '   - Status should be 200 (green)\n';
+            html += '   - If 404: widget.js not found on server\n';
+            html += '   - If CORS error: file:// protocol issue (use local server)\n';
+            
+            html += '\n6. Protocol check:\n';
+            html += '   - Current: ' + window.location.protocol + '\n';
+            if (window.location.protocol === 'file:') {
+                html += '   ⚠️ WARNING: Using file:// protocol may cause CORS issues!\n';
+                html += '   → Solution: Use local server (python -m http.server 8000)\n';
+            }
+            
+            html += '</pre>';
+            debugOutput.innerHTML = html;
+            
+            // Status summary
+            let statusHtml = '<h3>Status Summary:</h3><ul>';
+            if (!scriptTag) {
+                statusHtml += '<li class="error">❌ Script tag not found - Check HTML</li>';
+            } else {
+                statusHtml += '<li class="success">✅ Script tag found</li>';
+            }
+            
+            if (!widgetContainer) {
+                statusHtml += '<li class="error">❌ Widget container not created - Check browser console for errors</li>';
+            } else {
+                statusHtml += '<li class="success">✅ Widget container exists</li>';
+                const styles = window.getComputedStyle(widgetContainer);
+                if (styles.display === 'none' || styles.visibility === 'hidden' || parseFloat(styles.opacity) === 0) {
+                    statusHtml += '<li class="warning">⚠️ Widget container is hidden!</li>';
+                }
+            }
+            
+            if (!widgetButton) {
+                statusHtml += '<li class="error">❌ Widget button not created</li>';
+            } else {
+                statusHtml += '<li class="success">✅ Widget button exists</li>';
+            }
+            
+            statusHtml += '</ul>';
+            statusOutput.innerHTML = statusHtml;
+        }
+
+        async function testWidgetJS() {
+            const scriptTag = document.querySelector('script[src*="widget.js"]');
+            if (!scriptTag) {
+                alert('Script tag not found!');
+                return;
+            }
+            
+            const url = scriptTag.src;
+            console.log('Testing widget.js load from: ' + url);
+            
+            try {
+                const response = await fetch(url);
+                console.log('Response status: ' + response.status);
+                console.log('Response headers: ', [...response.headers.entries()]);
+                if (response.ok) {
+                    const text = await response.text();
+                    console.log('Widget.js loaded successfully!');
+                    console.log('First 500 chars: ', text.substring(0, 500));
+                } else {
+                    console.error('Widget.js failed to load! Status: ' + response.status);
+                }
+            } catch (error) {
+                console.error('Error loading widget.js:', error);
+                alert('Error loading widget.js:\n' + error.message + '\n\nCheck console for details.');
+            }
+        }
+
+        function showAllElements() {
+            console.log('=== ALL WIDGET ELEMENTS ===');
+            const selectors = [
+                '[id*="widget"]',
+                '[class*="widget"]',
+                '[data-widget]',
+                'script[src*="widget"]'
+            ];
+            
+            selectors.forEach(selector => {
+                const elements = document.querySelectorAll(selector);
+                console.log(`\n${selector}: ${elements.length} found`);
+                elements.forEach((el, i) => {
+                    console.log(`  [${i}]`, {
+                        tag: el.tagName,
+                        id: el.id,
+                        className: el.className,
+                        styles: {
+                            display: window.getComputedStyle(el).display,
+                            visibility: window.getComputedStyle(el).visibility,
+                            opacity: window.getComputedStyle(el).opacity,
+                            position: window.getComputedStyle(el).position,
+                            zIndex: window.getComputedStyle(el).zIndex
+                        }
+                    });
+                });
+            });
+        }
+
+        // Run debug check on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                runDebugCheck();
+                showAllElements();
+            }, 2000);
+        });
+    </script>
+
+    <!-- YOUR WIDGET EMBED SNIPPET (MUST BE BEFORE </body> TAG) -->
+    <script src="https://app.abilitix.com.au/widget.js" 
+            data-tenant="abilitix-pilot" 
+            data-widget-key="wid_Y-oFeJtCWQcnZMvxgifZy9DCzQji4qii" 
+            data-theme-primary="#3b82f6" 
+            data-theme-accent="#8b5cf6" 
+            data-title="Chat with us" 
+            data-welcome-message="Hi! How can I help you today?" 
+            data-position="bottom-right"></script>
+</body>
+</html>
+
+
+

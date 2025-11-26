@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Widget Test - Diagnostic</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #2196f3;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        .error { border-left-color: #f44336; }
+        .success { border-left-color: #4caf50; }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover { background: #1976d2; }
+        #diagnostics {
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Widget Test - Diagnostic</h1>
+    
+    <div id="diagnostics">
+        <h3>Environment Check:</h3>
+        <div id="env-check">Checking...</div>
+    </div>
+    
+    <button onclick="runDiagnostic()">Run Full Diagnostic</button>
+    <button onclick="testWidget()">Test Widget Load</button>
+    
+    <h3>Logs:</h3>
+    <div id="logs"></div>
+    
+    <!-- Widget embed (Preview - for testing localStorage changes) -->
+    <!-- Change back to production URL after testing: https://app.abilitix.com.au/widget.js -->
+    <script src="https://ask-abilitix-admin-ui.vercel.app/widget.js?v=2" data-tenant="abilitix-pilot" data-widget-key="wid_lOLMLeoo9rUrySS4AD2hp7qIOGjuVO90"></script>
+    
+    <script>
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = `log ${type}`;
+            logDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(logDiv);
+            console.log(message);
+        }
+        
+        // Check environment on load
+        window.addEventListener('load', function() {
+            const origin = window.location.origin || 'null';
+            const protocol = window.location.protocol || 'unknown';
+            const href = window.location.href;
+            
+            const envCheck = document.getElementById('env-check');
+            envCheck.innerHTML = `
+                <strong>Origin:</strong> ${origin}<br>
+                <strong>Protocol:</strong> ${protocol}<br>
+                <strong>Full URL:</strong> ${href}<br>
+                <strong>Status:</strong> ${protocol === 'http:' ? '✅ Using web server' : '❌ Using file://'}
+            `;
+            
+            if (protocol === 'file:' || origin === 'null' || !origin) {
+                envCheck.style.background = '#f8d7da';
+                envCheck.style.borderColor = '#dc3545';
+                log('ERROR: Using file:// protocol. Use http://localhost:8000/test-widget-simple.html', 'error');
+            } else {
+                envCheck.style.background = '#d1e7dd';
+                envCheck.style.borderColor = '#28a745';
+                log('Environment OK: Using web server', 'success');
+            }
+        });
+        
+        function runDiagnostic() {
+            log('=== Running Full Diagnostic ===', 'info');
+            
+            // 1. Check widget script loaded
+            const widgetScript = document.querySelector('script[src*="widget.js"]');
+            if (widgetScript) {
+                log(`✅ Widget script tag found: ${widgetScript.src}`, 'success');
+            } else {
+                log('❌ Widget script tag not found', 'error');
+                return;
+            }
+            
+            // 2. Check widget container
+            setTimeout(() => {
+                const widgetContainer = document.getElementById('abilitix-widget-container');
+                if (widgetContainer) {
+                    log('✅ Widget container created', 'success');
+                } else {
+                    log('❌ Widget container not found', 'error');
+                }
+                
+                // 3. Check widget button
+                const widgetButton = document.getElementById('abilitix-widget-button');
+                if (widgetButton) {
+                    log('✅ Widget button found', 'success');
+                } else {
+                    log('❌ Widget button not found', 'error');
+                }
+                
+                // 4. Test API endpoint reachability
+                testAPIEndpoint();
+            }, 1000);
+        }
+        
+        async function testAPIEndpoint() {
+            log('=== Testing Runtime API Endpoint ===', 'info');
+            
+            const origin = window.location.origin || 'null';
+            const apiUrl = 'https://ask-abilitix-api.onrender.com/ask';
+            
+            log(`Testing: ${apiUrl}`, 'info');
+            log(`Origin: ${origin}`, 'info');
+            
+            // Test OPTIONS preflight
+            try {
+                log('Sending OPTIONS preflight request...', 'info');
+                const optionsResponse = await fetch(apiUrl, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type,x-tenant-slug,X-Widget-Key'
+                    }
+                });
+                
+                const corsOrigin = optionsResponse.headers.get('Access-Control-Allow-Origin');
+                const corsMethods = optionsResponse.headers.get('Access-Control-Allow-Methods');
+                
+                log(`OPTIONS Status: ${optionsResponse.status}`, optionsResponse.status === 200 ? 'success' : 'error');
+                log(`CORS Origin Header: ${corsOrigin || 'MISSING'}`, corsOrigin ? 'success' : 'error');
+                log(`CORS Methods Header: ${corsMethods || 'MISSING'}`, corsMethods ? 'success' : 'error');
+                
+                if (corsOrigin) {
+                    log('✅ OPTIONS preflight: CORS headers present', 'success');
+                } else {
+                    log('❌ OPTIONS preflight: CORS headers MISSING - Runtime not deployed yet', 'error');
+                }
+            } catch (error) {
+                log(`❌ OPTIONS preflight failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function testWidget() {
+            log('=== Testing Widget Functionality ===', 'info');
+            
+            const widgetButton = document.getElementById('abilitix-widget-button');
+            if (widgetButton) {
+                log('✅ Widget button exists - clicking it...', 'success');
+                widgetButton.click();
+                
+                setTimeout(() => {
+                    const chatWindow = document.querySelector('#abilitix-widget-container [style*="display: flex"]');
+                    if (chatWindow) {
+                        log('✅ Chat window opened', 'success');
+                        
+                        // Try to send a test message
+                        const input = document.querySelector('#abilitix-widget-input');
+                        const sendButton = document.querySelector('#abilitix-widget-send');
+                        
+                        if (input && sendButton) {
+                            log('✅ Input and send button found', 'success');
+                            log('Enter a message and click send to test API call...', 'info');
+                        } else {
+                            log('⚠️ Input or send button not found', 'error');
+                        }
+                    } else {
+                        log('❌ Chat window did not open', 'error');
+                    }
+                }, 500);
+            } else {
+                log('❌ Widget button not found', 'error');
+            }
+        }
+        
+        // Listen for widget logs
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('Abilitix Widget')) {
+                log(args.join(' '), 'info');
+            }
+            originalLog.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('Abilitix Widget')) {
+                log(args.join(' '), 'error');
+            }
+            originalError.apply(console, args);
+        };
+    </script>
+</body>
+</html>
+

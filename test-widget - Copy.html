@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Test</title>
+</head>
+<body>
+    <h1>Widget Test Page</h1>
+    <p>Look for the chat button in the bottom-right corner.</p>
+    
+    <!-- REPLACE THIS WITH YOUR ACTUAL EMBED SNIPPET FROM ADMIN UI -->
+    <script src="https://app.abilitix.com.au/widget.js" 
+            data-tenant="abilitix-pilot" 
+            data-widget-key="wid_Y-oFeJtCWQcnZMvxgifZy9DCzQji4qii"></script>
+    
+    <!-- Debug script -->
+    <script>
+        setTimeout(() => {
+            console.log('Widget loaded?', window.AbilitixWidget ? 'YES' : 'NO');
+            if (!window.AbilitixWidget) {
+                console.error('Widget failed to load!');
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

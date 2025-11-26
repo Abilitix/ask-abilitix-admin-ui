@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Test for Runtime API</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>CORS Test for Runtime API</h1>
+    <p>This will test if Runtime API returns CORS headers.</p>
+    <button onclick="testCORS()">Test CORS</button>
+    <div id="result"></div>
+
+    <script>
+        async function testCORS() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<p>Testing CORS...</p>';
+
+            // Test OPTIONS preflight
+            try {
+                console.log('Testing OPTIONS preflight...');
+                const optionsResponse = await fetch('https://ask-abilitix-runtime.onrender.com/ask', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin || 'null',
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type,x-tenant-slug,X-Widget-Key'
+                    }
+                });
+
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': optionsResponse.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': optionsResponse.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': optionsResponse.headers.get('Access-Control-Allow-Headers'),
+                    'Access-Control-Max-Age': optionsResponse.headers.get('Access-Control-Max-Age'),
+                    'Status': optionsResponse.status
+                };
+
+                console.log('OPTIONS Response:', corsHeaders);
+
+                let html = '<h2>OPTIONS Preflight Test:</h2>';
+                html += '<pre>' + JSON.stringify(corsHeaders, null, 2) + '</pre>';
+
+                if (corsHeaders['Access-Control-Allow-Origin']) {
+                    html += '<p class="success">✅ CORS headers present!</p>';
+                } else {
+                    html += '<p class="error">❌ CORS headers missing - Runtime API not configured yet</p>';
+                }
+
+                // Test POST request
+                html += '<h2>POST Request Test:</h2>';
+                try {
+                    const postResponse = await fetch('https://ask-abilitix-runtime.onrender.com/ask', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-tenant-slug': 'abilitix-pilot',
+                            'X-Widget-Key': 'wid_test'
+                        },
+                        body: JSON.stringify({
+                            question: 'test',
+                            session_id: 'test-123'
+                        })
+                    });
+
+                    const postCorsHeader = postResponse.headers.get('Access-Control-Allow-Origin');
+                    const postStatus = postResponse.status;
+
+                    html += '<pre>Status: ' + postStatus + '</pre>';
+                    html += '<pre>Access-Control-Allow-Origin: ' + (postCorsHeader || 'MISSING') + '</pre>';
+
+                    if (postCorsHeader) {
+                        html += '<p class="success">✅ POST request CORS headers present!</p>';
+                    } else {
+                        html += '<p class="error">❌ POST request missing CORS headers</p>';
+                    }
+                } catch (postError) {
+                    html += '<p class="error">❌ POST request failed: ' + postError.message + '</p>';
+                }
+
+                result.innerHTML = html;
+
+            } catch (error) {
+                result.innerHTML = '<p class="error">❌ Test failed: ' + error.message + '</p>';
+                console.error('CORS test error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+
+

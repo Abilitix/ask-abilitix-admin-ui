@@ -676,16 +676,25 @@ export function LegacyInboxPageClient({
       const result = await response.json();
 
       if (result.errors && result.errors.length > 0) {
+        // Partial failure: remove only successful items, keep failed ones
+        const failedIds = new Set(result.errors.map((e: any) => e.id || e.item_id).filter(Boolean));
+        const successfulIds = ids.filter(id => !failedIds.has(id));
+        
+        // Optimistically remove successful items
+        setItems((prev) => prev.filter((item) => !successfulIds.includes(item.id)));
+        
         toast.error(
           `Bulk approve completed with errors for ${result.errors.length} of ${ids.length} item(s).`
         );
         console.error('Bulk approve errors:', result.errors);
       } else {
+        // All successful: optimistically remove all items
+        setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
         toast.success(`Successfully bulk approved ${ids.length} item(s).`);
       }
 
       clearSelection();
-      await fetchItems(); // Refresh list
+      // No fetchItems() needed - optimistic update handles it
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to bulk approve items';
       toast.error(errorMessage);
@@ -722,16 +731,25 @@ export function LegacyInboxPageClient({
       const result = await response.json();
 
       if (result.errors && result.errors.length > 0) {
+        // Partial failure: remove only successful items, keep failed ones
+        const failedIds = new Set(result.errors.map((e: any) => e.id || e.item_id).filter(Boolean));
+        const successfulIds = ids.filter(id => !failedIds.has(id));
+        
+        // Optimistically remove successful items
+        setItems((prev) => prev.filter((item) => !successfulIds.includes(item.id)));
+        
         toast.error(
           `Bulk reject completed with errors for ${result.errors.length} of ${ids.length} item(s).`
         );
         console.error('Bulk reject errors:', result.errors);
       } else {
+        // All successful: optimistically remove all items
+        setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
         toast.success(`Successfully bulk rejected ${ids.length} item(s).`);
       }
 
       clearSelection();
-      await fetchItems(); // Refresh list
+      // No fetchItems() needed - optimistic update handles it
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to bulk reject items';
       toast.error(errorMessage);

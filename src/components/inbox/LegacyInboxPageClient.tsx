@@ -316,6 +316,25 @@ export function LegacyInboxPageClient({
           throw new Error(forbiddenMessage);
         }
         
+        // Handle 409 Conflict (duplicate FAQ exists)
+        if (response.status === 409) {
+          const errorCode = data.detail?.error?.code || data.error?.code;
+          const qaPairId = data.detail?.error?.qa_pair_id || data.qa_pair_id;
+          
+          if (errorCode === 'duplicate_faq_exists' || errorCode === 'duplicate_inbox_item') {
+            const duplicateMessage = data.detail?.error?.message || data.error?.message || data.details ||
+              'This question already exists as an approved FAQ.';
+            toast.error(duplicateMessage);
+            throw new Error(duplicateMessage);
+          }
+          
+          // Generic 409 conflict
+          const conflictMessage = data.detail?.error?.message || data.error?.message || data.details ||
+            'This item conflicts with an existing item.';
+          toast.error(conflictMessage);
+          throw new Error(conflictMessage);
+        }
+        
         // Parse detailed validation errors from backend
         let errorMessage = data.details || data.error || data.message || `Failed to ${isFaq ? 'promote' : 'approve'}: ${response.status} ${response.statusText}`;
         

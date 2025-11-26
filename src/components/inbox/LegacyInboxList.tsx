@@ -57,9 +57,6 @@ type LegacyInboxListProps = {
   onBulkApprove?: () => void;
   onBulkReject?: () => void;
   onClearSelection?: () => void;
-  // Assigned to me filter
-  assignedToMeOnly?: boolean;
-  onToggleAssignedToMe?: () => void;
 };
 
 function renderStatusBadge(status?: string | null) {
@@ -172,8 +169,6 @@ export function LegacyInboxList({
   onBulkApprove,
   onBulkReject,
   onClearSelection,
-  assignedToMeOnly = false,
-  onToggleAssignedToMe,
 }: LegacyInboxListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
@@ -476,84 +471,14 @@ export function LegacyInboxList({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <div className="flex items-center gap-3">
-            <CardTitle className="text-sm font-medium flex items-center space-x-2">
-              <Inbox className="h-4 w-4" />
-              <span>Inbox Items ({items.length})</span>
-            </CardTitle>
-            {onToggleAssignedToMe && (
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-2 text-xs cursor-pointer hover:text-foreground transition-colors">
-                  <input
-                    type="checkbox"
-                    className={`h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${
-                      assignedToMeOnly ? 'ring-2 ring-blue-500' : ''
-                    }`}
-                    checked={assignedToMeOnly}
-                    onChange={onToggleAssignedToMe}
-                  />
-                  <span className={assignedToMeOnly ? 'font-semibold text-blue-600' : 'text-muted-foreground'}>
-                    Assigned to me
-                  </span>
-                </label>
-                {assignedToMeOnly && (
-                  <Button
-                    onClick={onToggleAssignedToMe}
-                    variant="outline"
-                    size="sm"
-                    className="h-6 px-2 text-xs font-medium border-blue-300 text-blue-700 hover:bg-blue-50"
-                    title="Clear filter to show all items"
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-          <Button 
-            onClick={onRefresh} 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 flex-shrink-0"
-            title="Refresh inbox"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <CardTitle className="text-sm font-medium flex items-center space-x-2">
+            <Inbox className="h-4 w-4" />
+            <span>Inbox Items ({items.length})</span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {assignedToMeOnly && items.length === 0 && !loading && (
-            <div className="py-12 text-center space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">
-                  No items assigned to you.
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  The "Assigned to me" filter is active. Clear it to see all inbox items.
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-2">
-                <Button
-                  onClick={onToggleAssignedToMe}
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                >
-                  Clear Filter
-                </Button>
-                <Button
-                  onClick={onRefresh}
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                >
-                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                  Refresh
-                </Button>
-              </div>
-            </div>
-          )}
-          {!assignedToMeOnly && items.length === 0 && !loading && !error && (
-            <div className="py-8 text-center">
+          {items.length === 0 && !loading && !error && (
+            <div className="py-12 text-center">
               <p className="text-sm text-muted-foreground">No inbox items found.</p>
             </div>
           )}

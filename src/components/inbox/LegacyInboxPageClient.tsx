@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { LegacyInboxList } from './LegacyInboxList';
 import { LegacyInboxStatsCard } from './LegacyInboxStatsCard';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, Loader2, Plus } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Plus, RefreshCw } from 'lucide-react';
 import { ManualFAQCreationModal } from './ManualFAQCreationModal';
 import { SMEReviewRequestModal } from './SMEReviewRequestModal';
 import { Button } from '@/components/ui/button';
@@ -621,7 +621,7 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <LegacyInboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
         {enableFaqCreation && (
@@ -634,6 +634,45 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
             Create FAQ
           </Button>
         )}
+      </div>
+
+      {/* Filter Bar - Always Visible */}
+      <div className="flex items-center justify-between gap-4 px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-lg">
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900 transition-colors">
+            <input
+              type="checkbox"
+              className={`h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all ${
+                assignedToMeOnly ? 'ring-2 ring-blue-500 ring-offset-1' : ''
+              }`}
+              checked={assignedToMeOnly}
+              onChange={() => setAssignedToMeOnly((prev) => !prev)}
+            />
+            <span className={assignedToMeOnly ? 'font-semibold text-blue-700' : 'text-slate-600'}>
+              Assigned to me
+            </span>
+          </label>
+          {assignedToMeOnly && (
+            <Button
+              onClick={() => setAssignedToMeOnly(false)}
+              variant="outline"
+              size="sm"
+              className="h-7 px-3 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400"
+            >
+              Clear filter
+            </Button>
+          )}
+        </div>
+        <Button
+          onClick={fetchItems}
+          variant="ghost"
+          size="sm"
+          className="h-7 px-3 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          title="Refresh inbox"
+        >
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+          Refresh
+        </Button>
       </div>
 
       <LegacyInboxList
@@ -660,8 +699,6 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         onBulkApprove={handleBulkApprove}
         onBulkReject={handleBulkReject}
         onClearSelection={clearSelection}
-        assignedToMeOnly={assignedToMeOnly}
-        onToggleAssignedToMe={() => setAssignedToMeOnly((prev) => !prev)}
       />
 
       {/* Manual FAQ Creation Modal */}

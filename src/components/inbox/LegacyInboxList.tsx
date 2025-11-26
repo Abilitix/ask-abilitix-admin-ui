@@ -499,10 +499,10 @@ export function LegacyInboxList({
                 {assignedToMeOnly && (
                   <Button
                     onClick={onToggleAssignedToMe}
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-                    title="Clear filter"
+                    className="h-6 px-2 text-xs font-medium border-blue-300 text-blue-700 hover:bg-blue-50"
+                    title="Clear filter to show all items"
                   >
                     Clear
                   </Button>

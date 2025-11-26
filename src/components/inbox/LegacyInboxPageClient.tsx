@@ -98,12 +98,16 @@ export function LegacyInboxPageClient({
       const pendingUrl = `/api/admin/inbox?${pendingParams.toString()}`;
       const needsReviewUrl = `/api/admin/inbox?${needsReviewParams.toString()}`;
       
-      // Debug logging for assigned_to_me filter
+      // Debug logging for assigned_to_me filter (ALWAYS log when filter is active)
       if (assignedToMeOnly) {
         console.log('[LegacyInbox] Fetching with assigned_to_me filter:', {
           currentUserId,
+          hasCurrentUserId: !!currentUserId,
+          assignedToMeOnly,
           pendingUrl,
           needsReviewUrl,
+          pendingParams: pendingParams.toString(),
+          needsReviewParams: needsReviewParams.toString(),
         });
       }
       
@@ -192,26 +196,49 @@ export function LegacyInboxPageClient({
       const needsReviewItems = Array.isArray(needsReviewData?.items) ? needsReviewData.items : [];
       const rawItems = [...pendingItems, ...needsReviewItems];
       
-      // Debug logging for assigned_to_me filter
+      // Debug logging for assigned_to_me filter (ALWAYS log when filter is active)
       if (assignedToMeOnly) {
         console.log('[LegacyInbox] Received items from backend:', {
+          currentUserId,
           pendingCount: pendingItems.length,
           needsReviewCount: needsReviewItems.length,
           totalRawCount: rawItems.length,
           pendingResponseStatus: pendingResponse.status,
           needsReviewResponseStatus: needsReviewResponse.status,
+          pendingUrl,
+          needsReviewUrl,
+          pendingDataKeys: pendingData ? Object.keys(pendingData) : [],
+          needsReviewDataKeys: needsReviewData ? Object.keys(needsReviewData) : [],
+          pendingDataFull: pendingData, // Full response for debugging
+          needsReviewDataFull: needsReviewData, // Full response for debugging
           sampleItem: rawItems[0] ? {
             id: rawItems[0].id || rawItems[0].ref_id,
             status: rawItems[0].status,
             assigned_to: rawItems[0].assigned_to,
             assigned_to_type: typeof rawItems[0].assigned_to,
             assigned_to_is_array: Array.isArray(rawItems[0].assigned_to),
+            assigned_to_length: Array.isArray(rawItems[0].assigned_to) ? rawItems[0].assigned_to.length : 0,
           } : null,
           allItemsAssignedTo: rawItems.map((item: any) => ({
             id: item.id || item.ref_id,
+            status: item.status,
             assigned_to: item.assigned_to,
+            assigned_to_type: typeof item.assigned_to,
+            assigned_to_is_array: Array.isArray(item.assigned_to),
+            assigned_to_length: Array.isArray(item.assigned_to) ? item.assigned_to.length : 0,
           })),
         });
+        
+        // Additional check: Log if no items found
+        if (rawItems.length === 0) {
+          console.warn('[LegacyInbox] No items returned with assigned_to_me filter:', {
+            currentUserId,
+            pendingParams: pendingParams.toString(),
+            needsReviewParams: needsReviewParams.toString(),
+            pendingData,
+            needsReviewData,
+          });
+        }
       }
       
       // Filter to only show pending and needs_review items (exclude approved/rejected)

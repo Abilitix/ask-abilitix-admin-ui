@@ -59,7 +59,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessFAQs: true,
     canAccessSettings: false,
     canAccessOnboarding: false,
-    canAccessDebug: false,
+    canAccessDebug: true, // Allow curators to test AI Assistant responses
     canAccessDemo: false,
     canUploadDocs: true,
     canManageDocs: true,

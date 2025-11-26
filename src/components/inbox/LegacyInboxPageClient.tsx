@@ -4,9 +4,12 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { LegacyInboxList } from './LegacyInboxList';
 import { LegacyInboxStatsCard } from './LegacyInboxStatsCard';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, Loader2, Plus } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Plus, RefreshCw } from 'lucide-react';
 import { ManualFAQCreationModal } from './ManualFAQCreationModal';
+import { SMEReviewRequestModal } from './SMEReviewRequestModal';
 import { Button } from '@/components/ui/button';
+import { AssignableMember } from './types';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 export type LegacyInboxItem = {
   id: string;
@@ -15,7 +18,12 @@ export type LegacyInboxItem = {
   created_at: string;
   has_pii?: boolean;
   pii_fields?: string[];
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'needs_review';
+  source_type?: 'auto' | 'manual' | 'admin_review' | null;
+  assignedTo?: AssignableMember[] | null;
+  reason?: string | null;
+  assignedAt?: string | null;
+  requestedBy?: AssignableMember | null;
   suggested_citations?: Array<{
     doc_id: string;
     title?: string;
@@ -28,10 +36,33 @@ type LegacyInboxPageClientProps = {
   disabled?: boolean;
   enableFaqCreation?: boolean;
   allowEmptyCitations?: boolean;
+  canManageFlags?: boolean;
+  flags?: {
+    enableFaqCreation?: boolean;
+    allowEmptyCitations?: boolean;
+  };
+  onUpdateFlag?: (key: 'enableFaqCreation' | 'allowEmptyCitations', value: boolean) => void;
+  updatingKey?: string | null;
+  tenantId?: string;
+  tenantSlug?: string;
+  userRole?: string;
 };
 
-export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, allowEmptyCitations = false }: LegacyInboxPageClientProps) {
+export function LegacyInboxPageClient({ 
+  disabled, 
+  enableFaqCreation = false, 
+  allowEmptyCitations = false,
+  canManageFlags = false,
+  flags,
+  onUpdateFlag,
+  updatingKey,
+  tenantId,
+  tenantSlug,
+  userRole,
+}: LegacyInboxPageClientProps) {
   const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
+  const [smeModalOpen, setSmeModalOpen] = useState<boolean>(false);
+  const [selectedItemForReview, setSelectedItemForReview] = useState<LegacyInboxItem | null>(null);
   const [items, setItems] = useState<LegacyInboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +77,22 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [assignedToMeOnly, setAssignedToMeOnly] = useState(false);
+  // Confirmation dialog state
+  const [confirmationDialog, setConfirmationDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    variant: 'default' | 'destructive' | 'warning';
+    onConfirm: () => void;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    variant: 'default',
+    onConfirm: () => {},
+  });
 
   const fetchItems = useCallback(async () => {
     if (disabled) return;
@@ -53,27 +100,236 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/admin/inbox?status=pending');
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch inbox items: ${response.status}`);
+      // Build query parameters - use backend filter when "Assigned to Me" is active
+      const pendingParams = new URLSearchParams({ status: 'pending' });
+      const needsReviewParams = new URLSearchParams({ status: 'needs_review' });
+      
+      if (assignedToMeOnly) {
+        pendingParams.set('assigned_to_me', 'true');
+        needsReviewParams.set('assigned_to_me', 'true');
       }
 
-      const data = await response.json();
+      // Fetch both pending and needs_review items (backend now supports both)
+      const pendingUrl = `/api/admin/inbox?${pendingParams.toString()}`;
+      const needsReviewUrl = `/api/admin/inbox?${needsReviewParams.toString()}`;
+      
+      // Debug logging for assigned_to_me filter (ALWAYS log when filter is active)
+      if (assignedToMeOnly) {
+        console.log('[LegacyInbox] Fetching with assigned_to_me filter:', {
+          currentUserId,
+          hasCurrentUserId: !!currentUserId,
+          assignedToMeOnly,
+          pendingUrl,
+          needsReviewUrl,
+          pendingParams: pendingParams.toString(),
+          needsReviewParams: needsReviewParams.toString(),
+        });
+      }
+      
+      // CRITICAL: Use credentials: 'include' for session-based auth (required for assigned_to_me filter)
+      const [pendingResponse, needsReviewResponse] = await Promise.all([
+        fetch(pendingUrl, {
+          credentials: 'include',
+          cache: 'no-store',
+        }),
+        fetch(needsReviewUrl, {
+          credentials: 'include',
+          cache: 'no-store',
+        }),
+      ]);
 
-      if (data.error) {
-        throw new Error(data.details || data.error);
+      // Enhanced error handling with response body logging
+      if (!pendingResponse.ok) {
+        const pendingErrorText = await pendingResponse.text().catch(() => '');
+        const pendingErrorData = pendingErrorText ? (() => {
+          try { return JSON.parse(pendingErrorText); } catch { return null; }
+        })() : null;
+        
+        console.error('[LegacyInbox] Pending items fetch failed:', {
+          status: pendingResponse.status,
+          statusText: pendingResponse.statusText,
+          url: pendingUrl,
+          errorData: pendingErrorData,
+          errorText: pendingErrorText.substring(0, 500),
+        });
+        
+        const errorMsg = pendingErrorData?.details || pendingErrorData?.error || pendingErrorText || 
+          `Failed to fetch pending items: ${pendingResponse.status}`;
+        throw new Error(errorMsg);
+      }
+      
+      if (!needsReviewResponse.ok) {
+        const needsReviewErrorText = await needsReviewResponse.text().catch(() => '');
+        const needsReviewErrorData = needsReviewErrorText ? (() => {
+          try { return JSON.parse(needsReviewErrorText); } catch { return null; }
+        })() : null;
+        
+        console.error('[LegacyInbox] Needs review items fetch failed:', {
+          status: needsReviewResponse.status,
+          statusText: needsReviewResponse.statusText,
+          url: needsReviewUrl,
+          errorData: needsReviewErrorData,
+          errorText: needsReviewErrorText.substring(0, 500),
+        });
+        
+        const errorMsg = needsReviewErrorData?.details || needsReviewErrorData?.error || needsReviewErrorText || 
+          `Failed to fetch needs_review items: ${needsReviewResponse.status}`;
+        throw new Error(errorMsg);
       }
 
-      setItems(data.items || []);
+      const pendingText = await pendingResponse.text();
+      const needsReviewText = await needsReviewResponse.text();
+
+      let pendingData: any = null;
+      let needsReviewData: any = null;
+
+      if (pendingText) {
+        try {
+          pendingData = JSON.parse(pendingText);
+        } catch (parseErr) {
+          throw new Error('Failed to parse pending items response');
+        }
+      }
+
+      if (needsReviewText) {
+        try {
+          needsReviewData = JSON.parse(needsReviewText);
+        } catch (parseErr) {
+          throw new Error('Failed to parse needs_review items response');
+        }
+      }
+
+      if (pendingData?.error) {
+        throw new Error(pendingData.details || pendingData.error);
+      }
+      if (needsReviewData?.error) {
+        throw new Error(needsReviewData.details || needsReviewData.error);
+      }
+
+      // Merge items from both statuses
+      const pendingItems = Array.isArray(pendingData?.items) ? pendingData.items : [];
+      const needsReviewItems = Array.isArray(needsReviewData?.items) ? needsReviewData.items : [];
+      const rawItems = [...pendingItems, ...needsReviewItems];
+      
+      // Debug logging for assigned_to_me filter (ALWAYS log when filter is active)
+      if (assignedToMeOnly) {
+        console.log('[LegacyInbox] Received items from backend:', {
+          currentUserId,
+          pendingCount: pendingItems.length,
+          needsReviewCount: needsReviewItems.length,
+          totalRawCount: rawItems.length,
+          pendingResponseStatus: pendingResponse.status,
+          needsReviewResponseStatus: needsReviewResponse.status,
+          pendingUrl,
+          needsReviewUrl,
+          pendingDataKeys: pendingData ? Object.keys(pendingData) : [],
+          needsReviewDataKeys: needsReviewData ? Object.keys(needsReviewData) : [],
+          pendingDataFull: pendingData, // Full response for debugging
+          needsReviewDataFull: needsReviewData, // Full response for debugging
+          sampleItem: rawItems[0] ? {
+            id: rawItems[0].id || rawItems[0].ref_id,
+            status: rawItems[0].status,
+            assigned_to: rawItems[0].assigned_to,
+            assigned_to_type: typeof rawItems[0].assigned_to,
+            assigned_to_is_array: Array.isArray(rawItems[0].assigned_to),
+            assigned_to_length: Array.isArray(rawItems[0].assigned_to) ? rawItems[0].assigned_to.length : 0,
+          } : null,
+          allItemsAssignedTo: rawItems.map((item: any) => ({
+            id: item.id || item.ref_id,
+            status: item.status,
+            assigned_to: item.assigned_to,
+            assigned_to_type: typeof item.assigned_to,
+            assigned_to_is_array: Array.isArray(item.assigned_to),
+            assigned_to_length: Array.isArray(item.assigned_to) ? item.assigned_to.length : 0,
+          })),
+        });
+        
+        // Additional check: Log if no items found
+        if (rawItems.length === 0) {
+          console.warn('[LegacyInbox] No items returned with assigned_to_me filter:', {
+            currentUserId,
+            pendingParams: pendingParams.toString(),
+            needsReviewParams: needsReviewParams.toString(),
+            pendingData,
+            needsReviewData,
+          });
+        }
+      }
+      
+      // Filter to only show pending and needs_review items (exclude approved/rejected)
+      // This ensures we show items that were assigned
+      const activeItems = rawItems.filter((item: any) => {
+        const status = item.status || 'pending';
+        return status === 'pending' || status === 'needs_review';
+      });
+      
+      // Remove duplicates by id
+      const uniqueItems = activeItems.filter((item: any, index: number, self: any[]) => {
+        const id = item.id || item.ref_id;
+        return id && index === self.findIndex((i: any) => (i.id || i.ref_id) === id);
+      });
+      const normalizedItems: LegacyInboxItem[] = uniqueItems.map((item: any) => {
+        const normalized: LegacyInboxItem = {
+          id: item.id || item.ref_id || '',
+          question: item.question || '',
+          answer: item.answer || item.answer_draft || '',
+          created_at: item.created_at || item.asked_at || '',
+          has_pii: item.has_pii || false,
+          pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
+          status: item.status || 'pending',
+          source_type: item.source_type || null,
+          suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
+        };
+
+        // Parse assigned_to
+        if (item.assigned_to) {
+          const assigned = Array.isArray(item.assigned_to) ? item.assigned_to : [];
+          normalized.assignedTo = assigned
+            .map((member: any) => {
+              const id = member.id || member.user_id;
+              if (!id) return null;
+              return {
+                id,
+                email: member.email || '',
+                name: member.name || null,
+                role: member.role || null,
+              };
+            })
+            .filter(Boolean);
+        }
+
+        normalized.reason = item.reason || null;
+        normalized.assignedAt = item.assigned_at || null;
+        if (item.requested_by) {
+          const reqBy = item.requested_by;
+          normalized.requestedBy = {
+            id: reqBy.id || reqBy.user_id || '',
+            email: reqBy.email || '',
+            name: reqBy.name || null,
+            role: reqBy.role || null,
+          };
+        }
+
+        return normalized;
+      });
+
+      setItems(normalizedItems);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load inbox items';
       setError(errorMessage);
+      
+      // Enhanced error handling for assigned_to_me filter
+      if (assignedToMeOnly && err instanceof Error) {
+        if (errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
+          toast.error('Session authentication required for "Assigned to Me" filter. Please refresh the page.');
+        }
+      }
+      
       toast.error(`Failed to load inbox: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
-  }, [disabled]);
+  }, [disabled, assignedToMeOnly]);
 
   const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true) => {
     try {
@@ -134,6 +390,33 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
       }
 
       if (!response.ok || data.error) {
+        // Handle 403 Forbidden (ownership check failed)
+        if (response.status === 403) {
+          const forbiddenMessage = data.detail?.error?.message || data.error?.message || data.details || 
+            'Only assignees or admins can modify assigned items';
+          toast.error(`Permission denied: ${forbiddenMessage}`);
+          throw new Error(forbiddenMessage);
+        }
+        
+        // Handle 409 Conflict (duplicate FAQ exists)
+        if (response.status === 409) {
+          const errorCode = data.detail?.error?.code || data.error?.code;
+          const qaPairId = data.detail?.error?.qa_pair_id || data.qa_pair_id;
+          
+          if (errorCode === 'duplicate_faq_exists' || errorCode === 'duplicate_inbox_item') {
+            const duplicateMessage = data.detail?.error?.message || data.error?.message || data.details ||
+              'This question already exists as an approved FAQ.';
+            toast.error(duplicateMessage);
+            throw new Error(duplicateMessage);
+          }
+          
+          // Generic 409 conflict
+          const conflictMessage = data.detail?.error?.message || data.error?.message || data.details ||
+            'This item conflicts with an existing item.';
+          toast.error(conflictMessage);
+          throw new Error(conflictMessage);
+        }
+        
         // Parse detailed validation errors from backend
         let errorMessage = data.details || data.error || data.message || `Failed to ${isFaq ? 'promote' : 'approve'}: ${response.status} ${response.statusText}`;
         
@@ -197,38 +480,113 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         console.error('[attach-citations] Failed to parse response:', parseErr);
       }
 
-      if (!response.ok) {
-        // Parse detailed validation errors from backend
-        let errorMessage = data.details || data.error || data.message || `Failed to attach citations: ${response.status} ${response.statusText}`;
-        
-        // Check for detailed field errors (Admin API format)
-        if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
-          const fieldErrors = data.detail.error.fields
-            .map((field: any) => {
-              const fieldPath = field.field || '';
-              const message = field.message || 'Invalid value';
-              return `${fieldPath}: ${message}`;
-            })
-            .join(', ');
-          
-          if (fieldErrors) {
-            errorMessage = `Validation errors: ${fieldErrors}`;
+        if (!response.ok) {
+          // Handle 403 Forbidden (ownership check failed)
+          if (response.status === 403) {
+            const forbiddenMessage = data.detail?.error?.message || data.error?.message || data.details || 
+              'Only assignees or admins can modify assigned items';
+            toast.error(`Permission denied: ${forbiddenMessage}`);
+            throw new Error(forbiddenMessage);
           }
+          
+          // Parse detailed validation errors from backend
+          let errorMessage = data.details || data.error || data.message || `Failed to attach citations: ${response.status} ${response.statusText}`;
+          
+          // Check for detailed field errors (Admin API format)
+          if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
+            const fieldErrors = data.detail.error.fields
+              .map((field: any) => {
+                const fieldPath = field.field || '';
+                const message = field.message || 'Invalid value';
+                return `${fieldPath}: ${message}`;
+              })
+              .join(', ');
+            
+            if (fieldErrors) {
+              errorMessage = `Validation errors: ${fieldErrors}`;
+            }
+          }
+          
+          console.error('[attach-citations] API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            data,
+            citations,
+            errorCode: data.detail?.error?.code,
+            fieldErrors: data.detail?.error?.fields,
+          });
+          throw new Error(errorMessage);
         }
-        
-        console.error('[attach-citations] API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          data,
-          citations,
-          errorCode: data.detail?.error?.code,
-          fieldErrors: data.detail?.error?.fields,
-        });
-        throw new Error(errorMessage);
-      }
 
       toast.success('Citations attached ✓');
-      await fetchItems(); // Refresh to get updated item
+      
+      // Fetch only the updated item instead of refreshing entire list
+      try {
+        const detailResponse = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}`, {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (detailResponse.ok) {
+          const detailData = await detailResponse.json();
+          if (detailData && !detailData.error) {
+            // Normalize the item using the same logic as fetchItems
+            const item = detailData;
+            const normalized: LegacyInboxItem = {
+              id: item.id || item.ref_id || id,
+              question: item.question || '',
+              answer: item.answer || item.answer_draft || '',
+              created_at: item.created_at || item.asked_at || '',
+              has_pii: item.has_pii || false,
+              pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
+              status: item.status || 'pending',
+              source_type: item.source_type || null,
+              suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
+            };
+
+            // Parse assigned_to
+            if (item.assigned_to) {
+              const assigned = Array.isArray(item.assigned_to) ? item.assigned_to : [];
+              normalized.assignedTo = assigned
+                .map((member: any) => {
+                  const id = member.id || member.user_id;
+                  if (!id) return null;
+                  return {
+                    id,
+                    email: member.email || '',
+                    name: member.name || null,
+                    role: member.role || null,
+                  };
+                })
+                .filter(Boolean);
+            }
+
+            normalized.reason = item.reason || null;
+            normalized.assignedAt = item.assigned_at || null;
+            if (item.requested_by) {
+              const reqBy = item.requested_by;
+              normalized.requestedBy = {
+                id: reqBy.id || reqBy.user_id || '',
+                email: reqBy.email || '',
+                name: reqBy.name || null,
+                role: reqBy.role || null,
+              };
+            }
+
+            // Update only this item in state
+            setItems((prev) =>
+              prev.map((existingItem) =>
+                existingItem.id === id ? normalized : existingItem
+              )
+            );
+          }
+        }
+      } catch (detailErr) {
+        // If single item fetch fails, fall back to full refresh
+        console.warn('[attach-citations] Failed to fetch updated item, falling back to full refresh:', detailErr);
+        await fetchItems();
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to attach citations';
       toast.error(`Attachment failed: ${errorMessage}`);
@@ -249,6 +607,14 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
       const data = await response.json();
 
       if (!response.ok || data.error) {
+        // Handle 403 Forbidden (ownership check failed)
+        if (response.status === 403) {
+          const forbiddenMessage = data.detail?.error?.message || data.error?.message || data.details || 
+            'Only assignees or admins can modify assigned items';
+          toast.error(`Permission denied: ${forbiddenMessage}`);
+          throw new Error(forbiddenMessage);
+        }
+        
         throw new Error(data.details || data.error || `Failed to reject: ${response.status}`);
       }
 
@@ -299,49 +665,63 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
 
-    const confirmMessage = `Are you sure you want to bulk approve ${ids.length} inbox item(s)?`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+    setConfirmationDialog({
+      open: true,
+      title: 'Bulk Approve Items',
+      message: `Are you sure you want to bulk approve ${ids.length} inbox item(s)? This action will promote these items to FAQs.`,
+      variant: 'default',
+      onConfirm: async () => {
+        setConfirmationDialog((prev) => ({ ...prev, open: false }));
 
-    setBulkActionLoading(true);
-    try {
-      // Default to true for bulk approve (consistent with single approve default)
-      const response = await fetch('/api/admin/inbox/bulk-approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ids,
-          as_faq: true, // Default to true for bulk approve
-        }),
-        cache: 'no-store',
-      });
+        setBulkActionLoading(true);
+        try {
+          // Default to true for bulk approve (consistent with single approve default)
+          const response = await fetch('/api/admin/inbox/bulk-approve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              ids,
+              as_faq: true, // Default to true for bulk approve
+            }),
+            cache: 'no-store',
+          });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || `Failed to bulk approve: ${response.status}`);
-      }
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.details || `Failed to bulk approve: ${response.status}`);
+          }
 
-      const result = await response.json();
+          const result = await response.json();
 
-      if (result.errors && result.errors.length > 0) {
-        toast.error(
-          `Bulk approve completed with errors for ${result.errors.length} of ${ids.length} item(s).`
-        );
-        console.error('Bulk approve errors:', result.errors);
-      } else {
-        toast.success(`Successfully bulk approved ${ids.length} item(s).`);
-      }
+          if (result.errors && result.errors.length > 0) {
+            // Partial failure: remove only successful items, keep failed ones
+            const failedIds = new Set(result.errors.map((e: any) => e.id || e.item_id).filter(Boolean));
+            const successfulIds = ids.filter(id => !failedIds.has(id));
+            
+            // Optimistically remove successful items
+            setItems((prev) => prev.filter((item) => !successfulIds.includes(item.id)));
+            
+            toast.error(
+              `Bulk approve completed with errors for ${result.errors.length} of ${ids.length} item(s).`
+            );
+            console.error('Bulk approve errors:', result.errors);
+          } else {
+            // All successful: optimistically remove all items
+            setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
+            toast.success(`Successfully bulk approved ${ids.length} item(s).`);
+          }
 
-      clearSelection();
-      await fetchItems(); // Refresh list
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to bulk approve items';
-      toast.error(errorMessage);
-      console.error('Bulk approve error:', err);
-    } finally {
-      setBulkActionLoading(false);
-    }
+          clearSelection();
+          // No fetchItems() needed - optimistic update handles it
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to bulk approve items';
+          toast.error(errorMessage);
+          console.error('Bulk approve error:', err);
+        } finally {
+          setBulkActionLoading(false);
+        }
+      },
+    });
   }, [selectedIds, clearSelection, fetchItems]);
 
   // Bulk reject handler
@@ -349,45 +729,59 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
 
-    const confirmMessage = `Are you sure you want to bulk reject ${ids.length} inbox item(s)?`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+    setConfirmationDialog({
+      open: true,
+      title: 'Bulk Reject Items',
+      message: `Are you sure you want to bulk reject ${ids.length} inbox item(s)? This action cannot be undone.`,
+      variant: 'destructive',
+      onConfirm: async () => {
+        setConfirmationDialog((prev) => ({ ...prev, open: false }));
 
-    setBulkActionLoading(true);
-    try {
-      const response = await fetch('/api/admin/inbox/bulk-reject', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
-        cache: 'no-store',
-      });
+        setBulkActionLoading(true);
+        try {
+          const response = await fetch('/api/admin/inbox/bulk-reject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids }),
+            cache: 'no-store',
+          });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || `Failed to bulk reject: ${response.status}`);
-      }
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.details || `Failed to bulk reject: ${response.status}`);
+          }
 
-      const result = await response.json();
+          const result = await response.json();
 
-      if (result.errors && result.errors.length > 0) {
-        toast.error(
-          `Bulk reject completed with errors for ${result.errors.length} of ${ids.length} item(s).`
-        );
-        console.error('Bulk reject errors:', result.errors);
-      } else {
-        toast.success(`Successfully bulk rejected ${ids.length} item(s).`);
-      }
+          if (result.errors && result.errors.length > 0) {
+            // Partial failure: remove only successful items, keep failed ones
+            const failedIds = new Set(result.errors.map((e: any) => e.id || e.item_id).filter(Boolean));
+            const successfulIds = ids.filter(id => !failedIds.has(id));
+            
+            // Optimistically remove successful items
+            setItems((prev) => prev.filter((item) => !successfulIds.includes(item.id)));
+            
+            toast.error(
+              `Bulk reject completed with errors for ${result.errors.length} of ${ids.length} item(s).`
+            );
+            console.error('Bulk reject errors:', result.errors);
+          } else {
+            // All successful: optimistically remove all items
+            setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
+            toast.success(`Successfully bulk rejected ${ids.length} item(s).`);
+          }
 
-      clearSelection();
-      await fetchItems(); // Refresh list
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to bulk reject items';
-      toast.error(errorMessage);
-      console.error('Bulk reject error:', err);
-    } finally {
-      setBulkActionLoading(false);
-    }
+          clearSelection();
+          // No fetchItems() needed - optimistic update handles it
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to bulk reject items';
+          toast.error(errorMessage);
+          console.error('Bulk reject error:', err);
+        } finally {
+          setBulkActionLoading(false);
+        }
+      },
+    });
   }, [selectedIds, clearSelection, fetchItems]);
 
   useEffect(() => {
@@ -444,8 +838,82 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
     loadDocOptions();
   }, [loadDocOptions]);
 
+  // Fetch current user ID for "Assigned to me" filter
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'include',
+        });
+        const data = await response.json().catch(() => null);
+        if (!active || !data) return;
+        const id =
+          typeof data?.user?.id === 'string'
+            ? data.user.id
+            : typeof data?.user_id === 'string'
+              ? data.user_id
+              : typeof data?.id === 'string'
+                ? data.id
+                : null;
+        if (active) {
+          setCurrentUserId(id ?? null);
+          // Debug logging for user ID (always log when fetching)
+          console.log('[LegacyInbox] Current user ID fetched:', {
+            id,
+            hasId: !!id,
+            idType: typeof id,
+            fullData: data,
+          });
+        }
+      } catch {
+        if (active) {
+          setCurrentUserId(null);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // No client-side filtering needed - backend handles it via assigned_to_me query parameter
+  // Keep filteredItems for backward compatibility (just returns items as-is)
+  const filteredItems = useMemo(() => items, [items]);
+
+  const handleRequestReview = useCallback((item: LegacyInboxItem) => {
+    setSelectedItemForReview(item);
+    setSmeModalOpen(true);
+  }, []);
+
+  const handleReviewSuccess = useCallback(
+    ({ assignedTo, status, reason }: { assignedTo: AssignableMember[]; status?: string; reason?: string }) => {
+      if (!selectedItemForReview) return;
+      // Update the item in state immediately for instant feedback
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === selectedItemForReview.id
+            ? {
+                ...item,
+                assignedTo,
+                status: (status as any) || 'needs_review',
+                reason: reason || null,
+                source_type: 'admin_review' as const,
+              }
+            : item
+        )
+      );
+      setSmeModalOpen(false);
+      setSelectedItemForReview(null);
+      // State already updated optimistically above - no need for full refresh
+    },
+    [selectedItemForReview, fetchItems]
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <LegacyInboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
         {enableFaqCreation && (
@@ -460,8 +928,123 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         )}
       </div>
 
+      {/* Filter Bar - Always Visible */}
+      <div className="flex items-center justify-between gap-4 px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-lg">
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900 transition-colors">
+            <input
+              type="checkbox"
+              className={`h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all ${
+                assignedToMeOnly ? 'ring-2 ring-blue-500 ring-offset-1' : ''
+              }`}
+              checked={assignedToMeOnly}
+              onChange={() => setAssignedToMeOnly((prev) => !prev)}
+            />
+            <span className={assignedToMeOnly ? 'font-semibold text-blue-700' : 'text-slate-600'}>
+              Assigned to me
+            </span>
+          </label>
+          {assignedToMeOnly && (
+            <Button
+              onClick={() => setAssignedToMeOnly(false)}
+              variant="outline"
+              size="sm"
+              className="h-7 px-3 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400"
+            >
+              Clear filter
+            </Button>
+          )}
+        </div>
+        <Button
+          onClick={fetchItems}
+          variant="ghost"
+          size="sm"
+          className="h-7 px-3 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          title="Refresh inbox"
+        >
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Toggle Bar - Clean, Subtle Design */}
+      {canManageFlags && onUpdateFlag && flags && (
+        <div className="flex items-center gap-6 px-4 py-2.5 bg-white border border-slate-200 rounded-lg">
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Options</span>
+          <div className="flex items-center gap-6">
+            {/* Enable FAQ Creation Toggle */}
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer group">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={flags.enableFaqCreation === true}
+                  onChange={(e) => {
+                    if (onUpdateFlag) {
+                      onUpdateFlag('enableFaqCreation' as any, e.target.checked);
+                    }
+                  }}
+                  disabled={updatingKey === 'enableFaqCreation'}
+                />
+                <div
+                  className={`w-10 h-5 rounded-full transition-colors duration-200 ${
+                    flags.enableFaqCreation
+                      ? 'bg-blue-600'
+                      : 'bg-slate-300'
+                  } ${updatingKey === 'enableFaqCreation' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <div
+                    className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${
+                      flags.enableFaqCreation ? 'translate-x-5' : 'translate-x-0.5'
+                    } mt-0.5`}
+                  />
+                </div>
+              </div>
+              <span className={`text-sm ${updatingKey === 'enableFaqCreation' ? 'text-slate-400' : 'text-slate-700'}`}>
+                Enable FAQ creation
+              </span>
+            </label>
+
+            {/* Allow Empty Citations Toggle - Only show if it can be enabled */}
+            {flags.allowEmptyCitations !== undefined && (
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer group">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={flags.allowEmptyCitations === true}
+                    onChange={(e) => {
+                      if (onUpdateFlag) {
+                        onUpdateFlag('allowEmptyCitations' as any, e.target.checked);
+                      }
+                    }}
+                    disabled={updatingKey === 'allowEmptyCitations'}
+                  />
+                  <div
+                    className={`w-10 h-5 rounded-full transition-colors duration-200 ${
+                      flags.allowEmptyCitations
+                        ? 'bg-blue-600'
+                        : 'bg-slate-300'
+                    } ${updatingKey === 'allowEmptyCitations' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${
+                        flags.allowEmptyCitations ? 'translate-x-5' : 'translate-x-0.5'
+                      } mt-0.5`}
+                    />
+                  </div>
+                </div>
+                <span className={`text-sm ${updatingKey === 'allowEmptyCitations' ? 'text-slate-400' : 'text-slate-700'}`}>
+                  Allow empty citations
+                </span>
+              </label>
+            )}
+          </div>
+        </div>
+      )}
+
       <LegacyInboxList
-        items={items}
+        items={filteredItems}
         loading={loading}
         error={error}
         enableFaqCreation={enableFaqCreation}
@@ -476,6 +1059,7 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         docOptionsLoading={docLoading}
         docOptionsError={docTitlesError}
         onReloadDocOptions={loadDocOptions}
+        onRequestReview={handleRequestReview}
         selectedIds={selectedIds}
         onToggleSelect={handleToggleSelect}
         onSelectAll={handleSelectAll}
@@ -483,15 +1067,140 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
         onBulkApprove={handleBulkApprove}
         onBulkReject={handleBulkReject}
         onClearSelection={clearSelection}
+        currentUserId={currentUserId}
+        userRole={userRole}
       />
 
       {/* Manual FAQ Creation Modal */}
       <ManualFAQCreationModal
         open={manualFaqModalOpen}
         onClose={() => setManualFaqModalOpen(false)}
-        onSuccess={() => {
-          fetchItems();
+        onSuccess={async (inboxId) => {
+          if (inboxId) {
+            // Fetch only the newly created item instead of refreshing entire list
+            try {
+              const detailResponse = await fetch(`/api/admin/inbox/${encodeURIComponent(inboxId)}`, {
+                method: 'GET',
+                credentials: 'include',
+                cache: 'no-store',
+              });
+              const detailData = await detailResponse.json().catch(() => null);
+
+              if (detailResponse.ok && detailData) {
+                // Normalize the item using the same logic as fetchItems
+                const item = detailData;
+                const normalized: LegacyInboxItem = {
+                  id: item.id || item.ref_id || '',
+                  question: item.question || '',
+                  answer: item.answer || item.answer_draft || '',
+                  created_at: item.created_at || item.asked_at || '',
+                  has_pii: item.has_pii || false,
+                  pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
+                  status: item.status || 'pending',
+                  source_type: item.source_type || null,
+                  suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
+                };
+
+                // Parse assigned_to
+                if (item.assigned_to) {
+                  const assigned = Array.isArray(item.assigned_to) ? item.assigned_to : [];
+                  normalized.assignedTo = assigned
+                    .map((member: any) => {
+                      const id = member.id || member.user_id;
+                      if (!id) return null;
+                      return {
+                        id,
+                        email: member.email || '',
+                        name: member.name || null,
+                        role: member.role || null,
+                      };
+                    })
+                    .filter(Boolean);
+                }
+
+                normalized.reason = item.reason || null;
+                normalized.assignedAt = item.assigned_at || null;
+                if (item.requested_by) {
+                  const reqBy = item.requested_by;
+                  normalized.requestedBy = {
+                    id: reqBy.id || reqBy.user_id || '',
+                    email: reqBy.email || '',
+                    name: reqBy.name || null,
+                    role: reqBy.role || null,
+                  };
+                }
+
+                // Add the new item to the list (prepend to show at top)
+                setItems((prev) => {
+                  // Check if item already exists (avoid duplicates)
+                  if (prev.some((existing) => existing.id === normalized.id)) {
+                    return prev;
+                  }
+                  return [normalized, ...prev];
+                });
+              } else {
+                // Fallback to full refresh if single item fetch fails
+                await fetchItems();
+              }
+            } catch (detailErr) {
+              // If single item fetch fails, fall back to full refresh
+              console.warn('[manual-faq] Failed to fetch new item, falling back to full refresh:', detailErr);
+              await fetchItems();
+            }
+          } else {
+            // No inbox_id returned, fallback to full refresh
+            await fetchItems();
+          }
         }}
+      />
+
+      {/* SME Review Request Modal */}
+      <SMEReviewRequestModal
+        open={smeModalOpen}
+        inboxId={selectedItemForReview?.id || null}
+        detail={
+          selectedItemForReview
+            ? {
+                id: selectedItemForReview.id,
+                question: selectedItemForReview.question,
+                answerDraft: selectedItemForReview.answer,
+                answerFinal: null,
+                suggestedCitations: [],
+                tags: [],
+                topScores: null,
+                docMatches: null,
+                qHash: null,
+                askedAt: selectedItemForReview.created_at,
+                channel: null,
+                dupCount: 1,
+                promotedPairId: null,
+                promotedAt: null,
+                sourceType: selectedItemForReview.source_type || null,
+                assignedTo: selectedItemForReview.assignedTo || null,
+                reason: selectedItemForReview.reason || null,
+                assignedAt: selectedItemForReview.assignedAt || null,
+                requestedBy: selectedItemForReview.requestedBy || null,
+                status: selectedItemForReview.status,
+              }
+            : null
+        }
+        onClose={() => {
+          setSmeModalOpen(false);
+          setSelectedItemForReview(null);
+        }}
+        onSuccess={handleReviewSuccess}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        open={confirmationDialog.open}
+        onClose={() => setConfirmationDialog((prev) => ({ ...prev, open: false }))}
+        onConfirm={confirmationDialog.onConfirm}
+        title={confirmationDialog.title}
+        message={confirmationDialog.message}
+        variant={confirmationDialog.variant}
+        loading={bulkActionLoading}
+        confirmText={confirmationDialog.variant === 'destructive' ? 'Reject' : 'Approve'}
       />
     </div>
   );

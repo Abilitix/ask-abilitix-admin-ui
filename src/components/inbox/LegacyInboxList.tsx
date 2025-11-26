@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +29,7 @@ import {
   Copy,
   CheckCircle2,
   XCircle,
+  ListChecks,
 } from 'lucide-react';
 
 type LegacyInboxListProps = {
@@ -47,6 +48,7 @@ type LegacyInboxListProps = {
   docOptionsLoading?: boolean;
   docOptionsError?: string | null;
   onReloadDocOptions?: () => void;
+  onRequestReview?: (item: LegacyInboxItem) => void;
   // Bulk selection props
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
@@ -55,7 +57,41 @@ type LegacyInboxListProps = {
   onBulkApprove?: () => void;
   onBulkReject?: () => void;
   onClearSelection?: () => void;
+  currentUserId?: string | null;
+  userRole?: string;
 };
+
+function renderStatusBadge(status?: string | null) {
+  if (!status || status === 'pending') {
+    return <Badge variant="outline" className="text-[10px]">Pending</Badge>;
+  }
+  switch (status) {
+    case 'needs_review':
+      return (
+        <Badge className="text-[10px] bg-amber-100 text-amber-900 border-amber-300" title="Assigned for SME review">
+          Needs Review
+        </Badge>
+      );
+    case 'approved':
+      return (
+        <Badge className="text-[10px] bg-green-100 text-green-900 border-green-300" title="Approved">
+          Approved
+        </Badge>
+      );
+    case 'rejected':
+      return (
+        <Badge className="text-[10px] bg-red-100 text-red-900 border-red-300" title="Rejected">
+          Rejected
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-[10px]">
+          {status}
+        </Badge>
+      );
+  }
+}
 
 function renderDocBadges(
   item: LegacyInboxItem,
@@ -127,6 +163,7 @@ export function LegacyInboxList({
   docOptionsLoading,
   docOptionsError,
   onReloadDocOptions,
+  onRequestReview,
   selectedIds,
   onToggleSelect,
   onSelectAll,
@@ -134,7 +171,31 @@ export function LegacyInboxList({
   onBulkApprove,
   onBulkReject,
   onClearSelection,
+  currentUserId,
+  userRole,
 }: LegacyInboxListProps) {
+  // Helper: Check if user can act on item (assignee OR admin)
+  const canActOnItem = useCallback((item: LegacyInboxItem): boolean => {
+    // If item is not assigned, anyone with role can act (existing behavior)
+    if (!item.assignedTo || item.assignedTo.length === 0) {
+      return true;
+    }
+    
+    // If item is assigned, check ownership
+    const isAdmin = userRole && ['owner', 'admin'].includes(userRole);
+    if (isAdmin) {
+      return true; // Admin override
+    }
+    
+    // Check if current user is assignee
+    if (currentUserId) {
+      const isAssignee = item.assignedTo.some((member) => member.id === currentUserId);
+      return isAssignee;
+    }
+    
+    return false;
+  }, [currentUserId, userRole]);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
   const [faqSelections, setFaqSelections] = useState<Record<string, boolean>>({});
@@ -440,13 +501,16 @@ export function LegacyInboxList({
             <Inbox className="h-4 w-4" />
             <span>Inbox Items ({items.length})</span>
           </CardTitle>
-          <Button onClick={onRefresh} variant="ghost" size="icon" title="Refresh inbox">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
+          {items.length === 0 && !loading && !error && (
+            <div className="py-12 text-center">
+              <p className="text-sm text-muted-foreground">No inbox items found.</p>
+            </div>
+          )}
+          {items.length > 0 && (
+            <div className="overflow-x-auto">
+              <Table>
               <TableHeader>
                 <TableRow>
                   {selectedIds !== undefined && onToggleSelect && onSelectAll && (
@@ -464,8 +528,8 @@ export function LegacyInboxList({
                 <TableHead className="w-[200px]">Document</TableHead>
                 <TableHead className="w-[300px]">Answer</TableHead>
                 <TableHead className="w-[120px]">Created</TableHead>
-                <TableHead className="w-[100px]">PII</TableHead>
-                <TableHead className="w-[150px]">Actions</TableHead>
+                <TableHead className="w-[120px]">Status & PII</TableHead>
+                <TableHead className="w-[200px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -533,7 +597,7 @@ export function LegacyInboxList({
                     </div>
                   </TableCell>
                   <TableCell className="w-[300px]">
-                    {editingId === item.id ? (
+                        {editingId === item.id ? (
                       <div className="space-y-2">
                         <Textarea
                           value={editedAnswers[item.id] ?? item.answer}
@@ -564,18 +628,23 @@ export function LegacyInboxList({
                           {editedAnswers[item.id] || item.answer}
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Button
-                            onClick={() => startEditing(item.id, editedAnswers[item.id] || item.answer)}
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                          >
-                            <Edit2 className="h-3 w-3 mr-1" />
-                            Edit Answer
-                          </Button>
-                          <Badge variant="outline" className="text-xs">
-                            Click to edit
-                          </Badge>
+                          {/* Show Edit Answer button only if user can act on item (assignee OR admin) */}
+                          {canActOnItem(item) && (
+                            <Button
+                              onClick={() => startEditing(item.id, editedAnswers[item.id] || item.answer)}
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              <Edit2 className="h-3 w-3 mr-1" />
+                              Edit Answer
+                            </Button>
+                          )}
+                          {canActOnItem(item) && (
+                            <Badge variant="outline" className="text-xs">
+                              Click to edit
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     )}
@@ -583,26 +652,27 @@ export function LegacyInboxList({
                   <TableCell className="text-sm text-muted-foreground w-[120px]">
                     {formatDate(item.created_at)}
                   </TableCell>
-                  <TableCell className="w-[100px]">
-                    {item.has_pii ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge variant="destructive" className="flex items-center space-x-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              <span>PII</span>
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>PII detected in fields: {item.pii_fields?.join(', ') || 'unknown'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : (
-                      <Badge variant="secondary">Clean</Badge>
-                    )}
+                  <TableCell className="w-[120px]">
+                    <div className="flex flex-col gap-1">
+                      {renderStatusBadge(item.status)}
+                      {item.has_pii && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0.5 flex items-center gap-0.5 w-fit">
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                PII
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>PII detected in fields: {item.pii_fields?.join(', ') || 'unknown'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
-                  <TableCell className="w-[150px]">
+                  <TableCell className="w-[200px]">
                     <div className="flex flex-col gap-1.5">
                       {enableFaqCreation && (
                         <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -621,10 +691,25 @@ export function LegacyInboxList({
                           <span>Create as FAQ</span>
                         </label>
                       )}
+                      {/* Request SME Review button - visible for pending, unassigned items */}
+                      {onRequestReview &&
+                        item.status === 'pending' &&
+                        (!item.assignedTo || item.assignedTo.length === 0) && (
+                          <Button
+                            onClick={() => onRequestReview(item)}
+                            size="sm"
+                            variant="default"
+                            disabled={editingId === item.id}
+                            className="h-7 px-3 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            <ListChecks className="h-3.5 w-3.5 mr-1.5" />
+                            Request Review
+                          </Button>
+                        )}
                       {/* Citations preview or attach button */}
                       {item.suggested_citations && item.suggested_citations.length > 0 ? (
-                        <div className="space-y-1">
-                          <div className="text-[10px] text-muted-foreground font-medium">Citations (auto-used):</div>
+                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                          <span className="font-medium">Citations (auto-used):</span>
                           <div className="flex flex-wrap gap-1">
                             {item.suggested_citations.slice(0, 2).map((cite, idx) => (
                               <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0.5 bg-muted/50">
@@ -638,6 +723,23 @@ export function LegacyInboxList({
                               </Badge>
                             )}
                           </div>
+                          {/* Show Edit button only if user can act on item (assignee OR admin) */}
+                          {canActOnItem(item) && (
+                            <Button
+                              onClick={() => handleOpenAttachModal(item.id)}
+                              size="sm"
+                              variant="ghost"
+                              disabled={editingId === item.id}
+                              className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        /* Show Attach button only if user can act on item (assignee OR admin) */
+                        canActOnItem(item) && (
                           <Button
                             onClick={() => handleOpenAttachModal(item.id)}
                             size="sm"
@@ -645,41 +747,32 @@ export function LegacyInboxList({
                             disabled={editingId === item.id}
                             className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                           >
-                            <Edit2 className="h-3 w-3 mr-1" />
-                            Edit
+                            <Paperclip className="h-3 w-3 mr-1" />
+                            Attach
                           </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => handleOpenAttachModal(item.id)}
-                          size="sm"
-                          variant="ghost"
-                          disabled={editingId === item.id}
-                          className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                        >
-                          <Paperclip className="h-3 w-3 mr-1" />
-                          Attach
-                        </Button>
+                        )
                       )}
                       <div className="flex space-x-2">
-                        <Button
-                          onClick={() => handleApprove(item.id)}
-                          size="sm"
-                          className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
-                          disabled={
-                            editingId === item.id ||
-                            (!allowEmptyCitations &&
-                              (!item.suggested_citations || item.suggested_citations.length === 0)) ||
-                            actionStates[item.id] === 'approving' ||
-                            actionStates[item.id] === 'approved'
-                          }
-                          title={
-                            !allowEmptyCitations &&
-                            (!item.suggested_citations || item.suggested_citations.length === 0)
-                              ? 'Attach citations first'
-                              : 'Approve and automatically generate embeddings'
-                          }
-                        >
+                        {/* Show Approve button only if user can act on item (assignee OR admin) */}
+                        {canActOnItem(item) && (
+                          <Button
+                            onClick={() => handleApprove(item.id)}
+                            size="sm"
+                            className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
+                            disabled={
+                              editingId === item.id ||
+                              (!allowEmptyCitations &&
+                                (!item.suggested_citations || item.suggested_citations.length === 0)) ||
+                              actionStates[item.id] === 'approving' ||
+                              actionStates[item.id] === 'approved'
+                            }
+                            title={
+                              !allowEmptyCitations &&
+                              (!item.suggested_citations || item.suggested_citations.length === 0)
+                                ? 'Attach citations first'
+                                : 'Approve and automatically generate embeddings'
+                            }
+                          >
                           {actionStates[item.id] === 'approving' ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -696,17 +789,20 @@ export function LegacyInboxList({
                               Approve
                             </>
                           )}
-                        </Button>
-                        <Button
-                          onClick={() => handleReject(item.id)}
-                          size="sm"
-                          variant="destructive"
-                          disabled={
-                            editingId === item.id ||
-                            actionStates[item.id] === 'rejecting' ||
-                            actionStates[item.id] === 'rejected'
-                          }
-                        >
+                          </Button>
+                        )}
+                        {/* Show Reject button only if user can act on item (assignee OR admin) */}
+                        {canActOnItem(item) && (
+                          <Button
+                            onClick={() => handleReject(item.id)}
+                            size="sm"
+                            variant="destructive"
+                            disabled={
+                              editingId === item.id ||
+                              actionStates[item.id] === 'rejecting' ||
+                              actionStates[item.id] === 'rejected'
+                            }
+                          >
                           {actionStates[item.id] === 'rejecting' ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -723,7 +819,8 @@ export function LegacyInboxList({
                               Reject
                             </>
                           )}
-                        </Button>
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </TableCell>
@@ -733,7 +830,8 @@ export function LegacyInboxList({
             </TableBody>
           </Table>
         </div>
-      </CardContent>
+          )}
+        </CardContent>
       {attachModalOpen && typeof window !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/30 backdrop-blur-[2px]"

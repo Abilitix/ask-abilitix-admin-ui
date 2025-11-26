@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InboxListItem, InboxTopScore } from './ModernInboxClient';
+import { AssignmentBadge } from './AssignmentBadge';
 import { ArrowDownCircle, Inbox as InboxIcon, Loader2, RefreshCw } from 'lucide-react';
 
 type AppliedFilters = {
@@ -13,6 +14,9 @@ type AppliedFilters = {
   tag: string;
   qHash: string;
   docId: string;
+  status: string;
+  assigned: string;
+  sourceType: string;
 };
 
 type InboxListProps = {
@@ -108,6 +112,56 @@ function renderDocBadges(matches?: InboxTopScore[] | null) {
   });
 }
 
+function renderSourceBadge(source?: string | null) {
+  if (!source) return <Badge variant="outline" className="text-[11px]">Auto</Badge>;
+  const label = source.replace('_', ' ');
+  switch (source) {
+    case 'manual':
+      return (
+        <Badge className="text-[11px] bg-slate-900 text-white" title="Manually created">
+          Manual
+        </Badge>
+      );
+    case 'admin_review':
+      return (
+        <Badge className="text-[11px] bg-purple-100 text-purple-800" title="Requires SME review">
+          Admin review
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-[11px]">
+          {label}
+        </Badge>
+      );
+  }
+}
+
+function renderStatusBadge(status?: string | null) {
+  if (!status) return <Badge variant="outline" className="text-[11px]">pending</Badge>;
+  const normalized = status.toLowerCase();
+  switch (normalized) {
+    case 'needs_review':
+      return (
+        <Badge className="text-[11px] bg-amber-100 text-amber-900">
+          needs_review
+        </Badge>
+      );
+    case 'pending':
+      return (
+        <Badge variant="outline" className="text-[11px]">
+          pending
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="secondary" className="text-[11px]">
+          {normalized}
+        </Badge>
+      );
+  }
+}
+
 export function InboxList({
   items,
   loading,
@@ -127,10 +181,17 @@ export function InboxList({
   // Ensure items is always an array
   const safeItems = Array.isArray(items) ? items : [];
 
-  const hasFilters = useMemo(
-    () => Boolean(filters.ref || filters.tag || filters.qHash || filters.docId),
-    [filters]
-  );
+  const hasFilters = useMemo(() => {
+    return Boolean(
+      filters.ref ||
+        filters.tag ||
+        filters.qHash ||
+        filters.docId ||
+        (filters.status && filters.status !== 'pending') ||
+        (filters.assigned && filters.assigned !== '') ||
+        filters.sourceType
+    );
+  }, [filters]);
 
   if (loading && !safeItems.length) {
     return (
@@ -231,12 +292,15 @@ export function InboxList({
                   </TableHead>
                 )}
                 <TableHead className="w-[24ch]">Ref</TableHead>
-                <TableHead className="w-[18ch]">Hash</TableHead>
+                <TableHead className="w-[16ch]">Hash</TableHead>
                 <TableHead>Tags</TableHead>
-              <TableHead className="w-[22ch]">Documents</TableHead>
-                <TableHead className="w-[16ch]">Dup Count</TableHead>
-                <TableHead className="w-[22ch]">Asked</TableHead>
-                <TableHead className="w-[16ch]">Channel</TableHead>
+                <TableHead className="w-[14ch]">Source</TableHead>
+                <TableHead className="w-[18ch]">Documents</TableHead>
+                <TableHead className="w-[20ch]">Assignment</TableHead>
+                <TableHead className="w-[14ch]">Status</TableHead>
+                <TableHead className="w-[10ch]">Dup</TableHead>
+                <TableHead className="w-[18ch]">Asked</TableHead>
+                <TableHead className="w-[14ch]">Channel</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -279,9 +343,14 @@ export function InboxList({
                     <TableCell className="space-x-1 whitespace-nowrap">
                       {safeTags.length ? safeTags.map(renderTag) : '—'}
                     </TableCell>
+                    <TableCell>{renderSourceBadge(item.sourceType)}</TableCell>
                     <TableCell className="space-x-1">
                       {renderDocBadges(item.docMatches)}
                     </TableCell>
+                    <TableCell>
+                      <AssignmentBadge assignees={item.assignedTo} size="sm" />
+                    </TableCell>
+                    <TableCell>{renderStatusBadge(item.status)}</TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="text-xs">
                         ×{item.dupCount}

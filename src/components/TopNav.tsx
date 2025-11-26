@@ -41,6 +41,7 @@ function roleBadge(role: UserRole) {
 export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps) {
   const [open, setOpen] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
+  const [inboxEnabled, setInboxEnabled] = useState(false);
   const pathname = usePathname();
 
   // Fetch identity data
@@ -66,6 +67,81 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
     return () => { live = false; };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const response = await fetch('/api/admin/inbox?limit=1', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (!active) return;
+
+        if (response.status === 404) {
+          setInboxEnabled(false);
+          return;
+        }
+
+        const text = await response.text();
+        if (!active) return;
+
+        if (!response.ok) {
+          setInboxEnabled(false);
+          return;
+        }
+
+        let json: any = null;
+        if (text) {
+          try {
+            json = JSON.parse(text);
+          } catch {
+            setInboxEnabled(false);
+            return;
+          }
+        }
+
+        if (json && typeof json === 'object' && json.error) {
+          setInboxEnabled(false);
+          return;
+        }
+
+        const list = Array.isArray(json?.items)
+          ? json.items
+          : Array.isArray(json)
+            ? json
+            : [];
+
+        if (!Array.isArray(list)) {
+          setInboxEnabled(false);
+          return;
+        }
+
+        if (list.length === 0) {
+          setInboxEnabled(true);
+          return;
+        }
+
+        const first = list[0];
+        const looksNew =
+          first &&
+          typeof first === 'object' &&
+          ('dup_count' in first || 'q_hash' in first || 'asked_at' in first || 'tags' in first);
+
+        setInboxEnabled(Boolean(looksNew));
+      } catch {
+        if (active) {
+          setInboxEnabled(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Use fetched identity or fallback to props
   const identity = me?.email || me?.tenant?.slug || me?.role || userEmail || tenantSlug || userRole;
   const effectiveRole = (me?.role as UserRole) || userRole;
@@ -73,7 +149,11 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
   
   
   // Use role-based navigation filtering
-  const items = effectiveRole ? getVisibleNavItems(effectiveRole, false, effectiveEmail) : [];
+  const navItems = effectiveRole ? getVisibleNavItems(effectiveRole, false, effectiveEmail) : [];
+  const filteredNavItems = navItems.filter((it) =>
+    it.href === '/admin/inbox' ? inboxEnabled : true
+  );
+  const isRoleLoading = !effectiveRole;
 
   const isActive = (href: string) =>
     pathname === href || (pathname && pathname.startsWith(href + "/"));
@@ -189,30 +269,40 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
               )}
 
               <nav className="flex-1 overflow-y-auto px-2 py-2 divide-y divide-slate-200 text-slate-900">
-                {items.map((it) => (
-                  <Link
-                    key={it.href}
-                    href={it.href}
-                    onClick={close}
-                    aria-current={isActive(it.href) ? "page" : undefined}
-                    className={[
-                      "block break-words px-3 py-3 text-[15px] hover:bg-slate-50 focus:bg-slate-50 focus:outline-none",
-                      isActive(it.href)
-                        ? "bg-slate-50 font-medium border-l-2 border-slate-300"
-                        : "bg-white",
-                    ].join(" ")}
-                  >
-                    {it.label}
-                  </Link>
-                ))}
+                {isRoleLoading && (
+                  <div className="space-y-2 px-1 py-2">
+                    {[1, 2, 3, 4].map((idx) => (
+                      <div
+                        key={idx}
+                        className="h-10 animate-pulse rounded-xl border border-slate-200 bg-slate-50"
+                      />
+                    ))}
+                  </div>
+                )}
+                {!isRoleLoading &&
+                  filteredNavItems.map((it) => (
+                    <Link
+                      key={it.href}
+                      href={it.href}
+                      onClick={close}
+                      aria-current={isActive(it.href) ? "page" : undefined}
+                      className={[
+                        "block break-words px-3 py-3 text-[15px] hover:bg-slate-50 focus:bg-slate-50 focus:outline-none",
+                        isActive(it.href)
+                          ? "bg-slate-50 font-medium border-l-2 border-slate-300"
+                          : "bg-white",
+                      ].join(" ")}
+                    >
+                      {it.label}
+                    </Link>
+                  ))}
               </nav>
 
               <div className="border-t px-2 py-3">
                 <button
                   onClick={async () => {
                     try {
-                      const api = process.env.NEXT_PUBLIC_ADMIN_API!;
-                      await fetch(`${api}/auth/logout`, {
+                      await fetch(`/api/auth/logout`, {
                         method: "POST",
                         credentials: "include",
                         headers: { "Content-Type": "application/json" },

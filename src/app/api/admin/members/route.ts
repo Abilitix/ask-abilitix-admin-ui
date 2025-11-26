@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminApiBase } from '@/lib/env';
 
 export async function GET(request: NextRequest) {
   try {
-    const ADMIN_API = process.env.ADMIN_API;
+    const ADMIN_API = getAdminApiBase();
     
     if (!ADMIN_API) {
       return NextResponse.json(
@@ -27,8 +28,14 @@ export async function GET(request: NextRequest) {
 
     const userData = await authResponse.json();
 
+    const memberUrl = new URL(`${ADMIN_API}/admin/members`);
+    const roleParam = request.nextUrl.searchParams.get('role');
+    if (roleParam) {
+      memberUrl.searchParams.set('role', roleParam);
+    }
+
     // Fetch members list from Admin API
-    const response = await fetch(`${ADMIN_API}/admin/members`, {
+    const response = await fetch(memberUrl.toString(), {
       method: 'GET',
       headers: {
         'Cookie': request.headers.get('cookie') || '',

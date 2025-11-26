@@ -35,9 +35,28 @@ type LegacyInboxPageClientProps = {
   disabled?: boolean;
   enableFaqCreation?: boolean;
   allowEmptyCitations?: boolean;
+  canManageFlags?: boolean;
+  flags?: {
+    enableFaqCreation?: boolean;
+    allowEmptyCitations?: boolean;
+  };
+  onUpdateFlag?: (key: 'enableFaqCreation' | 'allowEmptyCitations', value: boolean) => void;
+  updatingKey?: string | null;
+  tenantId?: string;
+  tenantSlug?: string;
 };
 
-export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, allowEmptyCitations = false }: LegacyInboxPageClientProps) {
+export function LegacyInboxPageClient({ 
+  disabled, 
+  enableFaqCreation = false, 
+  allowEmptyCitations = false,
+  canManageFlags = false,
+  flags,
+  onUpdateFlag,
+  updatingKey,
+  tenantId,
+  tenantSlug,
+}: LegacyInboxPageClientProps) {
   const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
   const [smeModalOpen, setSmeModalOpen] = useState<boolean>(false);
   const [selectedItemForReview, setSelectedItemForReview] = useState<LegacyInboxItem | null>(null);
@@ -674,6 +693,82 @@ export function LegacyInboxPageClient({ disabled, enableFaqCreation = false, all
           Refresh
         </Button>
       </div>
+
+      {/* Toggle Bar - Clean, Subtle Design */}
+      {canManageFlags && onUpdateFlag && flags && (
+        <div className="flex items-center gap-6 px-4 py-2.5 bg-white border border-slate-200 rounded-lg">
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Options</span>
+          <div className="flex items-center gap-6">
+            {/* Enable FAQ Creation Toggle */}
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer group">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={flags.enableFaqCreation === true}
+                  onChange={(e) => {
+                    if (onUpdateFlag) {
+                      onUpdateFlag('enableFaqCreation' as any, e.target.checked);
+                    }
+                  }}
+                  disabled={updatingKey === 'enableFaqCreation'}
+                />
+                <div
+                  className={`w-10 h-5 rounded-full transition-colors duration-200 ${
+                    flags.enableFaqCreation
+                      ? 'bg-blue-600'
+                      : 'bg-slate-300'
+                  } ${updatingKey === 'enableFaqCreation' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <div
+                    className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${
+                      flags.enableFaqCreation ? 'translate-x-5' : 'translate-x-0.5'
+                    } mt-0.5`}
+                  />
+                </div>
+              </div>
+              <span className={`text-sm ${updatingKey === 'enableFaqCreation' ? 'text-slate-400' : 'text-slate-700'}`}>
+                Enable FAQ creation
+              </span>
+            </label>
+
+            {/* Allow Empty Citations Toggle - Only show if it can be enabled */}
+            {flags.allowEmptyCitations !== undefined && (
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer group">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={flags.allowEmptyCitations === true}
+                    onChange={(e) => {
+                      if (onUpdateFlag) {
+                        onUpdateFlag('allowEmptyCitations' as any, e.target.checked);
+                      }
+                    }}
+                    disabled={updatingKey === 'allowEmptyCitations'}
+                  />
+                  <div
+                    className={`w-10 h-5 rounded-full transition-colors duration-200 ${
+                      flags.allowEmptyCitations
+                        ? 'bg-blue-600'
+                        : 'bg-slate-300'
+                    } ${updatingKey === 'allowEmptyCitations' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${
+                        flags.allowEmptyCitations ? 'translate-x-5' : 'translate-x-0.5'
+                      } mt-0.5`}
+                    />
+                  </div>
+                </div>
+                <span className={`text-sm ${updatingKey === 'allowEmptyCitations' ? 'text-slate-400' : 'text-slate-700'}`}>
+                  Allow empty citations
+                </span>
+              </label>
+            )}
+          </div>
+        </div>
+      )}
 
       <LegacyInboxList
         items={filteredItems}

@@ -315,128 +315,7 @@ export function InboxPageClient({
         </p>
       </div>
 
-      <Card>
-        <CardContent className="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-md border border-input p-1">
-              <Button
-                size="sm"
-                variant={resolvedMode === 'legacy' ? 'default' : 'ghost'}
-                onClick={() => changeMode('legacy')}
-                className="rounded-sm"
-              >
-                Legacy review
-              </Button>
-              <Button
-                size="sm"
-                variant={resolvedMode === 'modern' ? 'default' : 'ghost'}
-                onClick={() => changeMode('modern')}
-                disabled={!canUseModern}
-                className="rounded-sm"
-              >
-                Attach &amp; Promote
-              </Button>
-            </div>
-            <Badge variant="outline">{modeSourceLabel}</Badge>
-            <Badge variant="secondary">Citations required (locked)</Badge>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={handleNoSourceFilter}
-              disabled={resolvedMode !== 'modern'}
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              no_source
-            </Button>
-            {canTestAsk && (
-              <Button type="button" size="sm" variant="outline" onClick={handleTestAsk}>
-                <FlaskConical className="mr-2 h-4 w-4" />
-                Test ask
-              </Button>
-            )}
-            {canManageFlags && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setFlagPanelOpen((prev) => !prev)}
-              >
-                <Settings2 className="mr-2 h-4 w-4" />
-                Feature controls
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
-      {flagPanelOpen && canManageFlags && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Tenant flags</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {(Object.keys(flags) as (keyof InitialInboxFlags)[]).map((key) => {
-              const dependency = FLAG_DEPENDENCIES[key];
-              const dependencyMet = dependency ? flags[dependency] : true;
-              const disabled = !dependencyMet || updatingKey === key;
-              const tooltipText = !dependencyMet
-                ? `Requires ${FLAG_LABELS[dependency!]}`
-                : updatingKey === key
-                  ? 'Updating…'
-                  : undefined;
-              const isLockedFlag = key === 'allowEmptyCitations';
-              const effectiveValue = isLockedFlag ? false : flags[key];
-              const lockTooltip = isLockedFlag ? CITATIONS_LOCK_MESSAGE : tooltipText;
-              return (
-                <div key={key} className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{FLAG_LABELS[key]}</p>
-                      <p className="text-xs text-muted-foreground">{FLAG_HINTS[key]}</p>
-                    </div>
-                    <div className="inline-flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant={effectiveValue ? 'default' : 'outline'}
-                        onClick={() => updateFlag(key, true)}
-                        disabled={disabled || effectiveValue || isLockedFlag}
-                        title={lockTooltip}
-                        className={
-                          effectiveValue
-                            ? 'bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700'
-                            : ''
-                        }
-                      >
-                        On
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={!effectiveValue ? 'default' : 'outline'}
-                        onClick={() => updateFlag(key, false)}
-                        disabled={disabled || !effectiveValue || isLockedFlag}
-                        title={lockTooltip}
-                        className={
-                          !effectiveValue
-                            ? 'bg-gray-500 hover:bg-gray-600 text-white border-gray-500 hover:border-gray-600'
-                            : ''
-                        }
-                      >
-                        Off
-                      </Button>
-                    </div>
-                  </div>
-                  {isLockedFlag && (
-                    <p className="text-xs text-amber-600">{CITATIONS_LOCK_MESSAGE}</p>
-                  )}
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
 
       {resolvedMode === 'modern' ? (
         <>
@@ -465,19 +344,19 @@ export function InboxPageClient({
       ) : (
         <LegacyInboxPageClient 
           enableFaqCreation={flags.enableFaqCreation === true}
-          allowEmptyCitations={false}
+          allowEmptyCitations={flags.allowEmptyCitations === true}
+          canManageFlags={Boolean(canManageFlags)}
+          flags={{
+            enableFaqCreation: flags.enableFaqCreation,
+            allowEmptyCitations: flags.allowEmptyCitations,
+          }}
+          onUpdateFlag={updateFlag}
+          updatingKey={updatingKey}
+          tenantId={tenantId}
+          tenantSlug={tenantSlug}
         />
       )}
 
-      {!flags.adminInboxApiEnabled && (
-        <Card className="bg-muted">
-          <CardContent className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-            <ShieldAlert className="h-4 w-4" />
-            Structured inbox is disabled by tenant flags. Toggle “Structured inbox” in Feature
-            Controls to preview the new experience.
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

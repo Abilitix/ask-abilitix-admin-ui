@@ -17,54 +17,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'invalid_request', details: 'Invalid JSON payload' }, { status: 400 });
     }
 
-  // Validate required fields
-  const question = typeof payload?.question === 'string' ? payload.question.trim() : '';
-  const answer = typeof payload?.answer === 'string' ? payload.answer.trim() : '';
-  const assignees = Array.isArray(payload?.assignees) ? payload.assignees : [];
+    // Validate required fields
+    const question = typeof payload?.question === 'string' ? payload.question.trim() : '';
+    const answer = typeof payload?.answer === 'string' ? payload.answer.trim() : '';
+    const assignees = Array.isArray(payload?.assignees) ? payload.assignees : [];
 
-  if (question.length < 10 || question.length > 500) {
-    return NextResponse.json(
-      { error: 'invalid_request', details: 'Question must be between 10 and 500 characters.' },
-      { status: 400 }
-    );
-  }
+    if (question.length < 10 || question.length > 500) {
+      return NextResponse.json(
+        { error: 'invalid_request', details: 'Question must be between 10 and 500 characters.' },
+        { status: 400 }
+      );
+    }
 
-  if (answer.length < 20 || answer.length > 5000) {
-    return NextResponse.json(
-      { error: 'invalid_request', details: 'Answer must be between 20 and 5000 characters.' },
-      { status: 400 }
-    );
-  }
+    if (answer.length < 20 || answer.length > 5000) {
+      return NextResponse.json(
+        { error: 'invalid_request', details: 'Answer must be between 20 and 5000 characters.' },
+        { status: 400 }
+      );
+    }
 
-  if (!assignees.length) {
-    return NextResponse.json(
-      { error: 'invalid_request', details: 'At least one assignee is required.' },
-      { status: 400 }
-    );
-  }
+    if (!assignees.length) {
+      return NextResponse.json(
+        { error: 'invalid_request', details: 'At least one assignee is required.' },
+        { status: 400 }
+      );
+    }
 
-  // Optional fields
-  const citations = Array.isArray(payload?.citations) ? payload.citations : [];
-  const reason = typeof payload?.reason === 'string' ? payload.reason.trim() : '';
-  const conversationId = typeof payload?.conversation_id === 'string' ? payload.conversation_id : undefined;
-  const messageId = typeof payload?.message_id === 'string' ? payload.message_id : undefined;
+    // Optional fields
+    const citations = Array.isArray(payload?.citations) ? payload.citations : [];
+    const reason = typeof payload?.reason === 'string' ? payload.reason.trim() : '';
+    const conversationId = typeof payload?.conversation_id === 'string' ? payload.conversation_id : undefined;
+    const messageId = typeof payload?.message_id === 'string' ? payload.message_id : undefined;
 
-  // Validate citations structure if provided
-  if (citations.length > 0) {
-    for (const citation of citations) {
-      if (!citation?.doc_id || typeof citation.doc_id !== 'string') {
-        return NextResponse.json(
-          { error: 'invalid_request', details: 'Each citation must have a valid doc_id.' },
-          { status: 400 }
-        );
+    // Validate citations structure if provided
+    if (citations.length > 0) {
+      for (const citation of citations) {
+        if (!citation?.doc_id || typeof citation.doc_id !== 'string') {
+          return NextResponse.json(
+            { error: 'invalid_request', details: 'Each citation must have a valid doc_id.' },
+            { status: 400 }
+          );
+        }
       }
     }
-  }
 
-  const cookieHeader = request.headers.get('cookie') || '';
-  const authHeader = request.headers.get('authorization') || '';
+    const cookieHeader = request.headers.get('cookie') || '';
+    const authHeader = request.headers.get('authorization') || '';
 
-  try {
+    try {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
@@ -153,13 +153,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(data || { ok: true, message: 'SME review request sent.' });
+      return NextResponse.json(data || { ok: true, message: 'SME review request sent.' });
+    } catch (error) {
+      console.error('[SME Review] Proxy error:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const stack = error instanceof Error ? error.stack : undefined;
+      console.error('[SME Review] Error stack:', stack);
+      return NextResponse.json({ error: 'admin_proxy_error', details: message }, { status: 502 });
+    }
   } catch (error) {
-    console.error('[SME Review] Proxy error:', error);
+    console.error('[SME Review] Outer error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const stack = error instanceof Error ? error.stack : undefined;
-    console.error('[SME Review] Error stack:', stack);
-    return NextResponse.json({ error: 'admin_proxy_error', details: message }, { status: 502 });
+    return NextResponse.json({ error: 'admin_proxy_error', details: message }, { status: 500 });
   }
 }
 

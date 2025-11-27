@@ -64,15 +64,20 @@ export async function POST(request: NextRequest) {
     const cookieHeader = request.headers.get('cookie') || '';
     const authHeader = request.headers.get('authorization') || '';
 
-    try {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+    console.log('[SME Review] Request headers:', {
+      hasCookie: cookieHeader.length > 0,
+      cookieLength: cookieHeader.length,
+      cookiePreview: cookieHeader.substring(0, 50) + (cookieHeader.length > 50 ? '...' : ''),
+      hasAuth: authHeader.length > 0,
+    });
 
-    // Forward session cookie if present
-    if (cookieHeader) {
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Forward session cookie if present (always include, even if empty)
       headers['Cookie'] = cookieHeader;
-    }
 
     // Forward bearer token if present (for admin token testing)
     if (authHeader) {
@@ -107,11 +112,25 @@ export async function POST(request: NextRequest) {
       requestBody.message_id = messageId;
     }
 
+    console.log('[SME Review] Calling Admin API:', {
+      url: `${adminApi}/admin/chat/request-sme-review`,
+      hasCookie: headers['Cookie']?.length > 0,
+      cookieLength: headers['Cookie']?.length || 0,
+      requestBodyKeys: Object.keys(requestBody),
+      assigneesCount: requestBody.assignees?.length || 0,
+    });
+
     const response = await fetch(`${adminApi}/admin/chat/request-sme-review`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
       cache: 'no-store',
+    });
+
+    console.log('[SME Review] Admin API response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
     });
 
     const text = await response.text();

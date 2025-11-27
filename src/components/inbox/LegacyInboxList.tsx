@@ -805,9 +805,10 @@ export function LegacyInboxList({
                                 size="sm"
                                 variant="ghost"
                                 disabled={editingId === item.id}
-                                className="h-6 px-1.5 text-[10px] text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                                className="h-6 px-2 text-[11px] text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                               >
-                                <Edit2 className="h-3 w-3" />
+                                <Edit2 className="h-3 w-3 mr-1" />
+                                Edit
                               </Button>
                             )}
                           </div>
@@ -907,8 +908,8 @@ export function LegacyInboxList({
                                     }, 3000);
                                   }}
                                   size="sm"
-                                  variant="ghost"
-                                  className="text-[10px] text-slate-600 hover:text-slate-700 hover:bg-slate-50 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
+                                  variant="outline"
+                                  className="text-[10px] border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
                                   disabled={
                                     editingId === item.id ||
                                     isMarking ||
@@ -953,7 +954,7 @@ export function LegacyInboxList({
                                   }}
                                   size="sm"
                                   variant="outline"
-                                  className="text-[10px] border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
+                                  className="text-[10px] border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
                                   disabled={
                                     editingId === item.id ||
                                     isDismissing ||
@@ -1030,7 +1031,7 @@ export function LegacyInboxList({
                               onClick={() => handleReject(item.id)}
                               size="sm"
                               variant="outline"
-                              className="text-[10px] border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
+                              className="text-[10px] border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
                               disabled={
                                 editingId === item.id ||
                                 actionStates[item.id] === 'rejecting' ||

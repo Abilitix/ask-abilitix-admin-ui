@@ -100,12 +100,31 @@ export async function POST(request: NextRequest) {
       finalReason = 'Please review this answer for accuracy and completeness.';
     }
 
+    // Validate reason length one more time (Admin API requires 20-500 chars)
+    if (finalReason.length < 20 || finalReason.length > 500) {
+      console.error('[SME Review] Invalid reason length:', {
+        length: finalReason.length,
+        reason: finalReason.substring(0, 100),
+      });
+      // Force a valid default if somehow invalid
+      finalReason = 'Please review this answer for accuracy and completeness.';
+    }
+
     const requestBody: any = {
       question,
       answer,
       assignees,
       reason: finalReason, // Always include reason (required by Admin API)
     };
+
+    console.log('[SME Review] Request body reason field:', {
+      reasonType: typeof finalReason,
+      reasonLength: finalReason.length,
+      reasonPreview: finalReason.substring(0, 50) + (finalReason.length > 50 ? '...' : ''),
+      isString: typeof finalReason === 'string',
+      isNull: finalReason === null,
+      isUndefined: finalReason === undefined,
+    });
 
     if (citations.length > 0) {
       requestBody.citations = citations;

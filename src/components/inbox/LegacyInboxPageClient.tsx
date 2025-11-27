@@ -103,7 +103,11 @@ export function LegacyInboxPageClient({
       // Check for ref parameter in URL (for email links)
       const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
       const refId = searchParams?.get('ref');
-
+      
+      if (refId) {
+        console.log('[LegacyInbox] Ref parameter found in URL:', refId);
+      }
+      
       // Build query parameters - use backend filter when "Assigned to Me" is active
       const pendingParams = new URLSearchParams({ status: 'pending' });
       const needsReviewParams = new URLSearchParams({ status: 'needs_review' });
@@ -258,6 +262,15 @@ export function LegacyInboxPageClient({
       const needsReviewItems = Array.isArray(needsReviewData?.items) ? needsReviewData.items : [];
       const refItems = Array.isArray(refData?.items) ? refData.items : [];
       
+      if (refId && refItems.length > 0) {
+        console.log('[LegacyInbox] Ref item fetched:', {
+          refId,
+          refItemCount: refItems.length,
+          refItem: refItems[0],
+          source_type: refItems[0]?.source_type,
+        });
+      }
+      
       // Merge all items (ref items will be deduplicated later)
       const rawItems = [...pendingItems, ...needsReviewItems, ...refItems];
       
@@ -362,6 +375,25 @@ export function LegacyInboxPageClient({
 
         return normalized;
       });
+
+      // Debug: Log items with chat_review source_type
+      const chatReviewItems = normalizedItems.filter(item => item.source_type === 'chat_review' || item.source_type === 'widget_review');
+      if (chatReviewItems.length > 0) {
+        console.log('[LegacyInbox] Found chat/widget review items after normalization:', {
+          count: chatReviewItems.length,
+          items: chatReviewItems.map(item => ({
+            id: item.id,
+            source_type: item.source_type,
+            question: item.question.substring(0, 50),
+          })),
+        });
+      } else {
+        console.log('[LegacyInbox] No chat/widget review items found. All items:', normalizedItems.map(item => ({
+          id: item.id,
+          source_type: item.source_type,
+          status: item.status,
+        })));
+      }
 
       setItems(normalizedItems);
     } catch (err) {

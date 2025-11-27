@@ -7,7 +7,9 @@ import rehypeSanitize from "rehype-sanitize";
 import { stripMarkdown } from "@/lib/text/markdown";
 import { RENDER_MD } from "@/lib/text/flags";
 import { toast } from "sonner";
-import { Copy, Trash2 } from "lucide-react";
+import { Copy, Trash2, MessageSquarePlus } from "lucide-react";
+import { ChatSMEReviewModal } from "./ChatSMEReviewModal";
+import type { UserRole } from "@/lib/roles";
 
 // Token sync utility function
 function getTokenLimitForRagTopK(ragTopK: number): number {
@@ -251,6 +253,11 @@ export default function ChatInterface({
   const [sending, setSending] = React.useState(false);
   // Tenant slug for localStorage isolation (critical for multi-tenant security)
   const [tenantSlug, setTenantSlug] = React.useState<string | undefined>(undefined);
+  // User role for permission checks
+  const [userRole, setUserRole] = React.useState<UserRole | undefined>(undefined);
+  // SME review modal state
+  const [smeReviewOpen, setSmeReviewOpen] = React.useState(false);
+  const [selectedMessageForReview, setSelectedMessageForReview] = React.useState<ChatMsg | null>(null);
   
   // Session ID is computed dynamically from tenantSlug when needed (since tenantSlug loads async)
   // It's persisted in localStorage per tenant, ensuring isolation between tenants and sessions
@@ -290,6 +297,11 @@ export default function ChatInterface({
                 isFaq: undefined,
               })));
             }
+          }
+          // Extract user role for permission checks
+          const role = data?.role;
+          if (role === 'owner' || role === 'admin' || role === 'curator' || role === 'viewer' || role === 'guest') {
+            setUserRole(role);
           }
         }
       } catch (error) {
@@ -351,7 +363,7 @@ export default function ChatInterface({
   }, [tenantSlug]);
 
   // Copy latest assistant message handler
-  const handleCopyLatestAssistant = React.useCallback(async (text: string) => {
+  const handleCopyMessage = React.useCallback(async (text: string) => {
     if (typeof navigator === 'undefined' || !navigator.clipboard) {
       toast.error('Clipboard not available');
       return;
@@ -367,6 +379,15 @@ export default function ChatInterface({
       toast.error('Failed to copy');
     }
   }, []);
+
+  // Handle SME review request
+  const handleRequestSMEReview = React.useCallback((message: ChatMsg) => {
+    setSelectedMessageForReview(message);
+    setSmeReviewOpen(true);
+  }, []);
+
+  // Check if user can request SME review (curator+)
+  const canRequestSMEReview = userRole === 'owner' || userRole === 'admin' || userRole === 'curator';
 
   // Find the latest assistant message index
   const latestAssistantIndex = React.useMemo(() => {
@@ -736,18 +757,32 @@ export default function ChatInterface({
                     </div>
                   )}
 
-                  {/* Footer with timestamp and copy button */}
+                  {/* Footer with timestamp and action buttons */}
                   <div className="mt-1.5 flex items-center gap-2">
-                    {/* Copy button for latest assistant message - bottom left */}
-                    {isLatestAssistant && (
-                      <button
-                        onClick={() => handleCopyLatestAssistant(m.text)}
-                        className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
-                        title="Copy message"
-                        aria-label="Copy message"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
+                    {/* Action buttons for assistant messages */}
+                    {!isUser && (
+                      <div className="flex items-center gap-1">
+                        {/* Copy button - show for all assistant messages */}
+                        <button
+                          onClick={() => handleCopyMessage(m.text)}
+                          className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                          title="Copy message"
+                          aria-label="Copy message"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        {/* Request SME review button (curator+ only) - show only for latest assistant message */}
+                        {canRequestSMEReview && isLatestAssistant && (
+                          <button
+                            onClick={() => handleRequestSMEReview(m)}
+                            className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                            title="Request SME review"
+                            aria-label="Request SME review"
+                          >
+                            <MessageSquarePlus className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     )}
                     {m.time && (
                       <div
@@ -839,6 +874,44 @@ export default function ChatInterface({
           </div>
         </form>
       </div>
+
+      {/* SME Review Modal */}
+      {selectedMessageForReview && (
+        <ChatSMEReviewModal
+          open={smeReviewOpen}
+          question={
+            // Find the user question that preceded this assistant message
+            (() => {
+              const msgIndex = messages.findIndex((msg) => msg.id === selectedMessageForReview.id);
+              if (msgIndex > 0) {
+                // Look backwards for the most recent user message
+                for (let i = msgIndex - 1; i >= 0; i--) {
+                  if (messages[i].role === 'user') {
+                    return messages[i].text;
+                  }
+                }
+              }
+              return '';
+            })()
+          }
+          answer={selectedMessageForReview.text}
+          citations={selectedMessageForReview.sources?.map((s) => ({
+            id: s.id,
+            title: s.title,
+            url: s.url,
+            doc_id: s.id, // Use id as doc_id if available
+          })) || []}
+          conversationId={tenantSlug ? getOrCreateSessionId(tenantSlug) : undefined}
+          messageId={selectedMessageForReview.id}
+          onClose={() => {
+            setSmeReviewOpen(false);
+            setSelectedMessageForReview(null);
+          }}
+          onSuccess={() => {
+            // Modal handles success toast, just close it
+          }}
+        />
+      )}
     </div>
   );
 }

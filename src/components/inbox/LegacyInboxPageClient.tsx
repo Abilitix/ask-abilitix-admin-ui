@@ -8,6 +8,7 @@ import { CheckCircle2, XCircle, Loader2, Plus, RefreshCw } from 'lucide-react';
 import { ManualFAQCreationModal } from './ManualFAQCreationModal';
 import { SMEReviewRequestModal } from './SMEReviewRequestModal';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 import { AssignableMember } from './types';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
@@ -19,7 +20,8 @@ export type LegacyInboxItem = {
   has_pii?: boolean;
   pii_fields?: string[];
   status: 'pending' | 'approved' | 'rejected' | 'needs_review';
-  source_type?: 'auto' | 'manual' | 'admin_review' | null;
+  source_type?: 'auto' | 'manual' | 'admin_review' | 'chat_review' | 'widget_review' | null;
+  source?: string | null;
   assignedTo?: AssignableMember[] | null;
   reason?: string | null;
   assignedAt?: string | null;
@@ -38,8 +40,8 @@ type LegacyInboxPageClientProps = {
   allowEmptyCitations?: boolean;
   canManageFlags?: boolean;
   flags?: {
-    enableFaqCreation?: boolean;
-    allowEmptyCitations?: boolean;
+  enableFaqCreation?: boolean;
+  allowEmptyCitations?: boolean;
   };
   onUpdateFlag?: (key: 'enableFaqCreation' | 'allowEmptyCitations', value: boolean) => void;
   updatingKey?: string | null;
@@ -60,6 +62,8 @@ export function LegacyInboxPageClient({
   tenantSlug,
   userRole,
 }: LegacyInboxPageClientProps) {
+  const isDevEnv = process.env.NODE_ENV !== 'production';
+  const PAGE_LIMIT = 50;
   const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
   const [smeModalOpen, setSmeModalOpen] = useState<boolean>(false);
   const [selectedItemForReview, setSelectedItemForReview] = useState<LegacyInboxItem | null>(null);
@@ -79,6 +83,8 @@ export function LegacyInboxPageClient({
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [assignedToMeOnly, setAssignedToMeOnly] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'widget_review' | 'chat_review' | 'faq_generated' | 'manual' | 'admin_review'>('all');
+  const [timeFilter, setTimeFilter] = useState<'all' | '24h' | '7d' | '30d' | '90d'>('all');
   // Confirmation dialog state
   const [confirmationDialog, setConfirmationDialog] = useState<{
     open: boolean;
@@ -93,16 +99,95 @@ export function LegacyInboxPageClient({
     variant: 'default',
     onConfirm: () => {},
   });
+  const [pendingCursor, setPendingCursor] = useState<string | null>(null);
+  const [needsReviewCursor, setNeedsReviewCursor] = useState<string | null>(null);
+  const [loadingMoreStatus, setLoadingMoreStatus] = useState<'pending' | 'needs_review' | null>(null);
+  const normalizeRawItems = useCallback(
+    (rawItems: any[]): LegacyInboxItem[] => {
+      return rawItems
+        .map((item: any) => {
+          const id = item.id || item.ref_id;
+          if (!id) return null;
+          if (isDevEnv) {
+            console.log('[LegacyInbox] Raw item from backend:', {
+              id,
+              source_type: item.source_type,
+              qa_pair_id: item.qa_pair_id,
+              promoted_pair_id: item.promoted_pair_id,
+              source: item.source,
+              metadata: item.metadata,
+              status: item.status,
+              question: item.question?.substring(0, 40),
+              allKeys: Object.keys(item || {}),
+            });
+          }
+          const normalized: LegacyInboxItem = {
+            id,
+            question: item.question || '',
+            answer: item.answer || item.answer_draft || '',
+            created_at: item.created_at || item.asked_at || '',
+            has_pii: item.has_pii || false,
+            pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
+            status: item.status || 'pending',
+            source_type: item.source_type || null,
+            source: item.source || null,
+            suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
+          };
+
+          if (item.assigned_to) {
+            const assigned = Array.isArray(item.assigned_to) ? item.assigned_to : [];
+            normalized.assignedTo = assigned
+              .map((member: any) => {
+                const memberId = member.id || member.user_id;
+                if (!memberId) return null;
+                return {
+                  id: memberId,
+                  email: member.email || '',
+                  name: member.name || null,
+                  role: member.role || null,
+                };
+              })
+              .filter(Boolean);
+          }
+
+          normalized.reason = item.reason || null;
+          normalized.assignedAt = item.assigned_at || null;
+          if (item.requested_by) {
+            const reqBy = item.requested_by;
+            normalized.requestedBy = {
+              id: reqBy.id || reqBy.user_id || '',
+              email: reqBy.email || '',
+              name: reqBy.name || null,
+              role: reqBy.role || null,
+            };
+          }
+
+          return normalized;
+        })
+        .filter((item): item is LegacyInboxItem => Boolean(item));
+    },
+    [isDevEnv]
+  );
 
   const fetchItems = useCallback(async () => {
     if (disabled) return;
     try {
       setLoading(true);
       setError(null);
+      setPendingCursor(null);
+      setNeedsReviewCursor(null);
 
+      // Check for ref parameter in URL (for email links)
+      const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const refId = searchParams?.get('ref');
+      
+      if (refId && isDevEnv) {
+        console.log('[LegacyInbox] Ref parameter found in URL:', refId);
+      }
+      
       // Build query parameters - use backend filter when "Assigned to Me" is active
-      const pendingParams = new URLSearchParams({ status: 'pending' });
-      const needsReviewParams = new URLSearchParams({ status: 'needs_review' });
+      const pendingParams = new URLSearchParams({ status: 'pending', limit: String(PAGE_LIMIT) });
+      const needsReviewParams = new URLSearchParams({ status: 'needs_review', limit: String(PAGE_LIMIT) });
       
       if (assignedToMeOnly) {
         pendingParams.set('assigned_to_me', 'true');
@@ -113,21 +198,25 @@ export function LegacyInboxPageClient({
       const pendingUrl = `/api/admin/inbox?${pendingParams.toString()}`;
       const needsReviewUrl = `/api/admin/inbox?${needsReviewParams.toString()}`;
       
+      // If ref is present, also fetch that specific item
+      const refUrl = refId ? `/api/admin/inbox?ref=${encodeURIComponent(refId)}` : null;
+      
       // Debug logging for assigned_to_me filter (ALWAYS log when filter is active)
-      if (assignedToMeOnly) {
+      if (assignedToMeOnly && isDevEnv) {
         console.log('[LegacyInbox] Fetching with assigned_to_me filter:', {
           currentUserId,
           hasCurrentUserId: !!currentUserId,
           assignedToMeOnly,
           pendingUrl,
           needsReviewUrl,
+          refUrl,
           pendingParams: pendingParams.toString(),
           needsReviewParams: needsReviewParams.toString(),
         });
       }
       
       // CRITICAL: Use credentials: 'include' for session-based auth (required for assigned_to_me filter)
-      const [pendingResponse, needsReviewResponse] = await Promise.all([
+      const fetchPromises: Promise<Response>[] = [
         fetch(pendingUrl, {
           credentials: 'include',
           cache: 'no-store',
@@ -136,7 +225,21 @@ export function LegacyInboxPageClient({
           credentials: 'include',
           cache: 'no-store',
         }),
-      ]);
+      ];
+      
+      // Add ref fetch if present
+      if (refUrl) {
+        fetchPromises.push(
+          fetch(refUrl, {
+            credentials: 'include',
+            cache: 'no-store',
+          })
+        );
+      }
+      
+      const responses = await Promise.all(fetchPromises);
+      const [pendingResponse, needsReviewResponse] = responses;
+      const refResponse = refUrl ? responses[2] : undefined;
 
       // Enhanced error handling with response body logging
       if (!pendingResponse.ok) {
@@ -176,12 +279,24 @@ export function LegacyInboxPageClient({
           `Failed to fetch needs_review items: ${needsReviewResponse.status}`;
         throw new Error(errorMsg);
       }
+      
+      // Handle ref response errors gracefully (ref is optional)
+      if (refResponse && !refResponse.ok) {
+        console.warn('[LegacyInbox] Ref item fetch failed (non-critical):', {
+          status: refResponse.status,
+          statusText: refResponse.statusText,
+          url: refUrl,
+        });
+        // Don't throw - ref is optional, continue with regular items
+      }
 
       const pendingText = await pendingResponse.text();
       const needsReviewText = await needsReviewResponse.text();
+      const refText = refResponse ? await refResponse.text() : null;
 
       let pendingData: any = null;
       let needsReviewData: any = null;
+      let refData: any = null;
 
       if (pendingText) {
         try {
@@ -199,21 +314,68 @@ export function LegacyInboxPageClient({
         }
       }
 
+      if (refText && refText.trim()) {
+        try {
+          refData = JSON.parse(refText);
+        } catch (parseErr) {
+          console.warn('[LegacyInbox] Failed to parse ref items response:', parseErr);
+          // Don't throw - ref is optional
+        }
+      }
+
       if (pendingData?.error) {
         throw new Error(pendingData.details || pendingData.error);
       }
       if (needsReviewData?.error) {
         throw new Error(needsReviewData.details || needsReviewData.error);
       }
+      if (refData?.error) {
+        console.warn('[LegacyInbox] Ref fetch returned error:', refData.details || refData.error);
+        // Don't throw - ref is optional
+      }
 
       // Merge items from both statuses
       const pendingItems = Array.isArray(pendingData?.items) ? pendingData.items : [];
       const needsReviewItems = Array.isArray(needsReviewData?.items) ? needsReviewData.items : [];
-      const rawItems = [...pendingItems, ...needsReviewItems];
+      const refItems = Array.isArray(refData?.items) ? refData.items : [];
+      setPendingCursor(
+        typeof pendingData?.next_cursor === 'string'
+          ? pendingData.next_cursor
+          : typeof pendingData?.nextCursor === 'string'
+            ? pendingData.nextCursor
+            : null
+      );
+      setNeedsReviewCursor(
+        typeof needsReviewData?.next_cursor === 'string'
+          ? needsReviewData.next_cursor
+          : typeof needsReviewData?.nextCursor === 'string'
+            ? needsReviewData.nextCursor
+            : null
+      );
+      
+      if (refId && isDevEnv) {
+        console.log('[LegacyInbox] Ref parameter processing:', {
+          refId,
+          refItemsCount: refItems.length,
+          refItem: refItems[0] ? {
+            id: refItems[0].id || refItems[0].ref_id,
+            source_type: refItems[0].source_type,
+            status: refItems[0].status,
+            question: refItems[0].question?.substring(0, 50),
+          } : null,
+          pendingItemsCount: pendingItems.length,
+          needsReviewItemsCount: needsReviewItems.length,
+        });
+      }
+      
+      // Merge all items (ref items will be deduplicated later)
+      // IMPORTANT: Include ref items even if they're not in pending/needs_review status
+      const rawItems = [...pendingItems, ...needsReviewItems, ...refItems];
       
       // Debug logging for assigned_to_me filter (ALWAYS log when filter is active)
       if (assignedToMeOnly) {
-        console.log('[LegacyInbox] Received items from backend:', {
+        if (isDevEnv) {
+          console.log('[LegacyInbox] Received items from backend:', {
           currentUserId,
           pendingCount: pendingItems.length,
           needsReviewCount: needsReviewItems.length,
@@ -242,7 +404,8 @@ export function LegacyInboxPageClient({
             assigned_to_is_array: Array.isArray(item.assigned_to),
             assigned_to_length: Array.isArray(item.assigned_to) ? item.assigned_to.length : 0,
           })),
-        });
+          });
+        }
         
         // Additional check: Log if no items found
         if (rawItems.length === 0) {
@@ -257,9 +420,14 @@ export function LegacyInboxPageClient({
       }
       
       // Filter to only show pending and needs_review items (exclude approved/rejected)
-      // This ensures we show items that were assigned
+      // BUT: Always include ref item if it exists, regardless of status
       const activeItems = rawItems.filter((item: any) => {
         const status = item.status || 'pending';
+        const itemId = item.id || item.ref_id;
+        // Always include the ref item, even if it's in a different status
+        if (refId && itemId === refId) {
+          return true;
+        }
         return status === 'pending' || status === 'needs_review';
       });
       
@@ -268,50 +436,54 @@ export function LegacyInboxPageClient({
         const id = item.id || item.ref_id;
         return id && index === self.findIndex((i: any) => (i.id || i.ref_id) === id);
       });
-      const normalizedItems: LegacyInboxItem[] = uniqueItems.map((item: any) => {
-        const normalized: LegacyInboxItem = {
-          id: item.id || item.ref_id || '',
-          question: item.question || '',
-          answer: item.answer || item.answer_draft || '',
-          created_at: item.created_at || item.asked_at || '',
-          has_pii: item.has_pii || false,
-          pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
-          status: item.status || 'pending',
-          source_type: item.source_type || null,
-          suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
-        };
+      const normalizedItems: LegacyInboxItem[] = normalizeRawItems(uniqueItems);
 
-        // Parse assigned_to
-        if (item.assigned_to) {
-          const assigned = Array.isArray(item.assigned_to) ? item.assigned_to : [];
-          normalized.assignedTo = assigned
-            .map((member: any) => {
-              const id = member.id || member.user_id;
-              if (!id) return null;
-              return {
-                id,
-                email: member.email || '',
-                name: member.name || null,
-                role: member.role || null,
-              };
-            })
-            .filter(Boolean);
-        }
-
-        normalized.reason = item.reason || null;
-        normalized.assignedAt = item.assigned_at || null;
-        if (item.requested_by) {
-          const reqBy = item.requested_by;
-          normalized.requestedBy = {
-            id: reqBy.id || reqBy.user_id || '',
-            email: reqBy.email || '',
-            name: reqBy.name || null,
-            role: reqBy.role || null,
-          };
-        }
-
-        return normalized;
-      });
+      // Debug: Log all source_type values to understand what's coming from backend
+      const sourceTypeCounts = normalizedItems.reduce((acc, item) => {
+        const sourceType = item.source_type || 'null';
+        acc[sourceType] = (acc[sourceType] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      if (isDevEnv) {
+        console.log('[LegacyInbox] Source type distribution:', {
+          counts: sourceTypeCounts,
+          totalItems: normalizedItems.length,
+          sampleItems: normalizedItems.slice(0, 5).map(item => ({
+            id: item.id,
+            source_type: item.source_type,
+            status: item.status,
+            question: item.question.substring(0, 40),
+          })),
+        });
+      }
+      
+      // Debug: Log items with chat_review source_type
+      const chatReviewItems = normalizedItems.filter(item => item.source_type === 'chat_review' || item.source_type === 'widget_review');
+      if (chatReviewItems.length > 0 && isDevEnv) {
+        console.log('[LegacyInbox] Found chat/widget review items after normalization:', {
+          count: chatReviewItems.length,
+          items: chatReviewItems.map(item => ({
+            id: item.id,
+            source_type: item.source_type,
+            question: item.question.substring(0, 50),
+          })),
+        });
+      }
+      
+      // Debug: Log admin_review items specifically
+      const adminReviewItems = normalizedItems.filter(item => item.source_type === 'admin_review');
+      if (adminReviewItems.length > 0 && isDevEnv) {
+        console.log('[LegacyInbox] Found admin_review items:', {
+          count: adminReviewItems.length,
+          items: adminReviewItems.map(item => ({
+            id: item.id,
+            source_type: item.source_type,
+            status: item.status,
+            question: item.question.substring(0, 50),
+          })),
+        });
+      }
 
       setItems(normalizedItems);
     } catch (err) {
@@ -329,7 +501,78 @@ export function LegacyInboxPageClient({
     } finally {
       setLoading(false);
     }
-  }, [disabled, assignedToMeOnly]);
+  }, [disabled, assignedToMeOnly, currentUserId, normalizeRawItems]);
+
+  const handleLoadMore = useCallback(
+    async (status: 'pending' | 'needs_review') => {
+      const cursor = status === 'pending' ? pendingCursor : needsReviewCursor;
+      if (!cursor || loadingMoreStatus) {
+        return;
+      }
+      setLoadingMoreStatus(status);
+      try {
+        const params = new URLSearchParams({
+          status,
+          limit: String(PAGE_LIMIT),
+          cursor,
+        });
+        if (assignedToMeOnly) {
+          params.set('assigned_to_me', 'true');
+        }
+        const response = await fetch(`/api/admin/inbox?${params.toString()}`, {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          let details = errorText;
+          try {
+            const parsed = errorText ? JSON.parse(errorText) : null;
+            if (parsed?.details) details = parsed.details;
+            else if (parsed?.error) details = parsed.error;
+          } catch {
+            // ignore parse error
+          }
+          throw new Error(details || `Failed to load more ${status.replace('_', ' ')} items`);
+        }
+
+        const text = await response.text();
+        const data = text ? (() => {
+          try { return JSON.parse(text); } catch { return {}; }
+        })() : {};
+        if (data?.error) {
+          throw new Error(data.details || data.error);
+        }
+        const newRawItems = Array.isArray(data?.items) ? data.items : [];
+        const normalized = normalizeRawItems(newRawItems);
+        setItems((prev) => {
+          const existingIds = new Set(prev.map((item) => item.id));
+          const deduped = normalized.filter((item) => !existingIds.has(item.id));
+          return [...prev, ...deduped];
+        });
+
+        const nextCursor =
+          typeof data?.next_cursor === 'string'
+            ? data.next_cursor
+            : typeof data?.nextCursor === 'string'
+              ? data.nextCursor
+              : null;
+
+        if (status === 'pending') {
+          setPendingCursor(nextCursor);
+        } else {
+          setNeedsReviewCursor(nextCursor);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to load more items';
+        toast.error(message);
+      } finally {
+        setLoadingMoreStatus(null);
+      }
+    },
+    [assignedToMeOnly, pendingCursor, needsReviewCursor, loadingMoreStatus, normalizeRawItems]
+  );
 
   const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true) => {
     try {
@@ -480,7 +723,7 @@ export function LegacyInboxPageClient({
         console.error('[attach-citations] Failed to parse response:', parseErr);
       }
 
-        if (!response.ok) {
+      if (!response.ok) {
           // Handle 403 Forbidden (ownership check failed)
           if (response.status === 403) {
             const forbiddenMessage = data.detail?.error?.message || data.error?.message || data.details || 
@@ -489,34 +732,34 @@ export function LegacyInboxPageClient({
             throw new Error(forbiddenMessage);
           }
           
-          // Parse detailed validation errors from backend
-          let errorMessage = data.details || data.error || data.message || `Failed to attach citations: ${response.status} ${response.statusText}`;
+        // Parse detailed validation errors from backend
+        let errorMessage = data.details || data.error || data.message || `Failed to attach citations: ${response.status} ${response.statusText}`;
+        
+        // Check for detailed field errors (Admin API format)
+        if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
+          const fieldErrors = data.detail.error.fields
+            .map((field: any) => {
+              const fieldPath = field.field || '';
+              const message = field.message || 'Invalid value';
+              return `${fieldPath}: ${message}`;
+            })
+            .join(', ');
           
-          // Check for detailed field errors (Admin API format)
-          if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
-            const fieldErrors = data.detail.error.fields
-              .map((field: any) => {
-                const fieldPath = field.field || '';
-                const message = field.message || 'Invalid value';
-                return `${fieldPath}: ${message}`;
-              })
-              .join(', ');
-            
-            if (fieldErrors) {
-              errorMessage = `Validation errors: ${fieldErrors}`;
-            }
+          if (fieldErrors) {
+            errorMessage = `Validation errors: ${fieldErrors}`;
           }
-          
-          console.error('[attach-citations] API error:', {
-            status: response.status,
-            statusText: response.statusText,
-            data,
-            citations,
-            errorCode: data.detail?.error?.code,
-            fieldErrors: data.detail?.error?.fields,
-          });
-          throw new Error(errorMessage);
         }
+        
+        console.error('[attach-citations] API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          data,
+          citations,
+          errorCode: data.detail?.error?.code,
+          fieldErrors: data.detail?.error?.fields,
+        });
+        throw new Error(errorMessage);
+      }
 
       toast.success('Citations attached ✓');
       
@@ -542,6 +785,7 @@ export function LegacyInboxPageClient({
               pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
               status: item.status || 'pending',
               source_type: item.source_type || null,
+              source: item.source || null,
               suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
             };
 
@@ -580,6 +824,48 @@ export function LegacyInboxPageClient({
                 existingItem.id === id ? normalized : existingItem
               )
             );
+            
+            // Reload document titles to show names for newly attached citations
+            // This ensures the citation badges show document names instead of UUIDs
+            if (normalized.suggested_citations && normalized.suggested_citations.length > 0) {
+              // Reload document titles to fetch names for newly attached citations
+              try {
+                setDocLoading(true);
+                const docResponse = await fetch('/api/admin/docs?status=all&limit=100', {
+                  method: 'GET',
+                  cache: 'no-store',
+                  credentials: 'include',
+                });
+                const docData = await docResponse.json().catch(() => ({}));
+                if (docResponse.ok && !docData?.error) {
+                  const docsSource =
+                    (Array.isArray(docData?.docs) && docData.docs) ||
+                    (Array.isArray(docData?.documents) && docData.documents) ||
+                    [];
+                  
+                  const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
+                    (acc: Record<string, string>, doc: any) => {
+                      if (!doc || typeof doc !== 'object') return acc;
+                      const docId = doc.id;
+                      if (!docId || typeof docId !== 'string') return acc;
+                      const title =
+                        typeof doc.title === 'string' && doc.title.trim().length > 0
+                          ? doc.title.trim()
+                          : docId;
+                      acc[docId] = title;
+                      return acc;
+                    },
+                    {}
+                  );
+                  
+                  setDocTitles((prev) => ({ ...prev, ...mapped }));
+                }
+              } catch (docErr) {
+                console.warn('[attach-citations] Failed to reload document titles:', docErr);
+              } finally {
+                setDocLoading(false);
+              }
+            }
           }
         }
       } catch (detailErr) {
@@ -624,6 +910,149 @@ export function LegacyInboxPageClient({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to reject item';
       toast.error(`Rejection failed: ${errorMessage}`);
+    }
+  }, []);
+
+  // Chat review action: Mark as reviewed (without converting to FAQ)
+  const handleMarkReviewed = useCallback(async (id: string, note?: string) => {
+    try {
+      const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/mark-reviewed`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(note ? { note } : {}),
+        credentials: 'include',
+      });
+
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
+      } catch (parseErr) {
+        console.error('[mark-reviewed] Failed to parse response:', parseErr);
+      }
+
+      if (!response.ok || data.error) {
+        const errorMessage = data.details || data.error?.message || data.error || `Failed to mark as reviewed: ${response.status}`;
+        if (response.status === 403) {
+          toast.error(`Permission denied: ${errorMessage}`);
+        } else {
+          toast.error(`Failed to mark as reviewed: ${errorMessage}`);
+        }
+        throw new Error(errorMessage);
+      }
+
+      toast.success('Item marked as reviewed ✓');
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      setRefreshSignal((prev) => prev + 1);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to mark as reviewed';
+      console.error('[mark-reviewed] Error:', err);
+    }
+  }, []);
+
+  // Chat review action: Convert to FAQ
+  const handleConvertToFaq = useCallback(async (id: string, editedAnswer?: string, citations?: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => {
+    try {
+      const item = items.find((i) => i.id === id);
+      
+      const requestBody: Record<string, unknown> = {};
+      
+      if (editedAnswer && editedAnswer.trim().length > 0) {
+        requestBody.answer = editedAnswer.trim();
+      }
+      
+      // If citations provided, use them; otherwise use suggested_citations if available
+      if (citations && citations.length > 0) {
+        requestBody.citations = citations;
+      } else if (item?.suggested_citations && item.suggested_citations.length > 0) {
+        // Backend will use suggested_citations from inbox item
+      } else if (allowEmptyCitations === false) {
+        toast.error('Citations are required to convert to FAQ');
+        throw new Error('Citations are required');
+      }
+
+      const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/convert-to-faq`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+        credentials: 'include',
+      });
+
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
+      } catch (parseErr) {
+        console.error('[convert-to-faq] Failed to parse response:', parseErr);
+      }
+
+      if (!response.ok || data.error) {
+        const errorMessage = data.details || data.error?.message || data.error || `Failed to convert to FAQ: ${response.status}`;
+        if (response.status === 403) {
+          toast.error(`Permission denied: ${errorMessage}`);
+        } else if (response.status === 409) {
+          toast.error(`Conflict: ${errorMessage}`);
+        } else {
+          toast.error(`Failed to convert to FAQ: ${errorMessage}`);
+        }
+        throw new Error(errorMessage);
+      }
+
+      toast.success('Item converted to FAQ ✓ (embeddings generated automatically)');
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      setRefreshSignal((prev) => prev + 1);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to convert to FAQ';
+      console.error('[convert-to-faq] Error:', err);
+    }
+  }, [items, allowEmptyCitations]);
+
+  // Chat review action: Dismiss
+  const handleDismiss = useCallback(async (id: string, reason?: string) => {
+    try {
+      const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/dismiss`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reason ? { reason } : {}),
+        credentials: 'include',
+      });
+
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
+      } catch (parseErr) {
+        console.error('[dismiss] Failed to parse response:', parseErr);
+      }
+
+      if (!response.ok || data.error) {
+        const errorMessage = data.details || data.error?.message || data.error || `Failed to dismiss: ${response.status}`;
+        if (response.status === 403) {
+          toast.error(`Permission denied: ${errorMessage}`);
+        } else {
+          toast.error(`Failed to dismiss: ${errorMessage}`);
+        }
+        throw new Error(errorMessage);
+      }
+
+      toast.success('Item dismissed ✓');
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      setRefreshSignal((prev) => prev + 1);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to dismiss';
+      console.error('[dismiss] Error:', err);
     }
   }, []);
 
@@ -788,6 +1217,107 @@ export function LegacyInboxPageClient({
     fetchItems();
   }, [fetchItems]);
 
+  // Handle ref parameter from URL (for email links) - scroll to specific item
+  useEffect(() => {
+    if (typeof window === 'undefined' || items.length === 0) return;
+    
+    const searchParams = new URLSearchParams(window.location.search);
+    const refId = searchParams.get('ref');
+    
+    if (!refId) {
+      if (isDevEnv) {
+        console.log('[LegacyInbox] No ref parameter in URL for scrolling');
+      }
+      return;
+    }
+    
+    if (isDevEnv) {
+      console.log('[LegacyInbox] Attempting to scroll to ref item:', {
+        refId,
+        itemsCount: items.length,
+        itemIds: items.map(item => item.id),
+        refItemExists: items.some(item => item.id === refId),
+        currentUrl: window.location.href,
+      });
+    }
+    
+    // Retry logic: try multiple times with increasing delays
+    let attempt = 0;
+    const maxAttempts = 5;
+    const attemptDelay = 300;
+    
+    const tryScroll = () => {
+      attempt++;
+      // Try multiple selectors
+      const element = document.querySelector(`[data-item-id="${refId}"]`) 
+        || document.querySelector(`#inbox-item-${refId}`)
+        || document.getElementById(`inbox-item-${refId}`);
+      
+      if (element) {
+        if (isDevEnv) {
+          console.log('[LegacyInbox] Found ref item element, scrolling and highlighting...', {
+            attempt,
+            element,
+            elementId: element.id,
+            elementClasses: element.className,
+          });
+        }
+        
+        // Scroll to element
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Add more prominent highlight
+        const htmlElement = element as HTMLElement;
+        htmlElement.style.backgroundColor = '#dbeafe';
+        htmlElement.style.border = '4px solid #3b82f6';
+        htmlElement.style.borderRadius = '8px';
+        htmlElement.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+        htmlElement.style.transition = 'all 0.3s ease';
+        
+        // Pulse animation
+        let pulseCount = 0;
+        const pulseInterval = setInterval(() => {
+          pulseCount++;
+          if (pulseCount > 3) {
+            clearInterval(pulseInterval);
+            setTimeout(() => {
+              htmlElement.style.backgroundColor = '';
+              htmlElement.style.border = '';
+              htmlElement.style.borderRadius = '';
+              htmlElement.style.boxShadow = '';
+            }, 2000);
+          } else {
+            htmlElement.style.transform = pulseCount % 2 === 0 ? 'scale(1.02)' : 'scale(1)';
+          }
+        }, 500);
+      } else if (attempt < maxAttempts) {
+        if (isDevEnv) {
+          console.log(`[LegacyInbox] Ref item element not found, retrying (attempt ${attempt}/${maxAttempts})...`);
+        }
+        setTimeout(tryScroll, attemptDelay);
+      } else {
+        console.error('[LegacyInbox] Ref item element not found after all attempts:', {
+          refId,
+          selectors: [
+            `[data-item-id="${refId}"]`,
+            `#inbox-item-${refId}`,
+            `inbox-item-${refId}`,
+          ],
+          allDataItemIds: Array.from(document.querySelectorAll('[data-item-id]')).map(el => el.getAttribute('data-item-id')),
+          allInboxItemIds: Array.from(document.querySelectorAll('[id^="inbox-item-"]')).map(el => el.id),
+          itemsInState: items.map(item => item.id),
+        });
+      }
+    };
+    
+    // Start trying after a short delay to allow DOM to render
+    const initialTimer = setTimeout(tryScroll, 500);
+    
+    return () => {
+      clearTimeout(initialTimer);
+    };
+  }, [items]);
+
   const loadDocOptions = useCallback(async () => {
     try {
       setDocLoading(true);
@@ -797,41 +1327,41 @@ export function LegacyInboxPageClient({
         cache: 'no-store',
         credentials: 'include',
       });
-      const data = await response.json().catch(() => ({}));
+        const data = await response.json().catch(() => ({}));
       if (!response.ok || data?.error) {
-        throw new Error(
-          (data && (data.details || data.error)) || 'Failed to load documents'
+          throw new Error(
+            (data && (data.details || data.error)) || 'Failed to load documents'
+          );
+        }
+        const docsSource =
+          (Array.isArray(data?.docs) && data.docs) ||
+          (Array.isArray(data?.documents) && data.documents) ||
+          [];
+        
+        const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
+          (acc: Record<string, string>, doc: any) => {
+            if (!doc || typeof doc !== 'object') return acc;
+            const id = doc.id;
+            if (!id || typeof id !== 'string') return acc;
+            const title =
+              typeof doc.title === 'string' && doc.title.trim().length > 0
+                ? doc.title.trim()
+                : id;
+            acc[id] = title;
+            return acc;
+          },
+          {}
         );
-      }
-      const docsSource =
-        (Array.isArray(data?.docs) && data.docs) ||
-        (Array.isArray(data?.documents) && data.documents) ||
-        [];
-
-      const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
-        (acc: Record<string, string>, doc: any) => {
-          if (!doc || typeof doc !== 'object') return acc;
-          const id = doc.id;
-          if (!id || typeof id !== 'string') return acc;
-          const title =
-            typeof doc.title === 'string' && doc.title.trim().length > 0
-              ? doc.title.trim()
-              : id;
-          acc[id] = title;
-          return acc;
-        },
-        {}
-      );
-
-      setDocTitles(mapped);
-    } catch (err) {
-      console.error('[LegacyInbox] Failed to load document titles:', err);
+        
+        setDocTitles(mapped);
+      } catch (err) {
+        console.error('[LegacyInbox] Failed to load document titles:', err);
       setDocTitlesError(
         err instanceof Error ? err.message : 'Failed to load documents'
       );
-    } finally {
-      setDocLoading(false);
-    }
+      } finally {
+          setDocLoading(false);
+        }
   }, []);
 
   useEffect(() => {
@@ -861,12 +1391,14 @@ export function LegacyInboxPageClient({
         if (active) {
           setCurrentUserId(id ?? null);
           // Debug logging for user ID (always log when fetching)
-          console.log('[LegacyInbox] Current user ID fetched:', {
-            id,
-            hasId: !!id,
-            idType: typeof id,
-            fullData: data,
-          });
+          if (isDevEnv) {
+            console.log('[LegacyInbox] Current user ID fetched:', {
+              id,
+              hasId: !!id,
+              idType: typeof id,
+              fullData: data,
+            });
+          }
         }
       } catch {
         if (active) {
@@ -879,9 +1411,53 @@ export function LegacyInboxPageClient({
     };
   }, []);
 
-  // No client-side filtering needed - backend handles it via assigned_to_me query parameter
-  // Keep filteredItems for backward compatibility (just returns items as-is)
-  const filteredItems = useMemo(() => items, [items]);
+  // Client-side filtering: source and time filters
+  // Note: "Assigned to Me" is handled by backend via assigned_to_me query parameter
+  const filteredItems = useMemo(() => {
+    let filtered = items;
+
+    // Source filter
+    if (sourceFilter !== 'all') {
+      if (sourceFilter === 'faq_generated') {
+        // FAQ Generated: source_type='auto' OR source='faq_generation'
+        filtered = filtered.filter(item => 
+          item.source_type === 'auto' || item.source === 'faq_generation'
+        );
+      } else {
+        filtered = filtered.filter(item => item.source_type === sourceFilter);
+      }
+    }
+
+    // Time filter
+    if (timeFilter !== 'all') {
+      const now = new Date();
+      let cutoffDate: Date;
+      
+      switch (timeFilter) {
+        case '24h':
+          cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case '7d':
+          cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '90d':
+          cutoffDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          cutoffDate = new Date(0); // Beginning of time
+      }
+      
+      filtered = filtered.filter(item => {
+        const itemDate = new Date(item.created_at);
+        return itemDate >= cutoffDate;
+      });
+    }
+
+    return filtered;
+  }, [items, sourceFilter, timeFilter]);
 
   const handleRequestReview = useCallback((item: LegacyInboxItem) => {
     setSelectedItemForReview(item);
@@ -915,7 +1491,7 @@ export function LegacyInboxPageClient({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <LegacyInboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
+        <LegacyInboxStatsCard itemCount={filteredItems.length} refreshSignal={refreshSignal} />
         {enableFaqCreation && (
           <Button
             type="button"
@@ -930,7 +1506,47 @@ export function LegacyInboxPageClient({
 
       {/* Filter Bar - Always Visible */}
       <div className="flex items-center justify-between gap-4 px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-lg">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Source Filter */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="source-filter" className="text-xs font-medium text-slate-600 whitespace-nowrap">
+              Source:
+            </label>
+            <Select
+              id="source-filter"
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value as typeof sourceFilter)}
+              className="h-8 min-w-[140px] text-sm"
+            >
+              <option value="all">All</option>
+              <option value="widget_review">Widget Reviews</option>
+              <option value="chat_review">Internal Chat</option>
+              <option value="faq_generated">FAQ Generated</option>
+              <option value="manual">Manual</option>
+              <option value="admin_review">Admin Review</option>
+            </Select>
+          </div>
+
+          {/* Time Filter */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="time-filter" className="text-xs font-medium text-slate-600 whitespace-nowrap">
+              Time:
+            </label>
+            <Select
+              id="time-filter"
+              value={timeFilter}
+              onChange={(e) => setTimeFilter(e.target.value as typeof timeFilter)}
+              className="h-8 min-w-[120px] text-sm"
+            >
+              <option value="all">All time</option>
+              <option value="24h">Last 24 hours</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+            </Select>
+          </div>
+
+          {/* Assigned to Me Filter */}
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900 transition-colors">
             <input
               type="checkbox"
@@ -944,14 +1560,20 @@ export function LegacyInboxPageClient({
               Assigned to me
             </span>
           </label>
-          {assignedToMeOnly && (
+          
+          {/* Clear Filters Button */}
+          {(sourceFilter !== 'all' || timeFilter !== 'all' || assignedToMeOnly) && (
             <Button
-              onClick={() => setAssignedToMeOnly(false)}
+              onClick={() => {
+                setSourceFilter('all');
+                setTimeFilter('all');
+                setAssignedToMeOnly(false);
+              }}
               variant="outline"
               size="sm"
               className="h-7 px-3 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400"
             >
-              Clear filter
+              Clear all filters
             </Button>
           )}
         </div>
@@ -1048,7 +1670,7 @@ export function LegacyInboxPageClient({
         loading={loading}
         error={error}
         enableFaqCreation={enableFaqCreation}
-        allowEmptyCitations={allowEmptyCitations}
+        allowEmptyCitations={flags?.allowEmptyCitations ?? allowEmptyCitations}
         onApprove={handleApprove}
         onReject={handleReject}
         onAttachCitations={handleAttachCitations}
@@ -1069,7 +1691,48 @@ export function LegacyInboxPageClient({
         onClearSelection={clearSelection}
         currentUserId={currentUserId}
         userRole={userRole}
+        onMarkReviewed={handleMarkReviewed}
+        onConvertToFaq={handleConvertToFaq}
+        onDismiss={handleDismiss}
       />
+      {(pendingCursor || needsReviewCursor) && (
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+          {pendingCursor && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleLoadMore('pending')}
+              disabled={loadingMoreStatus === 'pending'}
+            >
+              {loadingMoreStatus === 'pending' ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading pending…
+                </span>
+              ) : (
+                'Load more pending'
+              )}
+            </Button>
+          )}
+          {needsReviewCursor && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleLoadMore('needs_review')}
+              disabled={loadingMoreStatus === 'needs_review'}
+            >
+              {loadingMoreStatus === 'needs_review' ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading needs review…
+                </span>
+              ) : (
+                'Load more needs review'
+              )}
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Manual FAQ Creation Modal */}
       <ManualFAQCreationModal

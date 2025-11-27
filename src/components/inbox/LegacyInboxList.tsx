@@ -59,6 +59,10 @@ type LegacyInboxListProps = {
   onClearSelection?: () => void;
   currentUserId?: string | null;
   userRole?: string;
+  // Chat review action handlers
+  onMarkReviewed?: (id: string, note?: string) => void;
+  onConvertToFaq?: (id: string, editedAnswer?: string, citations?: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => void;
+  onDismiss?: (id: string, reason?: string) => void;
 };
 
 function renderStatusBadge(status?: string | null) {
@@ -173,6 +177,9 @@ export function LegacyInboxList({
   onClearSelection,
   currentUserId,
   userRole,
+  onMarkReviewed,
+  onConvertToFaq,
+  onDismiss,
 }: LegacyInboxListProps) {
   // Helper: Check if user can act on item (assignee OR admin)
   const canActOnItem = useCallback((item: LegacyInboxItem): boolean => {
@@ -203,7 +210,7 @@ export function LegacyInboxList({
   const [attachCitations, setAttachCitations] = useState<EditableCitation[]>([{ docId: '', page: '', spanStart: '', spanEnd: '', spanText: '' }]);
   const [attachLoading, setAttachLoading] = useState(false);
   const [copiedQuestionId, setCopiedQuestionId] = useState<string | null>(null);
-  const [actionStates, setActionStates] = useState<Record<string, 'approving' | 'approved' | 'rejecting' | 'rejected'>>({});
+  const [actionStates, setActionStates] = useState<Record<string, 'approving' | 'approved' | 'rejecting' | 'rejected' | 'converting' | 'marking' | 'dismissing'>>({});
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
 
@@ -524,19 +531,34 @@ export function LegacyInboxList({
                       />
                     </TableHead>
                   )}
-                  <TableHead className="w-[200px]">Question</TableHead>
-                <TableHead className="w-[200px]">Document</TableHead>
-                <TableHead className="w-[300px]">Answer</TableHead>
-                <TableHead className="w-[120px]">Created</TableHead>
-                <TableHead className="w-[120px]">Status & PII</TableHead>
-                <TableHead className="w-[200px]">Actions</TableHead>
+                  <TableHead className="w-[180px]">Question</TableHead>
+                <TableHead className="w-[160px]">Document</TableHead>
+                <TableHead className="w-[280px]">Answer</TableHead>
+                <TableHead className="w-[110px]">Created</TableHead>
+                <TableHead className="w-[110px]">Status & PII</TableHead>
+                <TableHead className="w-[180px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map((item) => {
                 const isBulkSelected = selectedIds?.has(item.id) ?? false;
                 return (
-                <TableRow key={item.id}>
+                <TableRow 
+                  key={item.id} 
+                  data-item-id={item.id}
+                  id={`inbox-item-${item.id}`}
+                  className={(() => {
+                    // Check if this is the ref item from URL
+                    if (typeof window !== 'undefined') {
+                      const searchParams = new URLSearchParams(window.location.search);
+                      const refId = searchParams.get('ref');
+                      if (refId === item.id) {
+                        return 'bg-blue-100 border-4 border-blue-500 shadow-lg';
+                      }
+                    }
+                    return '';
+                  })()}
+                >
                   {selectedIds !== undefined && onToggleSelect && (
                     <TableCell
                       className="w-12"
@@ -555,18 +577,49 @@ export function LegacyInboxList({
                       />
                     </TableCell>
                   )}
-                  <TableCell className="w-[200px]">
+                  <TableCell className="w-[180px]">
                     <div className="flex items-start gap-2 group">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger className="text-left flex-1 min-w-0">
-                            {truncateText(item.question, 80)}
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-md">
-                            <p>{item.question}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          {/* Debug: Always show source_type for debugging */}
+                          {process.env.NODE_ENV === 'development' && item.source_type && (
+                            <Badge className="text-[8px] bg-gray-100 text-gray-600 border-gray-300" title={`Debug: source_type=${item.source_type}`}>
+                              {item.source_type}
+                            </Badge>
+                          )}
+                          {item.source_type === 'chat_review' && (
+                            <Badge className="text-[10px] bg-blue-100 text-blue-900 border-blue-300 font-semibold" title="Chat review request">
+                              💬 Chat Review
+                            </Badge>
+                          )}
+                          {item.source_type === 'widget_review' && (
+                            <Badge className="text-[10px] bg-indigo-100 text-indigo-900 border-indigo-300 font-semibold" title="Widget review request">
+                              📱 Widget Review
+                            </Badge>
+                          )}
+                          {(item.source_type === 'auto' || item.source === 'faq_generation') && (
+                            <Badge className="text-[10px] bg-purple-100 text-purple-900 border-purple-300 font-semibold" title="FAQ Generated">
+                              📚 FAQ Generated
+                            </Badge>
+                          )}
+                          {/* Show if source_type is null or undefined */}
+                          {!item.source_type && (
+                            <Badge className="text-[8px] bg-yellow-100 text-yellow-700 border-yellow-300" title="Warning: source_type is missing">
+                              ⚠️ No source_type
+                            </Badge>
+                          )}
+                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger className="text-left flex-1 min-w-0">
+                              {truncateText(item.question, 80)}
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-md">
+                              <p>{item.question}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -591,12 +644,12 @@ export function LegacyInboxList({
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell className="w-[200px] text-xs text-muted-foreground">
+                  <TableCell className="w-[160px] text-xs text-muted-foreground">
                     <div className="flex items-center min-h-[2.5rem]">
                       {renderDocBadges(item, docTitles, docLoading)}
                     </div>
                   </TableCell>
-                  <TableCell className="w-[300px]">
+                  <TableCell className="w-[280px]">
                         {editingId === item.id ? (
                       <div className="space-y-2">
                         <Textarea
@@ -623,36 +676,29 @@ export function LegacyInboxList({
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        <div className="text-sm whitespace-pre-wrap max-h-32 overflow-y-auto">
+                      <div className="space-y-1.5">
+                        <div className="text-sm whitespace-pre-wrap max-h-32 overflow-y-auto text-slate-700 leading-relaxed">
                           {editedAnswers[item.id] || item.answer}
                         </div>
-                        <div className="flex items-center space-x-2">
-                          {/* Show Edit Answer button only if user can act on item (assignee OR admin) */}
-                          {canActOnItem(item) && (
-                            <Button
-                              onClick={() => startEditing(item.id, editedAnswers[item.id] || item.answer)}
-                              size="sm"
-                              variant="outline"
-                              className="text-xs"
-                            >
-                              <Edit2 className="h-3 w-3 mr-1" />
-                              Edit Answer
-                            </Button>
-                          )}
-                          {canActOnItem(item) && (
-                            <Badge variant="outline" className="text-xs">
-                              Click to edit
-                            </Badge>
-                          )}
-                        </div>
+                        {/* Show Edit Answer button only if user can act on item (assignee OR admin) */}
+                        {canActOnItem(item) && (
+                          <Button
+                            onClick={() => startEditing(item.id, editedAnswers[item.id] || item.answer)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[11px] text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                          >
+                            <Edit2 className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                        )}
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground w-[120px]">
+                  <TableCell className="text-sm text-muted-foreground w-[110px]">
                     {formatDate(item.created_at)}
                   </TableCell>
-                  <TableCell className="w-[120px]">
+                  <TableCell className="w-[110px]">
                     <div className="flex flex-col gap-1">
                       {renderStatusBadge(item.status)}
                       {item.has_pii && (
@@ -672,70 +718,100 @@ export function LegacyInboxList({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="w-[200px]">
-                    <div className="flex flex-col gap-1.5">
-                      {enableFaqCreation && (
-                        <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                            checked={faqSelections[item.id] ?? true}
-                            disabled={editingId === item.id}
-                            onChange={(event) =>
-                              setFaqSelections((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.checked,
-                              }))
-                            }
-                          />
-                          <span>Create as FAQ</span>
-                        </label>
-                      )}
-                      {/* Request SME Review button - visible for pending, unassigned items */}
-                      {onRequestReview &&
-                        item.status === 'pending' &&
-                        (!item.assignedTo || item.assignedTo.length === 0) && (
-                          <Button
-                            onClick={() => onRequestReview(item)}
-                            size="sm"
-                            variant="default"
-                            disabled={editingId === item.id}
-                            className="h-7 px-3 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            <ListChecks className="h-3.5 w-3.5 mr-1.5" />
-                            Request Review
-                          </Button>
+                  <TableCell className="w-[180px] align-top">
+                    <div className="flex flex-col gap-2 justify-between min-h-[100px]">
+                      {/* Top section: FAQ creation checkbox and Request Review */}
+                      <div className="flex flex-col gap-1.5">
+                        {enableFaqCreation && (
+                          <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                            <input
+                              type="checkbox"
+                              className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                              checked={faqSelections[item.id] ?? true}
+                              disabled={editingId === item.id}
+                              onChange={(event) =>
+                                setFaqSelections((prev) => ({
+                                  ...prev,
+                                  [item.id]: event.target.checked,
+                                }))
+                              }
+                            />
+                            <span>Create as FAQ</span>
+                          </label>
                         )}
-                      {/* Citations preview or attach button */}
+                        {/* Request SME Review button - compact, secondary style */}
+                        {onRequestReview &&
+                          item.status === 'pending' &&
+                          (!item.assignedTo || item.assignedTo.length === 0) && (
+                            <Button
+                              onClick={() => onRequestReview(item)}
+                              size="sm"
+                              variant="outline"
+                              disabled={editingId === item.id}
+                              className="h-7 px-2.5 text-[11px] font-medium border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 w-fit"
+                            >
+                              <ListChecks className="h-3 w-3 mr-1" />
+                              Request Review
+                            </Button>
+                          )}
+                      </div>
+                      
+                      {/* Middle section: Citations */}
                       {item.suggested_citations && item.suggested_citations.length > 0 ? (
-                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-                          <span className="font-medium">Citations (auto-used):</span>
-                          <div className="flex flex-wrap gap-1">
-                            {item.suggested_citations.slice(0, 2).map((cite, idx) => (
-                              <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0.5 bg-muted/50">
-                                {cite.doc_id.substring(0, 12)}...
-                                {cite.page && <span className="ml-1 text-muted-foreground">p.{cite.page}</span>}
-                              </Badge>
-                            ))}
+                        <div className="flex flex-col gap-1">
+                          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                            Citations
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1">
+                            {item.suggested_citations.slice(0, 2).map((cite, idx) => {
+                              const docId = cite.doc_id;
+                              if (!docId) return null;
+                              
+                              // Try to get title from docTitles mapping first, then cite.title, then fallback to truncated UUID
+                              const title =
+                                (docTitles && docTitles[docId]) ||
+                                cite.title ||
+                                docId;
+                              
+                              // Truncate if too long, but show full title in tooltip
+                              const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(title);
+                              const displayTitle = isUuid
+                                ? `${title.substring(0, 12)}...`
+                                : title.length > 18
+                                  ? `${title.substring(0, 18).trim()}…`
+                                  : title;
+                              
+                              return (
+                                <Badge 
+                                  key={idx} 
+                                  variant="outline" 
+                                  className="text-[10px] px-1.5 py-0.5 bg-slate-50 border-slate-200 text-slate-700"
+                                  title={title !== displayTitle ? title : undefined}
+                                >
+                                  {displayTitle}
+                                  {cite.page && <span className="ml-0.5 text-slate-500">p.{cite.page}</span>}
+                                </Badge>
+                              );
+                            })}
                             {item.suggested_citations.length > 2 && (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-muted/50">
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-slate-50 border-slate-200 text-slate-700">
                                 +{item.suggested_citations.length - 2}
                               </Badge>
                             )}
+                            {/* Show Edit button inline with citations */}
+                            {canActOnItem(item) && (
+                              <Button
+                                onClick={() => handleOpenAttachModal(item.id)}
+                                size="sm"
+                                variant="ghost"
+                                disabled={editingId === item.id}
+                                className="h-6 px-2 text-[11px] text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                              >
+                                <Edit2 className="h-3 w-3 mr-1" />
+                                Edit
+                              </Button>
+                            )}
                           </div>
-                          {/* Show Edit button only if user can act on item (assignee OR admin) */}
-                          {canActOnItem(item) && (
-                            <Button
-                              onClick={() => handleOpenAttachModal(item.id)}
-                              size="sm"
-                              variant="ghost"
-                              disabled={editingId === item.id}
-                              className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                            >
-                              <Edit2 className="h-3 w-3 mr-1" />
-                              Edit
-                            </Button>
-                          )}
                         </div>
                       ) : (
                         /* Show Attach button only if user can act on item (assignee OR admin) */
@@ -745,81 +821,241 @@ export function LegacyInboxList({
                             size="sm"
                             variant="ghost"
                             disabled={editingId === item.id}
-                            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                            className="h-7 px-2 text-[11px] text-slate-600 hover:text-slate-900 hover:bg-slate-100 w-fit"
                           >
                             <Paperclip className="h-3 w-3 mr-1" />
                             Attach
                           </Button>
                         )
                       )}
-                      <div className="flex space-x-2">
-                        {/* Show Approve button only if user can act on item (assignee OR admin) */}
-                        {canActOnItem(item) && (
-                          <Button
-                            onClick={() => handleApprove(item.id)}
-                            size="sm"
-                            className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
-                            disabled={
-                              editingId === item.id ||
-                              (!allowEmptyCitations &&
-                                (!item.suggested_citations || item.suggested_citations.length === 0)) ||
-                              actionStates[item.id] === 'approving' ||
-                              actionStates[item.id] === 'approved'
-                            }
-                            title={
-                              !allowEmptyCitations &&
-                              (!item.suggested_citations || item.suggested_citations.length === 0)
-                                ? 'Attach citations first'
-                                : 'Approve and automatically generate embeddings'
-                            }
-                          >
-                          {actionStates[item.id] === 'approving' ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              Approving...
-                            </>
-                          ) : actionStates[item.id] === 'approved' ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Approved
-                            </>
-                          ) : (
-                            <>
-                              <Check className="h-4 w-4 mr-1" />
-                              Approve
-                            </>
-                          )}
-                          </Button>
+                      
+                      {/* Bottom section: Action buttons - push to bottom, consistent spacing */}
+                      <div className="flex flex-col gap-1.5 mt-auto pt-1">
+                        {/* Chat/Widget Review Items: Show specialized actions */}
+                        {canActOnItem(item) && (item.source_type === 'chat_review' || item.source_type === 'widget_review') && (
+                          <div className="flex flex-row gap-1.5 flex-nowrap">
+                            {/* Convert to FAQ button */}
+                            {onConvertToFaq && (() => {
+                              const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
+                              const citationsRequired = allowEmptyCitations === false;
+                              const missingCitations = citationsRequired && !hasCitations;
+                              const isConverting = actionStates[item.id] === 'converting';
+                              const isAnyAction = actionStates[item.id] !== undefined;
+                              
+                              return (
+                                <Button
+                                  onClick={() => {
+                                    setActionStates((prev) => ({ ...prev, [item.id]: 'converting' }));
+                                    const editedAnswer = editedAnswers[item.id];
+                                    onConvertToFaq(item.id, editedAnswer);
+                                    setTimeout(() => {
+                                      setActionStates((prev) => {
+                                        const next = { ...prev };
+                                        if (next[item.id] === 'converting') {
+                                          delete next[item.id];
+                                        }
+                                        return next;
+                                      });
+                                    }, 3000);
+                                  }}
+                                  size="sm"
+                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-[12px] px-3 py-1.5 h-7 flex-shrink-0 font-semibold shadow-sm"
+                                  disabled={
+                                    editingId === item.id ||
+                                    missingCitations ||
+                                    isConverting ||
+                                    isAnyAction
+                                  }
+                                  title={
+                                    missingCitations
+                                      ? 'Attach citations first'
+                                      : 'Convert to FAQ and generate embeddings'
+                                  }
+                                >
+                                  {isConverting ? (
+                                    <>
+                                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                      Converting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                                      Convert to FAQ
+                                    </>
+                                  )}
+                                </Button>
+                              );
+                            })()}
+                            
+                            {/* Mark Reviewed button */}
+                            {onMarkReviewed && (() => {
+                              const isMarking = actionStates[item.id] === 'marking';
+                              const isAnyAction = actionStates[item.id] !== undefined;
+                              
+                              return (
+                                <Button
+                                  onClick={() => {
+                                    setActionStates((prev) => ({ ...prev, [item.id]: 'marking' }));
+                                    onMarkReviewed(item.id);
+                                    setTimeout(() => {
+                                      setActionStates((prev) => {
+                                        const next = { ...prev };
+                                        if (next[item.id] === 'marking') {
+                                          delete next[item.id];
+                                        }
+                                        return next;
+                                      });
+                                    }, 3000);
+                                  }}
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-[10px] border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
+                                  disabled={
+                                    editingId === item.id ||
+                                    isMarking ||
+                                    isAnyAction
+                                  }
+                                  title="Mark as reviewed without converting to FAQ"
+                                >
+                                  {isMarking ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                      Marking...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Mark Reviewed
+                                    </>
+                                  )}
+                                </Button>
+                              );
+                            })()}
+                            
+                            {/* Dismiss button */}
+                            {onDismiss && (() => {
+                              const isDismissing = actionStates[item.id] === 'dismissing';
+                              const isAnyAction = actionStates[item.id] !== undefined;
+                              
+                              return (
+                                <Button
+                                  onClick={() => {
+                                    setActionStates((prev) => ({ ...prev, [item.id]: 'dismissing' }));
+                                    onDismiss(item.id);
+                                    setTimeout(() => {
+                                      setActionStates((prev) => {
+                                        const next = { ...prev };
+                                        if (next[item.id] === 'dismissing') {
+                                          delete next[item.id];
+                                        }
+                                        return next;
+                                      });
+                                    }, 3000);
+                                  }}
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-[10px] border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
+                                  disabled={
+                                    editingId === item.id ||
+                                    isDismissing ||
+                                    isAnyAction
+                                  }
+                                  title="Dismiss this review request"
+                                >
+                                  {isDismissing ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                      Dismissing...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <X className="h-3 w-3 mr-1" />
+                                      Dismiss
+                                    </>
+                                  )}
+                                </Button>
+                              );
+                            })()}
+                          </div>
                         )}
-                        {/* Show Reject button only if user can act on item (assignee OR admin) */}
-                        {canActOnItem(item) && (
-                          <Button
-                            onClick={() => handleReject(item.id)}
-                            size="sm"
-                            variant="destructive"
-                            disabled={
-                              editingId === item.id ||
-                              actionStates[item.id] === 'rejecting' ||
-                              actionStates[item.id] === 'rejected'
-                            }
-                          >
-                          {actionStates[item.id] === 'rejecting' ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              Rejecting...
-                            </>
-                          ) : actionStates[item.id] === 'rejected' ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Rejected
-                            </>
-                          ) : (
-                            <>
-                              <X className="h-4 w-4 mr-1" />
-                              Reject
-                            </>
-                          )}
-                          </Button>
+                        
+                        {/* Regular Items: Show standard Approve/Reject buttons */}
+                        {canActOnItem(item) && item.source_type !== 'chat_review' && item.source_type !== 'widget_review' && (
+                          <div className="flex flex-row gap-1.5 flex-nowrap">
+                            {/* Show Approve button only if user can act on item (assignee OR admin) */}
+                            {(() => {
+                              // Check if citations are required and missing
+                              // Handle undefined, null, empty array, or non-array values
+                              const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
+                              const citationsRequired = allowEmptyCitations === false; // Explicitly check for false
+                              const missingCitations = citationsRequired && !hasCitations;
+                              
+                              return (
+                                <Button
+                                  onClick={() => handleApprove(item.id)}
+                                  size="sm"
+                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-[12px] px-3 py-1.5 h-7 flex-shrink-0 font-semibold shadow-sm"
+                                  disabled={
+                                    editingId === item.id ||
+                                    missingCitations ||
+                                    actionStates[item.id] === 'approving' ||
+                                    actionStates[item.id] === 'approved'
+                                  }
+                                  title={
+                                    missingCitations
+                                      ? 'Attach citations first'
+                                      : 'Approve and automatically generate embeddings'
+                                  }
+                                >
+                                  {actionStates[item.id] === 'approving' ? (
+                                    <>
+                                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                      Approving...
+                                    </>
+                                  ) : actionStates[item.id] === 'approved' ? (
+                                    <>
+                                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                                      Approved
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Check className="h-3.5 w-3.5 mr-1.5" />
+                                      Approve
+                                    </>
+                                  )}
+                                </Button>
+                              );
+                            })()}
+                            {/* Show Reject button only if user can act on item (assignee OR admin) */}
+                            <Button
+                              onClick={() => handleReject(item.id)}
+                              size="sm"
+                              variant="outline"
+                              className="text-[10px] border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
+                              disabled={
+                                editingId === item.id ||
+                                actionStates[item.id] === 'rejecting' ||
+                                actionStates[item.id] === 'rejected'
+                              }
+                            >
+                            {actionStates[item.id] === 'rejecting' ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                Rejecting...
+                              </>
+                            ) : actionStates[item.id] === 'rejected' ? (
+                              <>
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Rejected
+                              </>
+                            ) : (
+                              <>
+                                <X className="h-3 w-3 mr-1" />
+                                Reject
+                              </>
+                            )}
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </div>

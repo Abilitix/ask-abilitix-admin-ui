@@ -175,6 +175,18 @@ export async function POST(request: NextRequest) {
       let errorDetails = `Admin API returned ${response.status}`;
       let errorCode = 'admin_proxy_error';
       
+      // Check error message, details, and raw text for duplicate key violations
+      const errorText = text || '';
+      const errorMessage = data?.error?.message || data?.error || data?.details || errorText;
+      const fullErrorText = JSON.stringify(data) + ' ' + errorText;
+      
+      console.log('[SME Review] Error details:', {
+        status: response.status,
+        errorText: errorText.substring(0, 500),
+        errorMessage,
+        hasUniqueViolation: fullErrorText.includes('UniqueViolation') || fullErrorText.includes('duplicate key') || fullErrorText.includes('qa_inbox_dedupe'),
+      });
+      
       if (data?.error) {
         if (typeof data.error === 'object' && data.error.message) {
           // Structured error: { error: { code, message } }
@@ -193,11 +205,20 @@ export async function POST(request: NextRequest) {
       
       // Handle specific error cases
       // 500 with UniqueViolation = duplicate review request
-      if (response.status === 500 && (
+      // Check in errorDetails, errorMessage, and raw text
+      const isDuplicateError = 
+        fullErrorText.includes('UniqueViolation') ||
+        fullErrorText.includes('duplicate key') ||
+        fullErrorText.includes('qa_inbox_dedupe') ||
         errorDetails.includes('UniqueViolation') ||
         errorDetails.includes('duplicate key') ||
-        errorDetails.includes('qa_inbox_dedupe')
-      )) {
+        errorDetails.includes('qa_inbox_dedupe') ||
+        errorMessage.includes('UniqueViolation') ||
+        errorMessage.includes('duplicate key') ||
+        errorMessage.includes('qa_inbox_dedupe');
+      
+      if (response.status === 500 && isDuplicateError) {
+        console.log('[SME Review] Detected duplicate review request, returning 409');
         return NextResponse.json(
           {
             error: 'duplicate_review_request',

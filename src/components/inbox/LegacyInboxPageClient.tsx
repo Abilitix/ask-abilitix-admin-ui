@@ -63,6 +63,7 @@ export function LegacyInboxPageClient({
   userRole,
 }: LegacyInboxPageClientProps) {
   const isDevEnv = process.env.NODE_ENV !== 'production';
+  const PAGE_LIMIT = 50;
   const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
   const [smeModalOpen, setSmeModalOpen] = useState<boolean>(false);
   const [selectedItemForReview, setSelectedItemForReview] = useState<LegacyInboxItem | null>(null);
@@ -98,12 +99,83 @@ export function LegacyInboxPageClient({
     variant: 'default',
     onConfirm: () => {},
   });
+  const [pendingCursor, setPendingCursor] = useState<string | null>(null);
+  const [needsReviewCursor, setNeedsReviewCursor] = useState<string | null>(null);
+  const [loadingMoreStatus, setLoadingMoreStatus] = useState<'pending' | 'needs_review' | null>(null);
+  const normalizeRawItems = useCallback(
+    (rawItems: any[]): LegacyInboxItem[] => {
+      return rawItems
+        .map((item: any) => {
+          const id = item.id || item.ref_id;
+          if (!id) return null;
+          if (isDevEnv) {
+            console.log('[LegacyInbox] Raw item from backend:', {
+              id,
+              source_type: item.source_type,
+              qa_pair_id: item.qa_pair_id,
+              promoted_pair_id: item.promoted_pair_id,
+              source: item.source,
+              metadata: item.metadata,
+              status: item.status,
+              question: item.question?.substring(0, 40),
+              allKeys: Object.keys(item || {}),
+            });
+          }
+          const normalized: LegacyInboxItem = {
+            id,
+            question: item.question || '',
+            answer: item.answer || item.answer_draft || '',
+            created_at: item.created_at || item.asked_at || '',
+            has_pii: item.has_pii || false,
+            pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
+            status: item.status || 'pending',
+            source_type: item.source_type || null,
+            source: item.source || null,
+            suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
+          };
+
+          if (item.assigned_to) {
+            const assigned = Array.isArray(item.assigned_to) ? item.assigned_to : [];
+            normalized.assignedTo = assigned
+              .map((member: any) => {
+                const memberId = member.id || member.user_id;
+                if (!memberId) return null;
+                return {
+                  id: memberId,
+                  email: member.email || '',
+                  name: member.name || null,
+                  role: member.role || null,
+                };
+              })
+              .filter(Boolean);
+          }
+
+          normalized.reason = item.reason || null;
+          normalized.assignedAt = item.assigned_at || null;
+          if (item.requested_by) {
+            const reqBy = item.requested_by;
+            normalized.requestedBy = {
+              id: reqBy.id || reqBy.user_id || '',
+              email: reqBy.email || '',
+              name: reqBy.name || null,
+              role: reqBy.role || null,
+            };
+          }
+
+          return normalized;
+        })
+        .filter((item): item is LegacyInboxItem => Boolean(item));
+    },
+    [isDevEnv]
+  );
 
   const fetchItems = useCallback(async () => {
     if (disabled) return;
     try {
       setLoading(true);
       setError(null);
+      setPendingCursor(null);
+      setNeedsReviewCursor(null);
 
       // Check for ref parameter in URL (for email links)
       const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -114,8 +186,8 @@ export function LegacyInboxPageClient({
       }
       
       // Build query parameters - use backend filter when "Assigned to Me" is active
-      const pendingParams = new URLSearchParams({ status: 'pending' });
-      const needsReviewParams = new URLSearchParams({ status: 'needs_review' });
+      const pendingParams = new URLSearchParams({ status: 'pending', limit: String(PAGE_LIMIT) });
+      const needsReviewParams = new URLSearchParams({ status: 'needs_review', limit: String(PAGE_LIMIT) });
       
       if (assignedToMeOnly) {
         pendingParams.set('assigned_to_me', 'true');
@@ -266,6 +338,20 @@ export function LegacyInboxPageClient({
       const pendingItems = Array.isArray(pendingData?.items) ? pendingData.items : [];
       const needsReviewItems = Array.isArray(needsReviewData?.items) ? needsReviewData.items : [];
       const refItems = Array.isArray(refData?.items) ? refData.items : [];
+      setPendingCursor(
+        typeof pendingData?.next_cursor === 'string'
+          ? pendingData.next_cursor
+          : typeof pendingData?.nextCursor === 'string'
+            ? pendingData.nextCursor
+            : null
+      );
+      setNeedsReviewCursor(
+        typeof needsReviewData?.next_cursor === 'string'
+          ? needsReviewData.next_cursor
+          : typeof needsReviewData?.nextCursor === 'string'
+            ? needsReviewData.nextCursor
+            : null
+      );
       
       if (refId && isDevEnv) {
         console.log('[LegacyInbox] Ref parameter processing:', {
@@ -350,66 +436,7 @@ export function LegacyInboxPageClient({
         const id = item.id || item.ref_id;
         return id && index === self.findIndex((i: any) => (i.id || i.ref_id) === id);
       });
-      const normalizedItems: LegacyInboxItem[] = uniqueItems.map((item: any) => {
-        // Debug: Log ALL items to see source_type distribution
-        if (isDevEnv) {
-          console.log('[LegacyInbox] Raw item from backend:', {
-          id: item.id || item.ref_id,
-          source_type: item.source_type,
-          qa_pair_id: item.qa_pair_id,
-          promoted_pair_id: item.promoted_pair_id,
-          source: item.source, // Check if source field from qa_pairs exists
-          metadata: item.metadata,
-          status: item.status,
-          question: item.question?.substring(0, 40),
-          allKeys: Object.keys(item),
-          });
-        }
-        
-        const normalized: LegacyInboxItem = {
-          id: item.id || item.ref_id || '',
-          question: item.question || '',
-          answer: item.answer || item.answer_draft || '',
-          created_at: item.created_at || item.asked_at || '',
-          has_pii: item.has_pii || false,
-          pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
-          status: item.status || 'pending',
-          source_type: item.source_type || null,
-          source: item.source || null,
-          suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
-        };
-
-        // Parse assigned_to
-        if (item.assigned_to) {
-          const assigned = Array.isArray(item.assigned_to) ? item.assigned_to : [];
-          normalized.assignedTo = assigned
-            .map((member: any) => {
-              const id = member.id || member.user_id;
-              if (!id) return null;
-              return {
-                id,
-                email: member.email || '',
-                name: member.name || null,
-                role: member.role || null,
-              };
-            })
-            .filter(Boolean);
-        }
-
-        normalized.reason = item.reason || null;
-        normalized.assignedAt = item.assigned_at || null;
-        if (item.requested_by) {
-          const reqBy = item.requested_by;
-          normalized.requestedBy = {
-            id: reqBy.id || reqBy.user_id || '',
-            email: reqBy.email || '',
-            name: reqBy.name || null,
-            role: reqBy.role || null,
-          };
-        }
-
-        return normalized;
-      });
+      const normalizedItems: LegacyInboxItem[] = normalizeRawItems(uniqueItems);
 
       // Debug: Log all source_type values to understand what's coming from backend
       const sourceTypeCounts = normalizedItems.reduce((acc, item) => {
@@ -474,7 +501,78 @@ export function LegacyInboxPageClient({
     } finally {
       setLoading(false);
     }
-  }, [disabled, assignedToMeOnly]);
+  }, [disabled, assignedToMeOnly, currentUserId, normalizeRawItems]);
+
+  const handleLoadMore = useCallback(
+    async (status: 'pending' | 'needs_review') => {
+      const cursor = status === 'pending' ? pendingCursor : needsReviewCursor;
+      if (!cursor || loadingMoreStatus) {
+        return;
+      }
+      setLoadingMoreStatus(status);
+      try {
+        const params = new URLSearchParams({
+          status,
+          limit: String(PAGE_LIMIT),
+          cursor,
+        });
+        if (assignedToMeOnly) {
+          params.set('assigned_to_me', 'true');
+        }
+        const response = await fetch(`/api/admin/inbox?${params.toString()}`, {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          let details = errorText;
+          try {
+            const parsed = errorText ? JSON.parse(errorText) : null;
+            if (parsed?.details) details = parsed.details;
+            else if (parsed?.error) details = parsed.error;
+          } catch {
+            // ignore parse error
+          }
+          throw new Error(details || `Failed to load more ${status.replace('_', ' ')} items`);
+        }
+
+        const text = await response.text();
+        const data = text ? (() => {
+          try { return JSON.parse(text); } catch { return {}; }
+        })() : {};
+        if (data?.error) {
+          throw new Error(data.details || data.error);
+        }
+        const newRawItems = Array.isArray(data?.items) ? data.items : [];
+        const normalized = normalizeRawItems(newRawItems);
+        setItems((prev) => {
+          const existingIds = new Set(prev.map((item) => item.id));
+          const deduped = normalized.filter((item) => !existingIds.has(item.id));
+          return [...prev, ...deduped];
+        });
+
+        const nextCursor =
+          typeof data?.next_cursor === 'string'
+            ? data.next_cursor
+            : typeof data?.nextCursor === 'string'
+              ? data.nextCursor
+              : null;
+
+        if (status === 'pending') {
+          setPendingCursor(nextCursor);
+        } else {
+          setNeedsReviewCursor(nextCursor);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to load more items';
+        toast.error(message);
+      } finally {
+        setLoadingMoreStatus(null);
+      }
+    },
+    [assignedToMeOnly, pendingCursor, needsReviewCursor, loadingMoreStatus, normalizeRawItems]
+  );
 
   const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true) => {
     try {
@@ -1409,6 +1507,44 @@ export function LegacyInboxPageClient({
         currentUserId={currentUserId}
         userRole={userRole}
       />
+      {(pendingCursor || needsReviewCursor) && (
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+          {pendingCursor && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleLoadMore('pending')}
+              disabled={loadingMoreStatus === 'pending'}
+            >
+              {loadingMoreStatus === 'pending' ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading pending…
+                </span>
+              ) : (
+                'Load more pending'
+              )}
+            </Button>
+          )}
+          {needsReviewCursor && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleLoadMore('needs_review')}
+              disabled={loadingMoreStatus === 'needs_review'}
+            >
+              {loadingMoreStatus === 'needs_review' ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading needs review…
+                </span>
+              ) : (
+                'Load more needs review'
+              )}
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Manual FAQ Creation Modal */}
       <ManualFAQCreationModal

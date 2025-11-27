@@ -59,6 +59,10 @@ type LegacyInboxListProps = {
   onClearSelection?: () => void;
   currentUserId?: string | null;
   userRole?: string;
+  // Chat review action handlers
+  onMarkReviewed?: (id: string, note?: string) => void;
+  onConvertToFaq?: (id: string, editedAnswer?: string, citations?: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => void;
+  onDismiss?: (id: string, reason?: string) => void;
 };
 
 function renderStatusBadge(status?: string | null) {
@@ -173,6 +177,9 @@ export function LegacyInboxList({
   onClearSelection,
   currentUserId,
   userRole,
+  onMarkReviewed,
+  onConvertToFaq,
+  onDismiss,
 }: LegacyInboxListProps) {
   // Helper: Check if user can act on item (assignee OR admin)
   const canActOnItem = useCallback((item: LegacyInboxItem): boolean => {
@@ -798,80 +805,217 @@ export function LegacyInboxList({
                           </Button>
                         )
                       )}
-                      <div className="flex space-x-2">
-                        {/* Show Approve button only if user can act on item (assignee OR admin) */}
-                        {canActOnItem(item) && (() => {
-                          // Check if citations are required and missing
-                          // Handle undefined, null, empty array, or non-array values
-                          const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
-                          const citationsRequired = !allowEmptyCitations;
-                          const missingCitations = citationsRequired && !hasCitations;
-                          
-                          return (
+                      <div className="flex flex-col gap-1.5">
+                        {/* Chat/Widget Review Items: Show specialized actions */}
+                        {canActOnItem(item) && (item.source_type === 'chat_review' || item.source_type === 'widget_review') && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {/* Convert to FAQ button */}
+                            {onConvertToFaq && (() => {
+                              const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
+                              const citationsRequired = allowEmptyCitations === false;
+                              const missingCitations = citationsRequired && !hasCitations;
+                              const isConverting = actionStates[item.id] === 'approving';
+                              
+                              return (
+                                <Button
+                                  onClick={() => {
+                                    setActionStates((prev) => ({ ...prev, [item.id]: 'approving' }));
+                                    const editedAnswer = editedAnswers[item.id];
+                                    onConvertToFaq(item.id, editedAnswer);
+                                    setTimeout(() => {
+                                      setActionStates((prev) => {
+                                        const next = { ...prev };
+                                        if (next[item.id] === 'approving') {
+                                          delete next[item.id];
+                                        }
+                                        return next;
+                                      });
+                                    }, 3000);
+                                  }}
+                                  size="sm"
+                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                                  disabled={
+                                    editingId === item.id ||
+                                    missingCitations ||
+                                    isConverting
+                                  }
+                                  title={
+                                    missingCitations
+                                      ? 'Attach citations first'
+                                      : 'Convert to FAQ and generate embeddings'
+                                  }
+                                >
+                                  {isConverting ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                      Converting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Convert to FAQ
+                                    </>
+                                  )}
+                                </Button>
+                              );
+                            })()}
+                            
+                            {/* Mark Reviewed button */}
+                            {onMarkReviewed && (
+                              <Button
+                                onClick={() => {
+                                  setActionStates((prev) => ({ ...prev, [item.id]: 'approving' }));
+                                  onMarkReviewed(item.id);
+                                  setTimeout(() => {
+                                    setActionStates((prev) => {
+                                      const next = { ...prev };
+                                      if (next[item.id] === 'approving') {
+                                        delete next[item.id];
+                                      }
+                                      return next;
+                                    });
+                                  }, 3000);
+                                }}
+                                size="sm"
+                                variant="outline"
+                                className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                                disabled={
+                                  editingId === item.id ||
+                                  actionStates[item.id] === 'approving'
+                                }
+                                title="Mark as reviewed without converting to FAQ"
+                              >
+                                {actionStates[item.id] === 'approving' ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    Marking...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Mark Reviewed
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                            
+                            {/* Dismiss button */}
+                            {onDismiss && (
+                              <Button
+                                onClick={() => {
+                                  setActionStates((prev) => ({ ...prev, [item.id]: 'rejecting' }));
+                                  onDismiss(item.id);
+                                  setTimeout(() => {
+                                    setActionStates((prev) => {
+                                      const next = { ...prev };
+                                      if (next[item.id] === 'rejecting') {
+                                        delete next[item.id];
+                                      }
+                                      return next;
+                                    });
+                                  }, 3000);
+                                }}
+                                size="sm"
+                                variant="outline"
+                                className="text-xs border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                disabled={
+                                  editingId === item.id ||
+                                  actionStates[item.id] === 'rejecting'
+                                }
+                                title="Dismiss this review request"
+                              >
+                                {actionStates[item.id] === 'rejecting' ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    Dismissing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <X className="h-3 w-3 mr-1" />
+                                    Dismiss
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Regular Items: Show standard Approve/Reject buttons */}
+                        {canActOnItem(item) && item.source_type !== 'chat_review' && item.source_type !== 'widget_review' && (
+                          <div className="flex space-x-2">
+                            {/* Show Approve button only if user can act on item (assignee OR admin) */}
+                            {(() => {
+                              // Check if citations are required and missing
+                              // Handle undefined, null, empty array, or non-array values
+                              const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
+                              const citationsRequired = allowEmptyCitations === false; // Explicitly check for false
+                              const missingCitations = citationsRequired && !hasCitations;
+                              
+                              return (
+                                <Button
+                                  onClick={() => handleApprove(item.id)}
+                                  size="sm"
+                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  disabled={
+                                    editingId === item.id ||
+                                    missingCitations ||
+                                    actionStates[item.id] === 'approving' ||
+                                    actionStates[item.id] === 'approved'
+                                  }
+                                  title={
+                                    missingCitations
+                                      ? 'Attach citations first'
+                                      : 'Approve and automatically generate embeddings'
+                                  }
+                                >
+                                  {actionStates[item.id] === 'approving' ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                      Approving...
+                                    </>
+                                  ) : actionStates[item.id] === 'approved' ? (
+                                    <>
+                                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                                      Approved
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Check className="h-4 w-4 mr-1" />
+                                      Approve
+                                    </>
+                                  )}
+                                </Button>
+                              );
+                            })()}
+                            {/* Show Reject button only if user can act on item (assignee OR admin) */}
                             <Button
-                              onClick={() => handleApprove(item.id)}
+                              onClick={() => handleReject(item.id)}
                               size="sm"
-                              className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
+                              variant="destructive"
                               disabled={
                                 editingId === item.id ||
-                                missingCitations ||
-                                actionStates[item.id] === 'approving' ||
-                                actionStates[item.id] === 'approved'
-                              }
-                              title={
-                                missingCitations
-                                  ? 'Attach citations first'
-                                  : 'Approve and automatically generate embeddings'
+                                actionStates[item.id] === 'rejecting' ||
+                                actionStates[item.id] === 'rejected'
                               }
                             >
-                              {actionStates[item.id] === 'approving' ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                  Approving...
-                                </>
-                              ) : actionStates[item.id] === 'approved' ? (
-                                <>
-                                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                                  Approved
-                                </>
-                              ) : (
-                                <>
-                                  <Check className="h-4 w-4 mr-1" />
-                                  Approve
-                                </>
-                              )}
+                            {actionStates[item.id] === 'rejecting' ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Rejecting...
+                              </>
+                            ) : actionStates[item.id] === 'rejected' ? (
+                              <>
+                                <CheckCircle2 className="h-4 w-4 mr-1" />
+                                Rejected
+                              </>
+                            ) : (
+                              <>
+                                <X className="h-4 w-4 mr-1" />
+                                Reject
+                              </>
+                            )}
                             </Button>
-                          );
-                        })()}
-                        {/* Show Reject button only if user can act on item (assignee OR admin) */}
-                        {canActOnItem(item) && (
-                          <Button
-                            onClick={() => handleReject(item.id)}
-                            size="sm"
-                            variant="destructive"
-                            disabled={
-                              editingId === item.id ||
-                              actionStates[item.id] === 'rejecting' ||
-                              actionStates[item.id] === 'rejected'
-                            }
-                          >
-                          {actionStates[item.id] === 'rejecting' ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              Rejecting...
-                            </>
-                          ) : actionStates[item.id] === 'rejected' ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Rejected
-                            </>
-                          ) : (
-                            <>
-                              <X className="h-4 w-4 mr-1" />
-                              Reject
-                            </>
-                          )}
-                          </Button>
+                          </div>
                         )}
                       </div>
                     </div>

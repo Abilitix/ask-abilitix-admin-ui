@@ -871,6 +871,149 @@ export function LegacyInboxPageClient({
     }
   }, []);
 
+  // Chat review action: Mark as reviewed (without converting to FAQ)
+  const handleMarkReviewed = useCallback(async (id: string, note?: string) => {
+    try {
+      const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/mark-reviewed`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(note ? { note } : {}),
+        credentials: 'include',
+      });
+
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
+      } catch (parseErr) {
+        console.error('[mark-reviewed] Failed to parse response:', parseErr);
+      }
+
+      if (!response.ok || data.error) {
+        const errorMessage = data.details || data.error?.message || data.error || `Failed to mark as reviewed: ${response.status}`;
+        if (response.status === 403) {
+          toast.error(`Permission denied: ${errorMessage}`);
+        } else {
+          toast.error(`Failed to mark as reviewed: ${errorMessage}`);
+        }
+        throw new Error(errorMessage);
+      }
+
+      toast.success('Item marked as reviewed ✓');
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      setRefreshSignal((prev) => prev + 1);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to mark as reviewed';
+      console.error('[mark-reviewed] Error:', err);
+    }
+  }, []);
+
+  // Chat review action: Convert to FAQ
+  const handleConvertToFaq = useCallback(async (id: string, editedAnswer?: string, citations?: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => {
+    try {
+      const item = items.find((i) => i.id === id);
+      
+      const requestBody: Record<string, unknown> = {};
+      
+      if (editedAnswer && editedAnswer.trim().length > 0) {
+        requestBody.answer = editedAnswer.trim();
+      }
+      
+      // If citations provided, use them; otherwise use suggested_citations if available
+      if (citations && citations.length > 0) {
+        requestBody.citations = citations;
+      } else if (item?.suggested_citations && item.suggested_citations.length > 0) {
+        // Backend will use suggested_citations from inbox item
+      } else if (allowEmptyCitations === false) {
+        toast.error('Citations are required to convert to FAQ');
+        throw new Error('Citations are required');
+      }
+
+      const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/convert-to-faq`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+        credentials: 'include',
+      });
+
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
+      } catch (parseErr) {
+        console.error('[convert-to-faq] Failed to parse response:', parseErr);
+      }
+
+      if (!response.ok || data.error) {
+        const errorMessage = data.details || data.error?.message || data.error || `Failed to convert to FAQ: ${response.status}`;
+        if (response.status === 403) {
+          toast.error(`Permission denied: ${errorMessage}`);
+        } else if (response.status === 409) {
+          toast.error(`Conflict: ${errorMessage}`);
+        } else {
+          toast.error(`Failed to convert to FAQ: ${errorMessage}`);
+        }
+        throw new Error(errorMessage);
+      }
+
+      toast.success('Item converted to FAQ ✓ (embeddings generated automatically)');
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      setRefreshSignal((prev) => prev + 1);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to convert to FAQ';
+      console.error('[convert-to-faq] Error:', err);
+    }
+  }, [items, allowEmptyCitations]);
+
+  // Chat review action: Dismiss
+  const handleDismiss = useCallback(async (id: string, reason?: string) => {
+    try {
+      const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/dismiss`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reason ? { reason } : {}),
+        credentials: 'include',
+      });
+
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
+      } catch (parseErr) {
+        console.error('[dismiss] Failed to parse response:', parseErr);
+      }
+
+      if (!response.ok || data.error) {
+        const errorMessage = data.details || data.error?.message || data.error || `Failed to dismiss: ${response.status}`;
+        if (response.status === 403) {
+          toast.error(`Permission denied: ${errorMessage}`);
+        } else {
+          toast.error(`Failed to dismiss: ${errorMessage}`);
+        }
+        throw new Error(errorMessage);
+      }
+
+      toast.success('Item dismissed ✓');
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      setRefreshSignal((prev) => prev + 1);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to dismiss';
+      console.error('[dismiss] Error:', err);
+    }
+  }, []);
+
   // Bulk selection handlers
   const handleToggleSelect = useCallback((id: string) => {
     if (bulkActionLoading) return;
@@ -1485,7 +1628,7 @@ export function LegacyInboxPageClient({
         loading={loading}
         error={error}
         enableFaqCreation={enableFaqCreation}
-        allowEmptyCitations={allowEmptyCitations}
+        allowEmptyCitations={flags?.allowEmptyCitations ?? allowEmptyCitations}
         onApprove={handleApprove}
         onReject={handleReject}
         onAttachCitations={handleAttachCitations}
@@ -1506,6 +1649,9 @@ export function LegacyInboxPageClient({
         onClearSelection={clearSelection}
         currentUserId={currentUserId}
         userRole={userRole}
+        onMarkReviewed={handleMarkReviewed}
+        onConvertToFaq={handleConvertToFaq}
+        onDismiss={handleDismiss}
       />
       {(pendingCursor || needsReviewCursor) && (
         <div className="flex flex-wrap items-center justify-center gap-3 mt-4">

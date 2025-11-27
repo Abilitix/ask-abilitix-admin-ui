@@ -832,7 +832,7 @@ export function LegacyInboxList({
                       <div className="flex flex-col gap-1.5">
                         {/* Chat/Widget Review Items: Show specialized actions */}
                         {canActOnItem(item) && (item.source_type === 'chat_review' || item.source_type === 'widget_review') && (
-                          <div className="flex flex-row gap-1.5 flex-wrap">
+                          <div className="flex flex-row gap-1 flex-nowrap">
                             {/* Convert to FAQ button */}
                             {onConvertToFaq && (() => {
                               const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
@@ -858,7 +858,7 @@ export function LegacyInboxList({
                                     }, 3000);
                                   }}
                                   size="sm"
-                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs px-2.5 py-1.5 h-7"
+                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs px-2 py-1 h-7 flex-shrink-0"
                                   disabled={
                                     editingId === item.id ||
                                     missingCitations ||
@@ -908,7 +908,7 @@ export function LegacyInboxList({
                                   }}
                                   size="sm"
                                   variant="outline"
-                                  className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50 px-2.5 py-1.5 h-7"
+                                  className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50 px-2 py-1 h-7 flex-shrink-0"
                                   disabled={
                                     editingId === item.id ||
                                     isMarking ||
@@ -953,7 +953,7 @@ export function LegacyInboxList({
                                   }}
                                   size="sm"
                                   variant="outline"
-                                  className="text-xs border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 px-2.5 py-1.5 h-7"
+                                  className="text-xs border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 px-2 py-1 h-7 flex-shrink-0"
                                   disabled={
                                     editingId === item.id ||
                                     isDismissing ||

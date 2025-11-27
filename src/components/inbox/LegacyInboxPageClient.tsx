@@ -824,6 +824,48 @@ export function LegacyInboxPageClient({
                 existingItem.id === id ? normalized : existingItem
               )
             );
+            
+            // Reload document titles to show names for newly attached citations
+            // This ensures the citation badges show document names instead of UUIDs
+            if (normalized.suggested_citations && normalized.suggested_citations.length > 0) {
+              // Reload document titles to fetch names for newly attached citations
+              try {
+                setDocLoading(true);
+                const docResponse = await fetch('/api/admin/docs?status=all&limit=100', {
+                  method: 'GET',
+                  cache: 'no-store',
+                  credentials: 'include',
+                });
+                const docData = await docResponse.json().catch(() => ({}));
+                if (docResponse.ok && !docData?.error) {
+                  const docsSource =
+                    (Array.isArray(docData?.docs) && docData.docs) ||
+                    (Array.isArray(docData?.documents) && docData.documents) ||
+                    [];
+                  
+                  const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
+                    (acc: Record<string, string>, doc: any) => {
+                      if (!doc || typeof doc !== 'object') return acc;
+                      const docId = doc.id;
+                      if (!docId || typeof docId !== 'string') return acc;
+                      const title =
+                        typeof doc.title === 'string' && doc.title.trim().length > 0
+                          ? doc.title.trim()
+                          : docId;
+                      acc[docId] = title;
+                      return acc;
+                    },
+                    {}
+                  );
+                  
+                  setDocTitles((prev) => ({ ...prev, ...mapped }));
+                }
+              } catch (docErr) {
+                console.warn('[attach-citations] Failed to reload document titles:', docErr);
+              } finally {
+                setDocLoading(false);
+              }
+            }
           }
         }
       } catch (detailErr) {

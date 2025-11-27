@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminApiBase } from '@/lib/env';
 
 export async function POST(request: NextRequest) {
-  const adminApi = getAdminApiBase();
-  if (!adminApi) {
-    return NextResponse.json({ error: 'config_error', details: 'ADMIN_API_BASE not configured' }, { status: 500 });
-  }
-
-  let payload: any = null;
   try {
-    payload = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'invalid_request', details: 'Invalid JSON payload' }, { status: 400 });
-  }
+    const adminApi = getAdminApiBase();
+    if (!adminApi) {
+      console.error('[SME Review] ADMIN_API_BASE not configured');
+      return NextResponse.json({ error: 'config_error', details: 'ADMIN_API_BASE not configured' }, { status: 500 });
+    }
+
+    let payload: any = null;
+    try {
+      payload = await request.json();
+    } catch (parseError) {
+      console.error('[SME Review] JSON parse error:', parseError);
+      return NextResponse.json({ error: 'invalid_request', details: 'Invalid JSON payload' }, { status: 400 });
+    }
 
   // Validate required fields
   const question = typeof payload?.question === 'string' ? payload.question.trim() : '';
@@ -152,8 +155,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data || { ok: true, message: 'SME review request sent.' });
   } catch (error) {
-    console.error('Chat SME review request proxy error:', error);
+    console.error('[SME Review] Proxy error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    const stack = error instanceof Error ? error.stack : undefined;
+    console.error('[SME Review] Error stack:', stack);
     return NextResponse.json({ error: 'admin_proxy_error', details: message }, { status: 502 });
   }
 }

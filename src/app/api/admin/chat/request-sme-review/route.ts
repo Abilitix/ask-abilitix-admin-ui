@@ -204,9 +204,11 @@ export async function POST(request: NextRequest) {
       }
       
       // Handle specific error cases
-      // 500 with UniqueViolation = duplicate review request
-      // Check in errorDetails, errorMessage, and raw text
+      // Admin API now returns 409 with duplicate_inbox_item error code
+      // Also handle legacy 500 with UniqueViolation (for backwards compatibility)
       const isDuplicateError = 
+        errorCode === 'duplicate_inbox_item' ||
+        data?.error?.code === 'duplicate_inbox_item' ||
         fullErrorText.includes('UniqueViolation') ||
         fullErrorText.includes('duplicate key') ||
         fullErrorText.includes('qa_inbox_dedupe') ||
@@ -217,14 +219,21 @@ export async function POST(request: NextRequest) {
         errorMessage.includes('duplicate key') ||
         errorMessage.includes('qa_inbox_dedupe');
       
-      if (response.status === 500 && isDuplicateError) {
+      if ((response.status === 409 || response.status === 500) && isDuplicateError) {
         console.log('[SME Review] Detected duplicate review request, returning 409');
+        // Use Admin API's error message if available, otherwise use default
+        const duplicateMessage = data?.error?.message || 
+                                 errorDetails.includes('already exists') ? errorDetails :
+                                 'A review request for this question already exists. Please check the inbox.';
+        
         return NextResponse.json(
           {
             error: 'duplicate_review_request',
-            details: 'A review request for this question already exists. Please check the inbox.',
+            details: duplicateMessage,
+            inbox_id: data?.error?.inbox_id || data?.inbox_id, // Include existing inbox_id if provided
+            status: data?.error?.status || data?.status, // Include status if provided
           },
-          { status: 409 } // Return 409 Conflict instead of 500
+          { status: 409 } // Return 409 Conflict
         );
       }
       

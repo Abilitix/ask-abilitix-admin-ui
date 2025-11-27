@@ -590,6 +590,11 @@ export function LegacyInboxList({
                               📱 Widget Review
                             </Badge>
                           )}
+                          {(item.source_type === 'auto' || item.source === 'faq_generation') && (
+                            <Badge className="text-[10px] bg-purple-100 text-purple-900 border-purple-300 font-semibold" title="FAQ Generated">
+                              📚 FAQ Generated
+                            </Badge>
+                          )}
                           {/* Show if source_type is null or undefined */}
                           {!item.source_type && (
                             <Badge className="text-[8px] bg-yellow-100 text-yellow-700 border-yellow-300" title="Warning: source_type is missing">

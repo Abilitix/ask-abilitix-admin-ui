@@ -146,12 +146,39 @@ export async function POST(request: NextRequest) {
       assigneesCount: requestBody.assignees?.length || 0,
     });
 
-    const response = await fetch(`${adminApi}/admin/chat/request-sme-review`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(requestBody),
-      cache: 'no-store',
-    });
+    // Add timeout wrapper (30 seconds) to handle slow deduplication queries
+    const TIMEOUT_MS = 30000; // 30 seconds
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch(`${adminApi}/admin/chat/request-sme-review`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody),
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      
+      // Check if it's a timeout/abort error
+      if (fetchError.name === 'AbortError' || fetchError.message?.includes('aborted')) {
+        console.error('[SME Review] Request timed out after 30 seconds (likely slow deduplication query)');
+        return NextResponse.json(
+          {
+            error: 'timeout',
+            details: 'The request timed out. The deduplication check is taking longer than expected. This may indicate a duplicate question exists. Please check the inbox or try again in a moment.',
+          },
+          { status: 504 } // Gateway Timeout
+        );
+      }
+      
+      // Re-throw other fetch errors
+      throw fetchError;
+    }
 
     console.log('[SME Review] Admin API response:', {
       status: response.status,
@@ -252,6 +279,18 @@ export async function POST(request: NextRequest) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       const stack = error instanceof Error ? error.stack : undefined;
       console.error('[SME Review] Error stack:', stack);
+      
+      // Check if it's a timeout/abort error (shouldn't reach here if handled above, but just in case)
+      if (error instanceof Error && (error.name === 'AbortError' || message.includes('aborted'))) {
+        return NextResponse.json(
+          {
+            error: 'timeout',
+            details: 'The request timed out. The deduplication check is taking longer than expected. Please check the inbox or try again.',
+          },
+          { status: 504 }
+        );
+      }
+      
       return NextResponse.json({ error: 'admin_proxy_error', details: message }, { status: 502 });
     }
   } catch (error) {

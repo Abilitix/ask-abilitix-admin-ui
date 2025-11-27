@@ -21,6 +21,7 @@ export type LegacyInboxItem = {
   pii_fields?: string[];
   status: 'pending' | 'approved' | 'rejected' | 'needs_review';
   source_type?: 'auto' | 'manual' | 'admin_review' | 'chat_review' | 'widget_review' | null;
+  source?: string | null;
   assignedTo?: AssignableMember[] | null;
   reason?: string | null;
   assignedAt?: string | null;
@@ -80,7 +81,7 @@ export function LegacyInboxPageClient({
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [assignedToMeOnly, setAssignedToMeOnly] = useState(false);
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'widget_review' | 'chat_review' | 'auto' | 'manual' | 'admin_review'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'widget_review' | 'chat_review' | 'faq_generated' | 'manual' | 'admin_review'>('all');
   const [timeFilter, setTimeFilter] = useState<'all' | '24h' | '7d' | '30d' | '90d'>('all');
   // Confirmation dialog state
   const [confirmationDialog, setConfirmationDialog] = useState<{
@@ -369,6 +370,7 @@ export function LegacyInboxPageClient({
           pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
           status: item.status || 'pending',
           source_type: item.source_type || null,
+          source: item.source || null,
           suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
         };
 
@@ -678,6 +680,7 @@ export function LegacyInboxPageClient({
               pii_fields: Array.isArray(item.pii_fields) ? item.pii_fields : [],
               status: item.status || 'pending',
               source_type: item.source_type || null,
+              source: item.source || null,
               suggested_citations: Array.isArray(item.suggested_citations) ? item.suggested_citations : [],
             };
 
@@ -1115,7 +1118,14 @@ export function LegacyInboxPageClient({
 
     // Source filter
     if (sourceFilter !== 'all') {
-      filtered = filtered.filter(item => item.source_type === sourceFilter);
+      if (sourceFilter === 'faq_generated') {
+        // FAQ Generated: source_type='auto' OR source='faq_generation'
+        filtered = filtered.filter(item => 
+          item.source_type === 'auto' || item.source === 'faq_generation'
+        );
+      } else {
+        filtered = filtered.filter(item => item.source_type === sourceFilter);
+      }
     }
 
     // Time filter
@@ -1211,7 +1221,7 @@ export function LegacyInboxPageClient({
               <option value="all">All</option>
               <option value="widget_review">Widget Reviews</option>
               <option value="chat_review">Internal Chat</option>
-              <option value="auto">FAQ Generated</option>
+              <option value="faq_generated">FAQ Generated</option>
               <option value="manual">Manual</option>
               <option value="admin_review">Admin Review</option>
             </Select>

@@ -282,6 +282,13 @@ export function ChatSMEReviewModal({
             toast.error('Permission denied. Only curators and admins can request SME review.');
           } else if (response.status === 409 || data?.error === 'duplicate_review_request') {
             toast.error('A review request for this question already exists. Please check the inbox.');
+          } else if (response.status === 504 || data?.error === 'timeout') {
+            // Timeout error - deduplication query taking too long
+            toast.error(
+              'Request timed out. The system is checking for duplicates, which may take a moment. ' +
+              'If this question already exists in the inbox, please check there. Otherwise, please try again.',
+              { duration: 8000 }
+            );
           } else if (response.status === 400) {
             toast.error(errorMessage);
           } else if (response.status === 404) {
@@ -297,6 +304,23 @@ export function ChatSMEReviewModal({
         onClose();
       } catch (error) {
         console.error('Chat SME review request failed:', error);
+        
+        // Handle network errors and timeouts
+        if (error instanceof Error) {
+          if (error.message.includes('timeout') || error.message.includes('aborted')) {
+            toast.error(
+              'Request timed out. The system is checking for duplicates, which may take a moment. ' +
+              'If this question already exists in the inbox, please check there. Otherwise, please try again.',
+              { duration: 8000 }
+            );
+          } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            toast.error('Network error. Please check your connection and try again.');
+          } else {
+            toast.error(`Request failed: ${error.message}`);
+          }
+        } else {
+          toast.error('An unexpected error occurred. Please try again.');
+        }
       } finally {
         setSubmitting(false);
       }

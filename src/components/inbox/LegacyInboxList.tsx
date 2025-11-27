@@ -1058,7 +1058,6 @@ export function LegacyInboxList({
                         )}
                       </div>
                     </div>
-                    </div>
                   </TableCell>
                 </TableRow>
               );

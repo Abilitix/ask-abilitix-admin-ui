@@ -347,6 +347,20 @@ export function LegacyInboxPageClient({
         return id && index === self.findIndex((i: any) => (i.id || i.ref_id) === id);
       });
       const normalizedItems: LegacyInboxItem[] = uniqueItems.map((item: any) => {
+        // Debug: Log raw item data to see what's coming from backend
+        if (item.source_type === 'admin_review' || item.qa_pair_id || item.promoted_pair_id) {
+          console.log('[LegacyInbox] Item with admin_review or qa_pair_id:', {
+            id: item.id || item.ref_id,
+            source_type: item.source_type,
+            qa_pair_id: item.qa_pair_id,
+            promoted_pair_id: item.promoted_pair_id,
+            metadata: item.metadata,
+            source: item.source, // Check if source field exists
+            rawItemKeys: Object.keys(item),
+            rawItem: item,
+          });
+        }
+        
         const normalized: LegacyInboxItem = {
           id: item.id || item.ref_id || '',
           question: item.question || '',

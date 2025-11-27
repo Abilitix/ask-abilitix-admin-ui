@@ -764,12 +764,36 @@ export function LegacyInboxList({
                         <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
                           <span className="font-medium">Citations (auto-used):</span>
                           <div className="flex flex-wrap gap-1">
-                            {item.suggested_citations.slice(0, 2).map((cite, idx) => (
-                              <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0.5 bg-muted/50">
-                                {cite.doc_id.substring(0, 12)}...
-                                {cite.page && <span className="ml-1 text-muted-foreground">p.{cite.page}</span>}
-                              </Badge>
-                            ))}
+                            {item.suggested_citations.slice(0, 2).map((cite, idx) => {
+                              const docId = cite.doc_id;
+                              if (!docId) return null;
+                              
+                              // Try to get title from docTitles mapping first, then cite.title, then fallback to truncated UUID
+                              const title =
+                                (docTitles && docTitles[docId]) ||
+                                cite.title ||
+                                docId;
+                              
+                              // Truncate if too long, but show full title in tooltip
+                              const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(title);
+                              const displayTitle = isUuid
+                                ? `${title.substring(0, 12)}...`
+                                : title.length > 24
+                                  ? `${title.substring(0, 24).trim()}…`
+                                  : title;
+                              
+                              return (
+                                <Badge 
+                                  key={idx} 
+                                  variant="outline" 
+                                  className="text-[10px] px-1.5 py-0.5 bg-muted/50"
+                                  title={title !== displayTitle ? title : undefined}
+                                >
+                                  {displayTitle}
+                                  {cite.page && <span className="ml-1 text-muted-foreground">p.{cite.page}</span>}
+                                </Badge>
+                              );
+                            })}
                             {item.suggested_citations.length > 2 && (
                               <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-muted/50">
                                 +{item.suggested_citations.length - 2}

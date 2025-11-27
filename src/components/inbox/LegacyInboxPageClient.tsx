@@ -19,7 +19,7 @@ export type LegacyInboxItem = {
   has_pii?: boolean;
   pii_fields?: string[];
   status: 'pending' | 'approved' | 'rejected' | 'needs_review';
-  source_type?: 'auto' | 'manual' | 'admin_review' | null;
+  source_type?: 'auto' | 'manual' | 'admin_review' | 'chat_review' | 'widget_review' | null;
   assignedTo?: AssignableMember[] | null;
   reason?: string | null;
   assignedAt?: string | null;

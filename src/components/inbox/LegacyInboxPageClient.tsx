@@ -62,6 +62,7 @@ export function LegacyInboxPageClient({
   tenantSlug,
   userRole,
 }: LegacyInboxPageClientProps) {
+  const isDevEnv = process.env.NODE_ENV !== 'production';
   const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
   const [smeModalOpen, setSmeModalOpen] = useState<boolean>(false);
   const [selectedItemForReview, setSelectedItemForReview] = useState<LegacyInboxItem | null>(null);
@@ -108,7 +109,7 @@ export function LegacyInboxPageClient({
       const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
       const refId = searchParams?.get('ref');
       
-      if (refId) {
+      if (refId && isDevEnv) {
         console.log('[LegacyInbox] Ref parameter found in URL:', refId);
       }
       
@@ -129,7 +130,7 @@ export function LegacyInboxPageClient({
       const refUrl = refId ? `/api/admin/inbox?ref=${encodeURIComponent(refId)}` : null;
       
       // Debug logging for assigned_to_me filter (ALWAYS log when filter is active)
-      if (assignedToMeOnly) {
+      if (assignedToMeOnly && isDevEnv) {
         console.log('[LegacyInbox] Fetching with assigned_to_me filter:', {
           currentUserId,
           hasCurrentUserId: !!currentUserId,
@@ -266,7 +267,7 @@ export function LegacyInboxPageClient({
       const needsReviewItems = Array.isArray(needsReviewData?.items) ? needsReviewData.items : [];
       const refItems = Array.isArray(refData?.items) ? refData.items : [];
       
-      if (refId) {
+      if (refId && isDevEnv) {
         console.log('[LegacyInbox] Ref parameter processing:', {
           refId,
           refItemsCount: refItems.length,
@@ -287,7 +288,8 @@ export function LegacyInboxPageClient({
       
       // Debug logging for assigned_to_me filter (ALWAYS log when filter is active)
       if (assignedToMeOnly) {
-        console.log('[LegacyInbox] Received items from backend:', {
+        if (isDevEnv) {
+          console.log('[LegacyInbox] Received items from backend:', {
           currentUserId,
           pendingCount: pendingItems.length,
           needsReviewCount: needsReviewItems.length,
@@ -316,7 +318,8 @@ export function LegacyInboxPageClient({
             assigned_to_is_array: Array.isArray(item.assigned_to),
             assigned_to_length: Array.isArray(item.assigned_to) ? item.assigned_to.length : 0,
           })),
-        });
+          });
+        }
         
         // Additional check: Log if no items found
         if (rawItems.length === 0) {
@@ -349,7 +352,8 @@ export function LegacyInboxPageClient({
       });
       const normalizedItems: LegacyInboxItem[] = uniqueItems.map((item: any) => {
         // Debug: Log ALL items to see source_type distribution
-        console.log('[LegacyInbox] Raw item from backend:', {
+        if (isDevEnv) {
+          console.log('[LegacyInbox] Raw item from backend:', {
           id: item.id || item.ref_id,
           source_type: item.source_type,
           qa_pair_id: item.qa_pair_id,
@@ -359,7 +363,8 @@ export function LegacyInboxPageClient({
           status: item.status,
           question: item.question?.substring(0, 40),
           allKeys: Object.keys(item),
-        });
+          });
+        }
         
         const normalized: LegacyInboxItem = {
           id: item.id || item.ref_id || '',
@@ -413,20 +418,22 @@ export function LegacyInboxPageClient({
         return acc;
       }, {} as Record<string, number>);
       
-      console.log('[LegacyInbox] Source type distribution:', {
-        counts: sourceTypeCounts,
-        totalItems: normalizedItems.length,
-        sampleItems: normalizedItems.slice(0, 5).map(item => ({
-          id: item.id,
-          source_type: item.source_type,
-          status: item.status,
-          question: item.question.substring(0, 40),
-        })),
-      });
+      if (isDevEnv) {
+        console.log('[LegacyInbox] Source type distribution:', {
+          counts: sourceTypeCounts,
+          totalItems: normalizedItems.length,
+          sampleItems: normalizedItems.slice(0, 5).map(item => ({
+            id: item.id,
+            source_type: item.source_type,
+            status: item.status,
+            question: item.question.substring(0, 40),
+          })),
+        });
+      }
       
       // Debug: Log items with chat_review source_type
       const chatReviewItems = normalizedItems.filter(item => item.source_type === 'chat_review' || item.source_type === 'widget_review');
-      if (chatReviewItems.length > 0) {
+      if (chatReviewItems.length > 0 && isDevEnv) {
         console.log('[LegacyInbox] Found chat/widget review items after normalization:', {
           count: chatReviewItems.length,
           items: chatReviewItems.map(item => ({
@@ -439,7 +446,7 @@ export function LegacyInboxPageClient({
       
       // Debug: Log admin_review items specifically
       const adminReviewItems = normalizedItems.filter(item => item.source_type === 'admin_review');
-      if (adminReviewItems.length > 0) {
+      if (adminReviewItems.length > 0 && isDevEnv) {
         console.log('[LegacyInbox] Found admin_review items:', {
           count: adminReviewItems.length,
           items: adminReviewItems.map(item => ({
@@ -935,17 +942,21 @@ export function LegacyInboxPageClient({
     const refId = searchParams.get('ref');
     
     if (!refId) {
-      console.log('[LegacyInbox] No ref parameter in URL for scrolling');
+      if (isDevEnv) {
+        console.log('[LegacyInbox] No ref parameter in URL for scrolling');
+      }
       return;
     }
     
-    console.log('[LegacyInbox] Attempting to scroll to ref item:', {
-      refId,
-      itemsCount: items.length,
-      itemIds: items.map(item => item.id),
-      refItemExists: items.some(item => item.id === refId),
-      currentUrl: window.location.href,
-    });
+    if (isDevEnv) {
+      console.log('[LegacyInbox] Attempting to scroll to ref item:', {
+        refId,
+        itemsCount: items.length,
+        itemIds: items.map(item => item.id),
+        refItemExists: items.some(item => item.id === refId),
+        currentUrl: window.location.href,
+      });
+    }
     
     // Retry logic: try multiple times with increasing delays
     let attempt = 0;
@@ -960,12 +971,14 @@ export function LegacyInboxPageClient({
         || document.getElementById(`inbox-item-${refId}`);
       
       if (element) {
-        console.log('[LegacyInbox] Found ref item element, scrolling and highlighting...', {
-          attempt,
-          element,
-          elementId: element.id,
-          elementClasses: element.className,
-        });
+        if (isDevEnv) {
+          console.log('[LegacyInbox] Found ref item element, scrolling and highlighting...', {
+            attempt,
+            element,
+            elementId: element.id,
+            elementClasses: element.className,
+          });
+        }
         
         // Scroll to element
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -995,7 +1008,9 @@ export function LegacyInboxPageClient({
           }
         }, 500);
       } else if (attempt < maxAttempts) {
-        console.log(`[LegacyInbox] Ref item element not found, retrying (attempt ${attempt}/${maxAttempts})...`);
+        if (isDevEnv) {
+          console.log(`[LegacyInbox] Ref item element not found, retrying (attempt ${attempt}/${maxAttempts})...`);
+        }
         setTimeout(tryScroll, attemptDelay);
       } else {
         console.error('[LegacyInbox] Ref item element not found after all attempts:', {
@@ -1093,12 +1108,14 @@ export function LegacyInboxPageClient({
         if (active) {
           setCurrentUserId(id ?? null);
           // Debug logging for user ID (always log when fetching)
-          console.log('[LegacyInbox] Current user ID fetched:', {
-            id,
-            hasId: !!id,
-            idType: typeof id,
-            fullData: data,
-          });
+          if (isDevEnv) {
+            console.log('[LegacyInbox] Current user ID fetched:', {
+              id,
+              hasId: !!id,
+              idType: typeof id,
+              fullData: data,
+            });
+          }
         }
       } catch {
         if (active) {

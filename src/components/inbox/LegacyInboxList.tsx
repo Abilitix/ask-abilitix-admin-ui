@@ -524,12 +524,12 @@ export function LegacyInboxList({
                       />
                     </TableHead>
                   )}
-                  <TableHead className="w-[200px]">Question</TableHead>
-                <TableHead className="w-[200px]">Document</TableHead>
-                <TableHead className="w-[300px]">Answer</TableHead>
-                <TableHead className="w-[120px]">Created</TableHead>
-                <TableHead className="w-[120px]">Status & PII</TableHead>
-                <TableHead className="w-[200px]">Actions</TableHead>
+                  <TableHead className="w-[180px]">Question</TableHead>
+                <TableHead className="w-[160px]">Document</TableHead>
+                <TableHead className="w-[280px]">Answer</TableHead>
+                <TableHead className="w-[110px]">Created</TableHead>
+                <TableHead className="w-[110px]">Status & PII</TableHead>
+                <TableHead className="w-[180px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -570,7 +570,7 @@ export function LegacyInboxList({
                       />
                     </TableCell>
                   )}
-                  <TableCell className="w-[200px]">
+                  <TableCell className="w-[180px]">
                     <div className="flex items-start gap-2 group">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -637,12 +637,12 @@ export function LegacyInboxList({
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell className="w-[200px] text-xs text-muted-foreground">
+                  <TableCell className="w-[160px] text-xs text-muted-foreground">
                     <div className="flex items-center min-h-[2.5rem]">
                       {renderDocBadges(item, docTitles, docLoading)}
                     </div>
                   </TableCell>
-                  <TableCell className="w-[300px]">
+                  <TableCell className="w-[280px]">
                         {editingId === item.id ? (
                       <div className="space-y-2">
                         <Textarea
@@ -695,10 +695,10 @@ export function LegacyInboxList({
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground w-[120px]">
+                  <TableCell className="text-sm text-muted-foreground w-[110px]">
                     {formatDate(item.created_at)}
                   </TableCell>
-                  <TableCell className="w-[120px]">
+                  <TableCell className="w-[110px]">
                     <div className="flex flex-col gap-1">
                       {renderStatusBadge(item.status)}
                       {item.has_pii && (
@@ -718,7 +718,7 @@ export function LegacyInboxList({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="w-[200px]">
+                  <TableCell className="w-[180px]">
                     <div className="flex flex-col gap-1.5">
                       {enableFaqCreation && (
                         <label className="flex items-center gap-2 text-[11px] text-muted-foreground">

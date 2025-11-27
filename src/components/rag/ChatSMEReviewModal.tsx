@@ -223,8 +223,13 @@ export function ChatSMEReviewModal({
           requestBody.citations = normalizedCitations;
         }
 
-        if (trimmedReason) {
+        // Admin API requires reason field (20-500 chars)
+        // If user didn't provide one, use a default reason
+        if (trimmedReason && trimmedReason.length >= MIN_REASON) {
           requestBody.reason = trimmedReason;
+        } else {
+          // Default reason if user didn't provide one or it's too short
+          requestBody.reason = 'Please review this answer for accuracy and completeness.';
         }
 
         if (conversationId) {

@@ -536,7 +536,21 @@ export function LegacyInboxList({
               {items.map((item) => {
                 const isBulkSelected = selectedIds?.has(item.id) ?? false;
                 return (
-                <TableRow key={item.id} data-item-id={item.id}>
+                <TableRow 
+                  key={item.id} 
+                  data-item-id={item.id}
+                  className={(() => {
+                    // Check if this is the ref item from URL
+                    if (typeof window !== 'undefined') {
+                      const searchParams = new URLSearchParams(window.location.search);
+                      const refId = searchParams.get('ref');
+                      if (refId === item.id) {
+                        return 'bg-blue-50 border-2 border-blue-400';
+                      }
+                    }
+                    return '';
+                  })()}
+                >
                   {selectedIds !== undefined && onToggleSelect && (
                     <TableCell
                       className="w-12"

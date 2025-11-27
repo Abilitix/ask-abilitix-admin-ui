@@ -262,16 +262,23 @@ export function LegacyInboxPageClient({
       const needsReviewItems = Array.isArray(needsReviewData?.items) ? needsReviewData.items : [];
       const refItems = Array.isArray(refData?.items) ? refData.items : [];
       
-      if (refId && refItems.length > 0) {
-        console.log('[LegacyInbox] Ref item fetched:', {
+      if (refId) {
+        console.log('[LegacyInbox] Ref parameter processing:', {
           refId,
-          refItemCount: refItems.length,
-          refItem: refItems[0],
-          source_type: refItems[0]?.source_type,
+          refItemsCount: refItems.length,
+          refItem: refItems[0] ? {
+            id: refItems[0].id || refItems[0].ref_id,
+            source_type: refItems[0].source_type,
+            status: refItems[0].status,
+            question: refItems[0].question?.substring(0, 50),
+          } : null,
+          pendingItemsCount: pendingItems.length,
+          needsReviewItemsCount: needsReviewItems.length,
         });
       }
       
       // Merge all items (ref items will be deduplicated later)
+      // IMPORTANT: Include ref items even if they're not in pending/needs_review status
       const rawItems = [...pendingItems, ...needsReviewItems, ...refItems];
       
       // Debug logging for assigned_to_me filter (ALWAYS log when filter is active)
@@ -320,9 +327,14 @@ export function LegacyInboxPageClient({
       }
       
       // Filter to only show pending and needs_review items (exclude approved/rejected)
-      // This ensures we show items that were assigned
+      // BUT: Always include ref item if it exists, regardless of status
       const activeItems = rawItems.filter((item: any) => {
         const status = item.status || 'pending';
+        const itemId = item.id || item.ref_id;
+        // Always include the ref item, even if it's in a different status
+        if (refId && itemId === refId) {
+          return true;
+        }
         return status === 'pending' || status === 'needs_review';
       });
       
@@ -877,22 +889,62 @@ export function LegacyInboxPageClient({
     const searchParams = new URLSearchParams(window.location.search);
     const refId = searchParams.get('ref');
     
-    if (!refId) return;
+    if (!refId) {
+      console.log('[LegacyInbox] No ref parameter in URL for scrolling');
+      return;
+    }
     
-    // Wait for items to render, then scroll to the item
-    const timer = setTimeout(() => {
+    console.log('[LegacyInbox] Attempting to scroll to ref item:', {
+      refId,
+      itemsCount: items.length,
+      itemIds: items.map(item => item.id),
+      refItemExists: items.some(item => item.id === refId),
+      currentUrl: window.location.href,
+    });
+    
+    // Retry logic: try multiple times with increasing delays
+    let attempt = 0;
+    const maxAttempts = 5;
+    const attemptDelay = 300;
+    
+    const tryScroll = () => {
+      attempt++;
       const element = document.querySelector(`[data-item-id="${refId}"]`);
+      
       if (element) {
+        console.log('[LegacyInbox] Found ref item element, scrolling and highlighting...', {
+          attempt,
+          element,
+        });
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Highlight the row briefly
-        element.classList.add('bg-blue-50', 'border-blue-300');
+        // Highlight the row with a more visible style
+        (element as HTMLElement).style.backgroundColor = '#dbeafe';
+        (element as HTMLElement).style.border = '2px solid #3b82f6';
+        (element as HTMLElement).style.borderRadius = '4px';
         setTimeout(() => {
-          element.classList.remove('bg-blue-50', 'border-blue-300');
-        }, 2000);
+          (element as HTMLElement).style.backgroundColor = '';
+          (element as HTMLElement).style.border = '';
+          (element as HTMLElement).style.borderRadius = '';
+        }, 3000);
+      } else if (attempt < maxAttempts) {
+        console.log(`[LegacyInbox] Ref item element not found, retrying (attempt ${attempt}/${maxAttempts})...`);
+        setTimeout(tryScroll, attemptDelay);
+      } else {
+        console.warn('[LegacyInbox] Ref item element not found after all attempts:', {
+          refId,
+          selector: `[data-item-id="${refId}"]`,
+          allDataItemIds: Array.from(document.querySelectorAll('[data-item-id]')).map(el => el.getAttribute('data-item-id')),
+          itemsInState: items.map(item => item.id),
+        });
       }
-    }, 500);
+    };
     
-    return () => clearTimeout(timer);
+    // Start trying after a short delay to allow DOM to render
+    const initialTimer = setTimeout(tryScroll, 500);
+    
+    return () => {
+      clearTimeout(initialTimer);
+    };
   }, [items]);
 
   const loadDocOptions = useCallback(async () => {

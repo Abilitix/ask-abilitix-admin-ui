@@ -686,7 +686,7 @@ export function LegacyInboxList({
                             onClick={() => startEditing(item.id, editedAnswers[item.id] || item.answer)}
                             size="sm"
                             variant="ghost"
-                            className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground hover:bg-slate-100"
+                            className="h-6 px-2 text-[11px] text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                           >
                             <Edit2 className="h-3 w-3 mr-1" />
                             Edit
@@ -718,12 +718,12 @@ export function LegacyInboxList({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="w-[180px]">
-                    <div className="flex flex-col gap-1">
+                  <TableCell className="w-[180px] align-top">
+                    <div className="flex flex-col gap-2 justify-between min-h-[100px]">
                       {/* Top section: FAQ creation checkbox and Request Review */}
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1.5">
                         {enableFaqCreation && (
-                          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
                             <input
                               type="checkbox"
                               className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
@@ -748,7 +748,7 @@ export function LegacyInboxList({
                               size="sm"
                               variant="outline"
                               disabled={editingId === item.id}
-                              className="h-6 px-2 text-[10px] font-normal border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
+                              className="h-7 px-2.5 text-[11px] font-medium border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 w-fit"
                             >
                               <ListChecks className="h-3 w-3 mr-1" />
                               Request Review
@@ -759,7 +759,7 @@ export function LegacyInboxList({
                       {/* Middle section: Citations */}
                       {item.suggested_citations && item.suggested_citations.length > 0 ? (
                         <div className="flex flex-col gap-1">
-                          <div className="text-[9px] font-medium text-muted-foreground uppercase tracking-wide">
+                          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
                             Citations
                           </div>
                           <div className="flex flex-wrap items-center gap-1">
@@ -777,24 +777,24 @@ export function LegacyInboxList({
                               const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(title);
                               const displayTitle = isUuid
                                 ? `${title.substring(0, 12)}...`
-                                : title.length > 20
-                                  ? `${title.substring(0, 20).trim()}…`
+                                : title.length > 18
+                                  ? `${title.substring(0, 18).trim()}…`
                                   : title;
                               
                               return (
                                 <Badge 
                                   key={idx} 
                                   variant="outline" 
-                                  className="text-[9px] px-1.5 py-0.5 bg-slate-50 border-slate-200"
+                                  className="text-[10px] px-1.5 py-0.5 bg-slate-50 border-slate-200 text-slate-700"
                                   title={title !== displayTitle ? title : undefined}
                                 >
                                   {displayTitle}
-                                  {cite.page && <span className="ml-0.5 text-muted-foreground">p.{cite.page}</span>}
+                                  {cite.page && <span className="ml-0.5 text-slate-500">p.{cite.page}</span>}
                                 </Badge>
                               );
                             })}
                             {item.suggested_citations.length > 2 && (
-                              <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 bg-slate-50 border-slate-200">
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-slate-50 border-slate-200 text-slate-700">
                                 +{item.suggested_citations.length - 2}
                               </Badge>
                             )}
@@ -805,9 +805,9 @@ export function LegacyInboxList({
                                 size="sm"
                                 variant="ghost"
                                 disabled={editingId === item.id}
-                                className="h-5 px-1.5 text-[9px] text-muted-foreground hover:text-foreground hover:bg-slate-100"
+                                className="h-6 px-1.5 text-[10px] text-slate-500 hover:text-slate-700 hover:bg-slate-100"
                               >
-                                <Edit2 className="h-2.5 w-2.5" />
+                                <Edit2 className="h-3 w-3" />
                               </Button>
                             )}
                           </div>
@@ -820,7 +820,7 @@ export function LegacyInboxList({
                             size="sm"
                             variant="ghost"
                             disabled={editingId === item.id}
-                            className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                            className="h-7 px-2 text-[11px] text-slate-600 hover:text-slate-900 hover:bg-slate-100 w-fit"
                           >
                             <Paperclip className="h-3 w-3 mr-1" />
                             Attach
@@ -828,11 +828,11 @@ export function LegacyInboxList({
                         )
                       )}
                       
-                      {/* Bottom section: Action buttons */}
-                      <div className="flex flex-col gap-1 mt-0.5">
+                      {/* Bottom section: Action buttons - push to bottom, consistent spacing */}
+                      <div className="flex flex-col gap-1.5 mt-auto pt-1">
                         {/* Chat/Widget Review Items: Show specialized actions */}
                         {canActOnItem(item) && (item.source_type === 'chat_review' || item.source_type === 'widget_review') && (
-                          <div className="flex flex-row gap-1 flex-nowrap">
+                          <div className="flex flex-row gap-1.5 flex-nowrap">
                             {/* Convert to FAQ button */}
                             {onConvertToFaq && (() => {
                               const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
@@ -858,7 +858,7 @@ export function LegacyInboxList({
                                     }, 3000);
                                   }}
                                   size="sm"
-                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs px-2 py-1 h-7 flex-shrink-0"
+                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-[11px] px-2.5 py-1.5 h-7 flex-shrink-0 font-medium"
                                   disabled={
                                     editingId === item.id ||
                                     missingCitations ||
@@ -908,7 +908,7 @@ export function LegacyInboxList({
                                   }}
                                   size="sm"
                                   variant="outline"
-                                  className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50 px-2 py-1 h-7 flex-shrink-0"
+                                  className="text-[11px] border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50 px-2.5 py-1.5 h-7 flex-shrink-0 font-medium"
                                   disabled={
                                     editingId === item.id ||
                                     isMarking ||
@@ -953,7 +953,7 @@ export function LegacyInboxList({
                                   }}
                                   size="sm"
                                   variant="outline"
-                                  className="text-xs border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 px-2 py-1 h-7 flex-shrink-0"
+                                  className="text-[11px] border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 px-2.5 py-1.5 h-7 flex-shrink-0 font-medium"
                                   disabled={
                                     editingId === item.id ||
                                     isDismissing ||
@@ -980,7 +980,7 @@ export function LegacyInboxList({
                         
                         {/* Regular Items: Show standard Approve/Reject buttons */}
                         {canActOnItem(item) && item.source_type !== 'chat_review' && item.source_type !== 'widget_review' && (
-                          <div className="flex flex-row gap-1 flex-nowrap">
+                          <div className="flex flex-row gap-1.5 flex-nowrap">
                             {/* Show Approve button only if user can act on item (assignee OR admin) */}
                             {(() => {
                               // Check if citations are required and missing
@@ -993,7 +993,7 @@ export function LegacyInboxList({
                                 <Button
                                   onClick={() => handleApprove(item.id)}
                                   size="sm"
-                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs px-2 py-1 h-7 flex-shrink-0"
+                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-[11px] px-2.5 py-1.5 h-7 flex-shrink-0 font-medium"
                                   disabled={
                                     editingId === item.id ||
                                     missingCitations ||
@@ -1030,7 +1030,7 @@ export function LegacyInboxList({
                               onClick={() => handleReject(item.id)}
                               size="sm"
                               variant="outline"
-                              className="text-xs border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 disabled:opacity-50 px-2 py-1 h-7 flex-shrink-0"
+                              className="text-[11px] border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 disabled:opacity-50 px-2.5 py-1.5 h-7 flex-shrink-0 font-medium"
                               disabled={
                                 editingId === item.id ||
                                 actionStates[item.id] === 'rejecting' ||

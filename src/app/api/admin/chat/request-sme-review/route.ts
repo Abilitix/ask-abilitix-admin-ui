@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
 
     // Optional fields
     const citations = Array.isArray(payload?.citations) ? payload.citations : [];
+    // Reason: Admin API requires this field (20-500 chars) and calls .strip() on it
+    // So it must be a string, never null/undefined
     const reason = typeof payload?.reason === 'string' ? payload.reason.trim() : '';
     const conversationId = typeof payload?.conversation_id === 'string' ? payload.conversation_id : undefined;
     const messageId = typeof payload?.message_id === 'string' ? payload.message_id : undefined;
@@ -90,18 +92,23 @@ export async function POST(request: NextRequest) {
       headers['X-Tenant-Id'] = tenantId;
     }
 
+    // Ensure reason is always a valid string (20-500 chars)
+    // Admin API requires reason field and calls .strip() on it, so it must be a string
+    let finalReason = reason.trim();
+    if (!finalReason || finalReason.length < 20) {
+      // Use default reason if not provided or too short
+      finalReason = 'Please review this answer for accuracy and completeness.';
+    }
+
     const requestBody: any = {
       question,
       answer,
       assignees,
+      reason: finalReason, // Always include reason (required by Admin API)
     };
 
     if (citations.length > 0) {
       requestBody.citations = citations;
-    }
-
-    if (reason) {
-      requestBody.reason = reason;
     }
 
     if (conversationId) {

@@ -539,13 +539,14 @@ export function LegacyInboxList({
                 <TableRow 
                   key={item.id} 
                   data-item-id={item.id}
+                  id={`inbox-item-${item.id}`}
                   className={(() => {
                     // Check if this is the ref item from URL
                     if (typeof window !== 'undefined') {
                       const searchParams = new URLSearchParams(window.location.search);
                       const refId = searchParams.get('ref');
                       if (refId === item.id) {
-                        return 'bg-blue-50 border-2 border-blue-400';
+                        return 'bg-blue-100 border-4 border-blue-500 shadow-lg';
                       }
                     }
                     return '';
@@ -573,14 +574,26 @@ export function LegacyInboxList({
                     <div className="flex items-start gap-2 group">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
+                          {/* Debug: Always show source_type for debugging */}
+                          {process.env.NODE_ENV === 'development' && item.source_type && (
+                            <Badge className="text-[8px] bg-gray-100 text-gray-600 border-gray-300" title={`Debug: source_type=${item.source_type}`}>
+                              {item.source_type}
+                            </Badge>
+                          )}
                           {item.source_type === 'chat_review' && (
-                            <Badge className="text-[10px] bg-blue-100 text-blue-900 border-blue-300" title="Chat review request">
-                              Chat Review
+                            <Badge className="text-[10px] bg-blue-100 text-blue-900 border-blue-300 font-semibold" title="Chat review request">
+                              💬 Chat Review
                             </Badge>
                           )}
                           {item.source_type === 'widget_review' && (
-                            <Badge className="text-[10px] bg-indigo-100 text-indigo-900 border-indigo-300" title="Widget review request">
-                              Widget Review
+                            <Badge className="text-[10px] bg-indigo-100 text-indigo-900 border-indigo-300 font-semibold" title="Widget review request">
+                              📱 Widget Review
+                            </Badge>
+                          )}
+                          {/* Show if source_type is null or undefined */}
+                          {!item.source_type && (
+                            <Badge className="text-[8px] bg-yellow-100 text-yellow-700 border-yellow-300" title="Warning: source_type is missing">
+                              ⚠️ No source_type
                             </Badge>
                           )}
                         </div>

@@ -210,7 +210,7 @@ export function LegacyInboxList({
   const [attachCitations, setAttachCitations] = useState<EditableCitation[]>([{ docId: '', page: '', spanStart: '', spanEnd: '', spanText: '' }]);
   const [attachLoading, setAttachLoading] = useState(false);
   const [copiedQuestionId, setCopiedQuestionId] = useState<string | null>(null);
-  const [actionStates, setActionStates] = useState<Record<string, 'approving' | 'approved' | 'rejecting' | 'rejected'>>({});
+  const [actionStates, setActionStates] = useState<Record<string, 'approving' | 'approved' | 'rejecting' | 'rejected' | 'converting' | 'marking' | 'dismissing'>>({});
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
 
@@ -808,24 +808,25 @@ export function LegacyInboxList({
                       <div className="flex flex-col gap-1.5">
                         {/* Chat/Widget Review Items: Show specialized actions */}
                         {canActOnItem(item) && (item.source_type === 'chat_review' || item.source_type === 'widget_review') && (
-                          <div className="flex flex-wrap gap-1.5">
+                          <div className="flex flex-row gap-1.5 flex-wrap">
                             {/* Convert to FAQ button */}
                             {onConvertToFaq && (() => {
                               const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
                               const citationsRequired = allowEmptyCitations === false;
                               const missingCitations = citationsRequired && !hasCitations;
-                              const isConverting = actionStates[item.id] === 'approving';
+                              const isConverting = actionStates[item.id] === 'converting';
+                              const isAnyAction = actionStates[item.id] !== undefined;
                               
                               return (
                                 <Button
                                   onClick={() => {
-                                    setActionStates((prev) => ({ ...prev, [item.id]: 'approving' }));
+                                    setActionStates((prev) => ({ ...prev, [item.id]: 'converting' }));
                                     const editedAnswer = editedAnswers[item.id];
                                     onConvertToFaq(item.id, editedAnswer);
                                     setTimeout(() => {
                                       setActionStates((prev) => {
                                         const next = { ...prev };
-                                        if (next[item.id] === 'approving') {
+                                        if (next[item.id] === 'converting') {
                                           delete next[item.id];
                                         }
                                         return next;
@@ -833,11 +834,12 @@ export function LegacyInboxList({
                                     }, 3000);
                                   }}
                                   size="sm"
-                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs px-2.5 py-1.5 h-7"
                                   disabled={
                                     editingId === item.id ||
                                     missingCitations ||
-                                    isConverting
+                                    isConverting ||
+                                    isAnyAction
                                   }
                                   title={
                                     missingCitations
@@ -861,82 +863,94 @@ export function LegacyInboxList({
                             })()}
                             
                             {/* Mark Reviewed button */}
-                            {onMarkReviewed && (
-                              <Button
-                                onClick={() => {
-                                  setActionStates((prev) => ({ ...prev, [item.id]: 'approving' }));
-                                  onMarkReviewed(item.id);
-                                  setTimeout(() => {
-                                    setActionStates((prev) => {
-                                      const next = { ...prev };
-                                      if (next[item.id] === 'approving') {
-                                        delete next[item.id];
-                                      }
-                                      return next;
-                                    });
-                                  }, 3000);
-                                }}
-                                size="sm"
-                                variant="outline"
-                                className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
-                                disabled={
-                                  editingId === item.id ||
-                                  actionStates[item.id] === 'approving'
-                                }
-                                title="Mark as reviewed without converting to FAQ"
-                              >
-                                {actionStates[item.id] === 'approving' ? (
-                                  <>
-                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                    Marking...
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                                    Mark Reviewed
-                                  </>
-                                )}
-                              </Button>
-                            )}
+                            {onMarkReviewed && (() => {
+                              const isMarking = actionStates[item.id] === 'marking';
+                              const isAnyAction = actionStates[item.id] !== undefined;
+                              
+                              return (
+                                <Button
+                                  onClick={() => {
+                                    setActionStates((prev) => ({ ...prev, [item.id]: 'marking' }));
+                                    onMarkReviewed(item.id);
+                                    setTimeout(() => {
+                                      setActionStates((prev) => {
+                                        const next = { ...prev };
+                                        if (next[item.id] === 'marking') {
+                                          delete next[item.id];
+                                        }
+                                        return next;
+                                      });
+                                    }, 3000);
+                                  }}
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50 px-2.5 py-1.5 h-7"
+                                  disabled={
+                                    editingId === item.id ||
+                                    isMarking ||
+                                    isAnyAction
+                                  }
+                                  title="Mark as reviewed without converting to FAQ"
+                                >
+                                  {isMarking ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                      Marking...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Mark Reviewed
+                                    </>
+                                  )}
+                                </Button>
+                              );
+                            })()}
                             
                             {/* Dismiss button */}
-                            {onDismiss && (
-                              <Button
-                                onClick={() => {
-                                  setActionStates((prev) => ({ ...prev, [item.id]: 'rejecting' }));
-                                  onDismiss(item.id);
-                                  setTimeout(() => {
-                                    setActionStates((prev) => {
-                                      const next = { ...prev };
-                                      if (next[item.id] === 'rejecting') {
-                                        delete next[item.id];
-                                      }
-                                      return next;
-                                    });
-                                  }, 3000);
-                                }}
-                                size="sm"
-                                variant="outline"
-                                className="text-xs border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
-                                disabled={
-                                  editingId === item.id ||
-                                  actionStates[item.id] === 'rejecting'
-                                }
-                                title="Dismiss this review request"
-                              >
-                                {actionStates[item.id] === 'rejecting' ? (
-                                  <>
-                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                    Dismissing...
-                                  </>
-                                ) : (
-                                  <>
-                                    <X className="h-3 w-3 mr-1" />
-                                    Dismiss
-                                  </>
-                                )}
-                              </Button>
-                            )}
+                            {onDismiss && (() => {
+                              const isDismissing = actionStates[item.id] === 'dismissing';
+                              const isAnyAction = actionStates[item.id] !== undefined;
+                              
+                              return (
+                                <Button
+                                  onClick={() => {
+                                    setActionStates((prev) => ({ ...prev, [item.id]: 'dismissing' }));
+                                    onDismiss(item.id);
+                                    setTimeout(() => {
+                                      setActionStates((prev) => {
+                                        const next = { ...prev };
+                                        if (next[item.id] === 'dismissing') {
+                                          delete next[item.id];
+                                        }
+                                        return next;
+                                      });
+                                    }, 3000);
+                                  }}
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 px-2.5 py-1.5 h-7"
+                                  disabled={
+                                    editingId === item.id ||
+                                    isDismissing ||
+                                    isAnyAction
+                                  }
+                                  title="Dismiss this review request"
+                                >
+                                  {isDismissing ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                      Dismissing...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <X className="h-3 w-3 mr-1" />
+                                      Dismiss
+                                    </>
+                                  )}
+                                </Button>
+                              );
+                            })()}
                           </div>
                         )}
                         

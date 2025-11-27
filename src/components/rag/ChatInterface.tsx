@@ -363,7 +363,7 @@ export default function ChatInterface({
   }, [tenantSlug]);
 
   // Copy latest assistant message handler
-  const handleCopyLatestAssistant = React.useCallback(async (text: string) => {
+  const handleCopyMessage = React.useCallback(async (text: string) => {
     if (typeof navigator === 'undefined' || !navigator.clipboard) {
       toast.error('Clipboard not available');
       return;
@@ -762,19 +762,17 @@ export default function ChatInterface({
                     {/* Action buttons for assistant messages */}
                     {!isUser && (
                       <div className="flex items-center gap-1">
-                        {/* Copy button */}
-                        {isLatestAssistant && (
-                          <button
-                            onClick={() => handleCopyLatestAssistant(m.text)}
-                            className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
-                            title="Copy message"
-                            aria-label="Copy message"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        {/* Request SME review button (curator+ only) */}
-                        {canRequestSMEReview && (
+                        {/* Copy button - show for all assistant messages */}
+                        <button
+                          onClick={() => handleCopyMessage(m.text)}
+                          className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                          title="Copy message"
+                          aria-label="Copy message"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        {/* Request SME review button (curator+ only) - show only for latest assistant message */}
+                        {canRequestSMEReview && isLatestAssistant && (
                           <button
                             onClick={() => handleRequestSMEReview(m)}
                             className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"

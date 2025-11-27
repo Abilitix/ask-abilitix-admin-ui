@@ -39,8 +39,8 @@ type LegacyInboxPageClientProps = {
   allowEmptyCitations?: boolean;
   canManageFlags?: boolean;
   flags?: {
-    enableFaqCreation?: boolean;
-    allowEmptyCitations?: boolean;
+  enableFaqCreation?: boolean;
+  allowEmptyCitations?: boolean;
   };
   onUpdateFlag?: (key: 'enableFaqCreation' | 'allowEmptyCitations', value: boolean) => void;
   updatingKey?: string | null;
@@ -391,6 +391,24 @@ export function LegacyInboxPageClient({
         return normalized;
       });
 
+      // Debug: Log all source_type values to understand what's coming from backend
+      const sourceTypeCounts = normalizedItems.reduce((acc, item) => {
+        const sourceType = item.source_type || 'null';
+        acc[sourceType] = (acc[sourceType] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      console.log('[LegacyInbox] Source type distribution:', {
+        counts: sourceTypeCounts,
+        totalItems: normalizedItems.length,
+        sampleItems: normalizedItems.slice(0, 5).map(item => ({
+          id: item.id,
+          source_type: item.source_type,
+          status: item.status,
+          question: item.question.substring(0, 40),
+        })),
+      });
+      
       // Debug: Log items with chat_review source_type
       const chatReviewItems = normalizedItems.filter(item => item.source_type === 'chat_review' || item.source_type === 'widget_review');
       if (chatReviewItems.length > 0) {
@@ -402,12 +420,20 @@ export function LegacyInboxPageClient({
             question: item.question.substring(0, 50),
           })),
         });
-      } else {
-        console.log('[LegacyInbox] No chat/widget review items found. All items:', normalizedItems.map(item => ({
-          id: item.id,
-          source_type: item.source_type,
-          status: item.status,
-        })));
+      }
+      
+      // Debug: Log admin_review items specifically
+      const adminReviewItems = normalizedItems.filter(item => item.source_type === 'admin_review');
+      if (adminReviewItems.length > 0) {
+        console.log('[LegacyInbox] Found admin_review items:', {
+          count: adminReviewItems.length,
+          items: adminReviewItems.map(item => ({
+            id: item.id,
+            source_type: item.source_type,
+            status: item.status,
+            question: item.question.substring(0, 50),
+          })),
+        });
       }
 
       setItems(normalizedItems);
@@ -577,7 +603,7 @@ export function LegacyInboxPageClient({
         console.error('[attach-citations] Failed to parse response:', parseErr);
       }
 
-        if (!response.ok) {
+      if (!response.ok) {
           // Handle 403 Forbidden (ownership check failed)
           if (response.status === 403) {
             const forbiddenMessage = data.detail?.error?.message || data.error?.message || data.details || 
@@ -586,34 +612,34 @@ export function LegacyInboxPageClient({
             throw new Error(forbiddenMessage);
           }
           
-          // Parse detailed validation errors from backend
-          let errorMessage = data.details || data.error || data.message || `Failed to attach citations: ${response.status} ${response.statusText}`;
+        // Parse detailed validation errors from backend
+        let errorMessage = data.details || data.error || data.message || `Failed to attach citations: ${response.status} ${response.statusText}`;
+        
+        // Check for detailed field errors (Admin API format)
+        if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
+          const fieldErrors = data.detail.error.fields
+            .map((field: any) => {
+              const fieldPath = field.field || '';
+              const message = field.message || 'Invalid value';
+              return `${fieldPath}: ${message}`;
+            })
+            .join(', ');
           
-          // Check for detailed field errors (Admin API format)
-          if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
-            const fieldErrors = data.detail.error.fields
-              .map((field: any) => {
-                const fieldPath = field.field || '';
-                const message = field.message || 'Invalid value';
-                return `${fieldPath}: ${message}`;
-              })
-              .join(', ');
-            
-            if (fieldErrors) {
-              errorMessage = `Validation errors: ${fieldErrors}`;
-            }
+          if (fieldErrors) {
+            errorMessage = `Validation errors: ${fieldErrors}`;
           }
-          
-          console.error('[attach-citations] API error:', {
-            status: response.status,
-            statusText: response.statusText,
-            data,
-            citations,
-            errorCode: data.detail?.error?.code,
-            fieldErrors: data.detail?.error?.fields,
-          });
-          throw new Error(errorMessage);
         }
+        
+        console.error('[attach-citations] API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          data,
+          citations,
+          errorCode: data.detail?.error?.code,
+          fieldErrors: data.detail?.error?.fields,
+        });
+        throw new Error(errorMessage);
+      }
 
       toast.success('Citations attached ✓');
       
@@ -987,41 +1013,41 @@ export function LegacyInboxPageClient({
         cache: 'no-store',
         credentials: 'include',
       });
-      const data = await response.json().catch(() => ({}));
+        const data = await response.json().catch(() => ({}));
       if (!response.ok || data?.error) {
-        throw new Error(
-          (data && (data.details || data.error)) || 'Failed to load documents'
+          throw new Error(
+            (data && (data.details || data.error)) || 'Failed to load documents'
+          );
+        }
+        const docsSource =
+          (Array.isArray(data?.docs) && data.docs) ||
+          (Array.isArray(data?.documents) && data.documents) ||
+          [];
+        
+        const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
+          (acc: Record<string, string>, doc: any) => {
+            if (!doc || typeof doc !== 'object') return acc;
+            const id = doc.id;
+            if (!id || typeof id !== 'string') return acc;
+            const title =
+              typeof doc.title === 'string' && doc.title.trim().length > 0
+                ? doc.title.trim()
+                : id;
+            acc[id] = title;
+            return acc;
+          },
+          {}
         );
-      }
-      const docsSource =
-        (Array.isArray(data?.docs) && data.docs) ||
-        (Array.isArray(data?.documents) && data.documents) ||
-        [];
-
-      const mapped = (Array.isArray(docsSource) ? docsSource : []).reduce(
-        (acc: Record<string, string>, doc: any) => {
-          if (!doc || typeof doc !== 'object') return acc;
-          const id = doc.id;
-          if (!id || typeof id !== 'string') return acc;
-          const title =
-            typeof doc.title === 'string' && doc.title.trim().length > 0
-              ? doc.title.trim()
-              : id;
-          acc[id] = title;
-          return acc;
-        },
-        {}
-      );
-
-      setDocTitles(mapped);
-    } catch (err) {
-      console.error('[LegacyInbox] Failed to load document titles:', err);
+        
+        setDocTitles(mapped);
+      } catch (err) {
+        console.error('[LegacyInbox] Failed to load document titles:', err);
       setDocTitlesError(
         err instanceof Error ? err.message : 'Failed to load documents'
       );
-    } finally {
-      setDocLoading(false);
-    }
+      } finally {
+          setDocLoading(false);
+        }
   }, []);
 
   useEffect(() => {

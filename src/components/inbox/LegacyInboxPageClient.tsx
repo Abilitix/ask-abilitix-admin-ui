@@ -8,6 +8,7 @@ import { CheckCircle2, XCircle, Loader2, Plus, RefreshCw } from 'lucide-react';
 import { ManualFAQCreationModal } from './ManualFAQCreationModal';
 import { SMEReviewRequestModal } from './SMEReviewRequestModal';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 import { AssignableMember } from './types';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
@@ -79,6 +80,8 @@ export function LegacyInboxPageClient({
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [assignedToMeOnly, setAssignedToMeOnly] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'widget_review' | 'chat_review' | 'auto' | 'manual' | 'admin_review'>('all');
+  const [timeFilter, setTimeFilter] = useState<'all' | '24h' | '7d' | '30d' | '90d'>('all');
   // Confirmation dialog state
   const [confirmationDialog, setConfirmationDialog] = useState<{
     open: boolean;
@@ -909,31 +912,59 @@ export function LegacyInboxPageClient({
     
     const tryScroll = () => {
       attempt++;
-      const element = document.querySelector(`[data-item-id="${refId}"]`);
+      // Try multiple selectors
+      const element = document.querySelector(`[data-item-id="${refId}"]`) 
+        || document.querySelector(`#inbox-item-${refId}`)
+        || document.getElementById(`inbox-item-${refId}`);
       
       if (element) {
         console.log('[LegacyInbox] Found ref item element, scrolling and highlighting...', {
           attempt,
           element,
+          elementId: element.id,
+          elementClasses: element.className,
         });
+        
+        // Scroll to element
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Highlight the row with a more visible style
-        (element as HTMLElement).style.backgroundColor = '#dbeafe';
-        (element as HTMLElement).style.border = '2px solid #3b82f6';
-        (element as HTMLElement).style.borderRadius = '4px';
-        setTimeout(() => {
-          (element as HTMLElement).style.backgroundColor = '';
-          (element as HTMLElement).style.border = '';
-          (element as HTMLElement).style.borderRadius = '';
-        }, 3000);
+        
+        // Add more prominent highlight
+        const htmlElement = element as HTMLElement;
+        htmlElement.style.backgroundColor = '#dbeafe';
+        htmlElement.style.border = '4px solid #3b82f6';
+        htmlElement.style.borderRadius = '8px';
+        htmlElement.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+        htmlElement.style.transition = 'all 0.3s ease';
+        
+        // Pulse animation
+        let pulseCount = 0;
+        const pulseInterval = setInterval(() => {
+          pulseCount++;
+          if (pulseCount > 3) {
+            clearInterval(pulseInterval);
+            setTimeout(() => {
+              htmlElement.style.backgroundColor = '';
+              htmlElement.style.border = '';
+              htmlElement.style.borderRadius = '';
+              htmlElement.style.boxShadow = '';
+            }, 2000);
+          } else {
+            htmlElement.style.transform = pulseCount % 2 === 0 ? 'scale(1.02)' : 'scale(1)';
+          }
+        }, 500);
       } else if (attempt < maxAttempts) {
         console.log(`[LegacyInbox] Ref item element not found, retrying (attempt ${attempt}/${maxAttempts})...`);
         setTimeout(tryScroll, attemptDelay);
       } else {
-        console.warn('[LegacyInbox] Ref item element not found after all attempts:', {
+        console.error('[LegacyInbox] Ref item element not found after all attempts:', {
           refId,
-          selector: `[data-item-id="${refId}"]`,
+          selectors: [
+            `[data-item-id="${refId}"]`,
+            `#inbox-item-${refId}`,
+            `inbox-item-${refId}`,
+          ],
           allDataItemIds: Array.from(document.querySelectorAll('[data-item-id]')).map(el => el.getAttribute('data-item-id')),
+          allInboxItemIds: Array.from(document.querySelectorAll('[id^="inbox-item-"]')).map(el => el.id),
           itemsInState: items.map(item => item.id),
         });
       }
@@ -1038,9 +1069,46 @@ export function LegacyInboxPageClient({
     };
   }, []);
 
-  // No client-side filtering needed - backend handles it via assigned_to_me query parameter
-  // Keep filteredItems for backward compatibility (just returns items as-is)
-  const filteredItems = useMemo(() => items, [items]);
+  // Client-side filtering: source and time filters
+  // Note: "Assigned to Me" is handled by backend via assigned_to_me query parameter
+  const filteredItems = useMemo(() => {
+    let filtered = items;
+
+    // Source filter
+    if (sourceFilter !== 'all') {
+      filtered = filtered.filter(item => item.source_type === sourceFilter);
+    }
+
+    // Time filter
+    if (timeFilter !== 'all') {
+      const now = new Date();
+      let cutoffDate: Date;
+      
+      switch (timeFilter) {
+        case '24h':
+          cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case '7d':
+          cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '90d':
+          cutoffDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          cutoffDate = new Date(0); // Beginning of time
+      }
+      
+      filtered = filtered.filter(item => {
+        const itemDate = new Date(item.created_at);
+        return itemDate >= cutoffDate;
+      });
+    }
+
+    return filtered;
+  }, [items, sourceFilter, timeFilter]);
 
   const handleRequestReview = useCallback((item: LegacyInboxItem) => {
     setSelectedItemForReview(item);
@@ -1074,7 +1142,7 @@ export function LegacyInboxPageClient({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <LegacyInboxStatsCard itemCount={items.length} refreshSignal={refreshSignal} />
+        <LegacyInboxStatsCard itemCount={filteredItems.length} refreshSignal={refreshSignal} />
         {enableFaqCreation && (
           <Button
             type="button"
@@ -1089,7 +1157,47 @@ export function LegacyInboxPageClient({
 
       {/* Filter Bar - Always Visible */}
       <div className="flex items-center justify-between gap-4 px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-lg">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Source Filter */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="source-filter" className="text-xs font-medium text-slate-600 whitespace-nowrap">
+              Source:
+            </label>
+            <Select
+              id="source-filter"
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value as typeof sourceFilter)}
+              className="h-8 min-w-[140px] text-sm"
+            >
+              <option value="all">All</option>
+              <option value="widget_review">Widget Reviews</option>
+              <option value="chat_review">Internal Chat</option>
+              <option value="auto">FAQ Generated</option>
+              <option value="manual">Manual</option>
+              <option value="admin_review">Admin Review</option>
+            </Select>
+          </div>
+
+          {/* Time Filter */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="time-filter" className="text-xs font-medium text-slate-600 whitespace-nowrap">
+              Time:
+            </label>
+            <Select
+              id="time-filter"
+              value={timeFilter}
+              onChange={(e) => setTimeFilter(e.target.value as typeof timeFilter)}
+              className="h-8 min-w-[120px] text-sm"
+            >
+              <option value="all">All time</option>
+              <option value="24h">Last 24 hours</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+            </Select>
+          </div>
+
+          {/* Assigned to Me Filter */}
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900 transition-colors">
             <input
               type="checkbox"
@@ -1103,14 +1211,20 @@ export function LegacyInboxPageClient({
               Assigned to me
             </span>
           </label>
-          {assignedToMeOnly && (
+          
+          {/* Clear Filters Button */}
+          {(sourceFilter !== 'all' || timeFilter !== 'all' || assignedToMeOnly) && (
             <Button
-              onClick={() => setAssignedToMeOnly(false)}
+              onClick={() => {
+                setSourceFilter('all');
+                setTimeFilter('all');
+                setAssignedToMeOnly(false);
+              }}
               variant="outline"
               size="sm"
               className="h-7 px-3 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400"
             >
-              Clear filter
+              Clear all filters
             </Button>
           )}
         </div>

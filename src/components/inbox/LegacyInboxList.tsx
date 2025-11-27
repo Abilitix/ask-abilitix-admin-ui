@@ -800,43 +800,49 @@ export function LegacyInboxList({
                       )}
                       <div className="flex space-x-2">
                         {/* Show Approve button only if user can act on item (assignee OR admin) */}
-                        {canActOnItem(item) && (
-                          <Button
-                            onClick={() => handleApprove(item.id)}
-                            size="sm"
-                            className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
-                            disabled={
-                              editingId === item.id ||
-                              (!allowEmptyCitations &&
-                                (!item.suggested_citations || item.suggested_citations.length === 0)) ||
-                              actionStates[item.id] === 'approving' ||
-                              actionStates[item.id] === 'approved'
-                            }
-                            title={
-                              !allowEmptyCitations &&
-                              (!item.suggested_citations || item.suggested_citations.length === 0)
-                                ? 'Attach citations first'
-                                : 'Approve and automatically generate embeddings'
-                            }
-                          >
-                          {actionStates[item.id] === 'approving' ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              Approving...
-                            </>
-                          ) : actionStates[item.id] === 'approved' ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Approved
-                            </>
-                          ) : (
-                            <>
-                              <Check className="h-4 w-4 mr-1" />
-                              Approve
-                            </>
-                          )}
-                          </Button>
-                        )}
+                        {canActOnItem(item) && (() => {
+                          // Check if citations are required and missing
+                          // Handle undefined, null, empty array, or non-array values
+                          const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
+                          const citationsRequired = !allowEmptyCitations;
+                          const missingCitations = citationsRequired && !hasCitations;
+                          
+                          return (
+                            <Button
+                              onClick={() => handleApprove(item.id)}
+                              size="sm"
+                              className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700"
+                              disabled={
+                                editingId === item.id ||
+                                missingCitations ||
+                                actionStates[item.id] === 'approving' ||
+                                actionStates[item.id] === 'approved'
+                              }
+                              title={
+                                missingCitations
+                                  ? 'Attach citations first'
+                                  : 'Approve and automatically generate embeddings'
+                              }
+                            >
+                              {actionStates[item.id] === 'approving' ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                  Approving...
+                                </>
+                              ) : actionStates[item.id] === 'approved' ? (
+                                <>
+                                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                                  Approved
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Approve
+                                </>
+                              )}
+                            </Button>
+                          );
+                        })()}
                         {/* Show Reject button only if user can act on item (assignee OR admin) */}
                         {canActOnItem(item) && (
                           <Button

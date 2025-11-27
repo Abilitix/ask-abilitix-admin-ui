@@ -204,38 +204,51 @@ export async function POST(request: NextRequest) {
       
       // Check error message, details, and raw text for duplicate key violations
       const errorText = text || '';
-      const errorMessage = data?.error?.message || data?.error || data?.details || errorText;
+      // Admin API returns errors in { detail: { error: { code, message, ... } } } format
+      const detailError = data?.detail?.error;
+      const flatError = data?.error;
+      const errorMessage = detailError?.message || flatError?.message || flatError || data?.details || errorText;
       const fullErrorText = JSON.stringify(data) + ' ' + errorText;
       
       console.log('[SME Review] Error details:', {
         status: response.status,
         errorText: errorText.substring(0, 500),
         errorMessage,
+        detailErrorCode: detailError?.code,
+        flatErrorCode: flatError?.code,
         hasUniqueViolation: fullErrorText.includes('UniqueViolation') || fullErrorText.includes('duplicate key') || fullErrorText.includes('qa_inbox_dedupe'),
       });
       
-      if (data?.error) {
-        if (typeof data.error === 'object' && data.error.message) {
-          // Structured error: { error: { code, message } }
-          errorDetails = data.error.message;
-          errorCode = data.error.code || errorCode;
-        } else if (typeof data.error === 'string') {
-          // Flat error string
-          errorDetails = data.error;
+      // Handle structured errors: { detail: { error: { code, message } } } or { error: { code, message } }
+      if (detailError) {
+        if (typeof detailError === 'object' && detailError.message) {
+          errorDetails = detailError.message;
+          errorCode = detailError.code || errorCode;
+        }
+      } else if (flatError) {
+        if (typeof flatError === 'object' && flatError.message) {
+          errorDetails = flatError.message;
+          errorCode = flatError.code || errorCode;
+        } else if (typeof flatError === 'string') {
+          errorDetails = flatError;
         }
       }
       
       // Fallback to details if available
-      if (data?.details) {
+      if (data?.details && !errorDetails) {
         errorDetails = data.details;
       }
       
       // Handle specific error cases
-      // Admin API now returns 409 with duplicate_inbox_item error code
+      // Admin API returns 409 with duplicate_review_request or duplicate_inbox_item error codes
       // Also handle legacy 500 with UniqueViolation (for backwards compatibility)
       const isDuplicateError = 
+        errorCode === 'duplicate_review_request' ||
         errorCode === 'duplicate_inbox_item' ||
-        data?.error?.code === 'duplicate_inbox_item' ||
+        detailError?.code === 'duplicate_review_request' ||
+        detailError?.code === 'duplicate_inbox_item' ||
+        flatError?.code === 'duplicate_review_request' ||
+        flatError?.code === 'duplicate_inbox_item' ||
         fullErrorText.includes('UniqueViolation') ||
         fullErrorText.includes('duplicate key') ||
         fullErrorText.includes('qa_inbox_dedupe') ||
@@ -244,21 +257,23 @@ export async function POST(request: NextRequest) {
         errorDetails.includes('qa_inbox_dedupe') ||
         errorMessage.includes('UniqueViolation') ||
         errorMessage.includes('duplicate key') ||
-        errorMessage.includes('qa_inbox_dedupe');
+        errorMessage.includes('qa_inbox_dedupe') ||
+        errorMessage.includes('already requested');
       
       if ((response.status === 409 || response.status === 500) && isDuplicateError) {
         console.log('[SME Review] Detected duplicate review request, returning 409');
         // Use Admin API's error message if available, otherwise use default
-        const duplicateMessage = data?.error?.message || 
-                                 errorDetails.includes('already exists') ? errorDetails :
+        const duplicateMessage = detailError?.message || 
+                                 flatError?.message ||
+                                 (errorDetails.includes('already') ? errorDetails : null) ||
                                  'A review request for this question already exists. Please check the inbox.';
         
         return NextResponse.json(
           {
             error: 'duplicate_review_request',
             details: duplicateMessage,
-            inbox_id: data?.error?.inbox_id || data?.inbox_id, // Include existing inbox_id if provided
-            status: data?.error?.status || data?.status, // Include status if provided
+            inbox_id: detailError?.inbox_id || flatError?.inbox_id || data?.inbox_id, // Include existing inbox_id if provided
+            status: detailError?.status || flatError?.status || data?.status, // Include status if provided
           },
           { status: 409 } // Return 409 Conflict
         );

@@ -858,7 +858,7 @@ export function LegacyInboxList({
                                     }, 3000);
                                   }}
                                   size="sm"
-                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-[11px] px-2.5 py-1.5 h-7 flex-shrink-0 font-medium"
+                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-[12px] px-3 py-1.5 h-7 flex-shrink-0 font-semibold shadow-sm"
                                   disabled={
                                     editingId === item.id ||
                                     missingCitations ||
@@ -873,12 +873,12 @@ export function LegacyInboxList({
                                 >
                                   {isConverting ? (
                                     <>
-                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                                       Converting...
                                     </>
                                   ) : (
                                     <>
-                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                                       Convert to FAQ
                                     </>
                                   )}
@@ -907,8 +907,8 @@ export function LegacyInboxList({
                                     }, 3000);
                                   }}
                                   size="sm"
-                                  variant="outline"
-                                  className="text-[11px] border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50 px-2.5 py-1.5 h-7 flex-shrink-0 font-medium"
+                                  variant="ghost"
+                                  className="text-[10px] text-slate-600 hover:text-slate-700 hover:bg-slate-50 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
                                   disabled={
                                     editingId === item.id ||
                                     isMarking ||
@@ -953,7 +953,7 @@ export function LegacyInboxList({
                                   }}
                                   size="sm"
                                   variant="outline"
-                                  className="text-[11px] border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 px-2.5 py-1.5 h-7 flex-shrink-0 font-medium"
+                                  className="text-[10px] border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
                                   disabled={
                                     editingId === item.id ||
                                     isDismissing ||
@@ -993,7 +993,7 @@ export function LegacyInboxList({
                                 <Button
                                   onClick={() => handleApprove(item.id)}
                                   size="sm"
-                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-[11px] px-2.5 py-1.5 h-7 flex-shrink-0 font-medium"
+                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-[12px] px-3 py-1.5 h-7 flex-shrink-0 font-semibold shadow-sm"
                                   disabled={
                                     editingId === item.id ||
                                     missingCitations ||
@@ -1008,17 +1008,17 @@ export function LegacyInboxList({
                                 >
                                   {actionStates[item.id] === 'approving' ? (
                                     <>
-                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                                       Approving...
                                     </>
                                   ) : actionStates[item.id] === 'approved' ? (
                                     <>
-                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                                       Approved
                                     </>
                                   ) : (
                                     <>
-                                      <Check className="h-3 w-3 mr-1" />
+                                      <Check className="h-3.5 w-3.5 mr-1.5" />
                                       Approve
                                     </>
                                   )}
@@ -1030,7 +1030,7 @@ export function LegacyInboxList({
                               onClick={() => handleReject(item.id)}
                               size="sm"
                               variant="outline"
-                              className="text-[11px] border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 disabled:opacity-50 px-2.5 py-1.5 h-7 flex-shrink-0 font-medium"
+                              className="text-[10px] border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
                               disabled={
                                 editingId === item.id ||
                                 actionStates[item.id] === 'rejecting' ||

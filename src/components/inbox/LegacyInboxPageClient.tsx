@@ -100,6 +100,10 @@ export function LegacyInboxPageClient({
       setLoading(true);
       setError(null);
 
+      // Check for ref parameter in URL (for email links)
+      const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const refId = searchParams?.get('ref');
+
       // Build query parameters - use backend filter when "Assigned to Me" is active
       const pendingParams = new URLSearchParams({ status: 'pending' });
       const needsReviewParams = new URLSearchParams({ status: 'needs_review' });
@@ -113,6 +117,9 @@ export function LegacyInboxPageClient({
       const pendingUrl = `/api/admin/inbox?${pendingParams.toString()}`;
       const needsReviewUrl = `/api/admin/inbox?${needsReviewParams.toString()}`;
       
+      // If ref is present, also fetch that specific item
+      const refUrl = refId ? `/api/admin/inbox?ref=${encodeURIComponent(refId)}` : null;
+      
       // Debug logging for assigned_to_me filter (ALWAYS log when filter is active)
       if (assignedToMeOnly) {
         console.log('[LegacyInbox] Fetching with assigned_to_me filter:', {
@@ -121,13 +128,14 @@ export function LegacyInboxPageClient({
           assignedToMeOnly,
           pendingUrl,
           needsReviewUrl,
+          refUrl,
           pendingParams: pendingParams.toString(),
           needsReviewParams: needsReviewParams.toString(),
         });
       }
       
       // CRITICAL: Use credentials: 'include' for session-based auth (required for assigned_to_me filter)
-      const [pendingResponse, needsReviewResponse] = await Promise.all([
+      const fetchPromises: Promise<Response>[] = [
         fetch(pendingUrl, {
           credentials: 'include',
           cache: 'no-store',
@@ -136,7 +144,21 @@ export function LegacyInboxPageClient({
           credentials: 'include',
           cache: 'no-store',
         }),
-      ]);
+      ];
+      
+      // Add ref fetch if present
+      if (refUrl) {
+        fetchPromises.push(
+          fetch(refUrl, {
+            credentials: 'include',
+            cache: 'no-store',
+          })
+        );
+      }
+      
+      const responses = await Promise.all(fetchPromises);
+      const [pendingResponse, needsReviewResponse] = responses;
+      const refResponse = refUrl ? responses[2] : undefined;
 
       // Enhanced error handling with response body logging
       if (!pendingResponse.ok) {
@@ -176,12 +198,24 @@ export function LegacyInboxPageClient({
           `Failed to fetch needs_review items: ${needsReviewResponse.status}`;
         throw new Error(errorMsg);
       }
+      
+      // Handle ref response errors gracefully (ref is optional)
+      if (refResponse && !refResponse.ok) {
+        console.warn('[LegacyInbox] Ref item fetch failed (non-critical):', {
+          status: refResponse.status,
+          statusText: refResponse.statusText,
+          url: refUrl,
+        });
+        // Don't throw - ref is optional, continue with regular items
+      }
 
       const pendingText = await pendingResponse.text();
       const needsReviewText = await needsReviewResponse.text();
+      const refText = refResponse ? await refResponse.text() : null;
 
       let pendingData: any = null;
       let needsReviewData: any = null;
+      let refData: any = null;
 
       if (pendingText) {
         try {
@@ -199,17 +233,33 @@ export function LegacyInboxPageClient({
         }
       }
 
+      if (refText && refText.trim()) {
+        try {
+          refData = JSON.parse(refText);
+        } catch (parseErr) {
+          console.warn('[LegacyInbox] Failed to parse ref items response:', parseErr);
+          // Don't throw - ref is optional
+        }
+      }
+
       if (pendingData?.error) {
         throw new Error(pendingData.details || pendingData.error);
       }
       if (needsReviewData?.error) {
         throw new Error(needsReviewData.details || needsReviewData.error);
       }
+      if (refData?.error) {
+        console.warn('[LegacyInbox] Ref fetch returned error:', refData.details || refData.error);
+        // Don't throw - ref is optional
+      }
 
       // Merge items from both statuses
       const pendingItems = Array.isArray(pendingData?.items) ? pendingData.items : [];
       const needsReviewItems = Array.isArray(needsReviewData?.items) ? needsReviewData.items : [];
-      const rawItems = [...pendingItems, ...needsReviewItems];
+      const refItems = Array.isArray(refData?.items) ? refData.items : [];
+      
+      // Merge all items (ref items will be deduplicated later)
+      const rawItems = [...pendingItems, ...needsReviewItems, ...refItems];
       
       // Debug logging for assigned_to_me filter (ALWAYS log when filter is active)
       if (assignedToMeOnly) {
@@ -787,6 +837,31 @@ export function LegacyInboxPageClient({
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
+
+  // Handle ref parameter from URL (for email links) - scroll to specific item
+  useEffect(() => {
+    if (typeof window === 'undefined' || items.length === 0) return;
+    
+    const searchParams = new URLSearchParams(window.location.search);
+    const refId = searchParams.get('ref');
+    
+    if (!refId) return;
+    
+    // Wait for items to render, then scroll to the item
+    const timer = setTimeout(() => {
+      const element = document.querySelector(`[data-item-id="${refId}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Highlight the row briefly
+        element.classList.add('bg-blue-50', 'border-blue-300');
+        setTimeout(() => {
+          element.classList.remove('bg-blue-50', 'border-blue-300');
+        }, 2000);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [items]);
 
   const loadDocOptions = useCallback(async () => {
     try {

@@ -536,7 +536,7 @@ export function LegacyInboxList({
               {items.map((item) => {
                 const isBulkSelected = selectedIds?.has(item.id) ?? false;
                 return (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} data-item-id={item.id}>
                   {selectedIds !== undefined && onToggleSelect && (
                     <TableCell
                       className="w-12"
@@ -557,16 +557,30 @@ export function LegacyInboxList({
                   )}
                   <TableCell className="w-[200px]">
                     <div className="flex items-start gap-2 group">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger className="text-left flex-1 min-w-0">
-                            {truncateText(item.question, 80)}
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-md">
-                            <p>{item.question}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          {item.source_type === 'chat_review' && (
+                            <Badge className="text-[10px] bg-blue-100 text-blue-900 border-blue-300" title="Chat review request">
+                              Chat Review
+                            </Badge>
+                          )}
+                          {item.source_type === 'widget_review' && (
+                            <Badge className="text-[10px] bg-indigo-100 text-indigo-900 border-indigo-300" title="Widget review request">
+                              Widget Review
+                            </Badge>
+                          )}
+                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger className="text-left flex-1 min-w-0">
+                              {truncateText(item.question, 80)}
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-md">
+                              <p>{item.question}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <Button
                         variant="ghost"
                         size="icon"

@@ -280,6 +280,8 @@ export function ChatSMEReviewModal({
           
           if (response.status === 403) {
             toast.error('Permission denied. Only curators and admins can request SME review.');
+          } else if (response.status === 409 || data?.error === 'duplicate_review_request') {
+            toast.error('A review request for this question already exists. Please check the inbox.');
           } else if (response.status === 400) {
             toast.error(errorMessage);
           } else if (response.status === 404) {

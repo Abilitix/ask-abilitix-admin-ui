@@ -173,11 +173,13 @@ export async function POST(request: NextRequest) {
       // Backend returns structured errors: { error: { code: string, message: string } }
       // Or flat errors: { error: string, details: string }
       let errorDetails = `Admin API returned ${response.status}`;
+      let errorCode = 'admin_proxy_error';
       
       if (data?.error) {
         if (typeof data.error === 'object' && data.error.message) {
           // Structured error: { error: { code, message } }
           errorDetails = data.error.message;
+          errorCode = data.error.code || errorCode;
         } else if (typeof data.error === 'string') {
           // Flat error string
           errorDetails = data.error;
@@ -189,9 +191,25 @@ export async function POST(request: NextRequest) {
         errorDetails = data.details;
       }
       
+      // Handle specific error cases
+      // 500 with UniqueViolation = duplicate review request
+      if (response.status === 500 && (
+        errorDetails.includes('UniqueViolation') ||
+        errorDetails.includes('duplicate key') ||
+        errorDetails.includes('qa_inbox_dedupe')
+      )) {
+        return NextResponse.json(
+          {
+            error: 'duplicate_review_request',
+            details: 'A review request for this question already exists. Please check the inbox.',
+          },
+          { status: 409 } // Return 409 Conflict instead of 500
+        );
+      }
+      
       return NextResponse.json(
         {
-          error: 'admin_proxy_error',
+          error: errorCode,
           details: errorDetails,
         },
         { status: response.status }

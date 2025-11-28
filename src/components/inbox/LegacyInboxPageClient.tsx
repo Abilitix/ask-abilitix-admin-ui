@@ -735,10 +735,22 @@ export function LegacyInboxPageClient({
         throw new Error(errorMessage);
       }
 
-      toast.success(isFaq 
-        ? 'Item promoted as FAQ ✓ (embeddings generated automatically)'
-        : 'Item approved ✓ (embeddings generated automatically)'
-      );
+      // Check if this item has a requester (requested_by field exists in database)
+      // Only show notification message if requested_by exists (someone explicitly requested review)
+      const hasRequester = item?.requestedBy; // requestedBy comes from requested_by field in database
+
+      // Show notification message only if requested_by exists
+      if (hasRequester) {
+        toast.success(isFaq 
+          ? 'Item promoted as FAQ ✓ (embeddings generated automatically). Requester will be notified via email.'
+          : 'Item approved ✓ (embeddings generated automatically). Requester will be notified via email.'
+        );
+      } else {
+        toast.success(isFaq 
+          ? 'Item promoted as FAQ ✓ (embeddings generated automatically)'
+          : 'Item approved ✓ (embeddings generated automatically)'
+        );
+      }
       setItems((prev) => prev.filter((item) => item.id !== id));
       setRefreshSignal((prev) => prev + 1);
     } catch (err) {
@@ -954,6 +966,9 @@ export function LegacyInboxPageClient({
 
   const handleReject = useCallback(async (id: string) => {
     try {
+      // Get item to check if it has a requester (admin_review, chat_review, widget_review)
+      const item = items.find((i) => i.id === id);
+      
       const response = await fetch('/api/admin/inbox/reject', {
         method: 'POST',
         headers: {
@@ -976,7 +991,16 @@ export function LegacyInboxPageClient({
         throw new Error(data.details || data.error || `Failed to reject: ${response.status}`);
       }
 
-      toast.success('Item rejected ✓');
+      // Check if this item has a requester (requested_by field exists in database)
+      // Only show notification message if requested_by exists (someone explicitly requested review)
+      const hasRequester = item?.requestedBy; // requestedBy comes from requested_by field in database
+
+      // Show notification message only if requested_by exists
+      if (hasRequester) {
+        toast.success('Item rejected ✓. Requester will be notified via email.');
+      } else {
+        toast.success('Item rejected ✓');
+      }
       setItems((prev) => prev.filter((item) => item.id !== id));
       setRefreshSignal((prev) => prev + 1);
     } catch (err) {

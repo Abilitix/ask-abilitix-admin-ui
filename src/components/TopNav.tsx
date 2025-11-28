@@ -171,8 +171,8 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
 
   return (
     <>
-      <header className="sticky top-0 z-30 w-full bg-gradient-to-r from-blue-600 to-blue-700 shadow-md border-b border-blue-800/20">
-        <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
+      <header className="sticky top-0 z-[100] w-full bg-gradient-to-r from-blue-600 to-blue-700 shadow-md border-b border-blue-800/20">
+        <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2.5 hover:opacity-90 transition-opacity">
             <Image
               src="/abilitix-logo.png"

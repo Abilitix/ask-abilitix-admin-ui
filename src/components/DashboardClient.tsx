@@ -94,7 +94,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
   const viewerEmptyState = !hasCards && user.role === "viewer";
 
   return (
-    <div className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6 space-y-6 sm:space-y-8 md:space-y-10">
+    <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6 lg:px-8 space-y-6 sm:space-y-8 md:space-y-10">
       {/* Greeting */}
       <DashboardGreeting
         name={summary?.user.name}
@@ -112,40 +112,46 @@ export default function DashboardClient({ user }: DashboardClientProps) {
       )}
 
       <section>
-        <h2 className="text-sm font-semibold text-slate-700 mb-4">
+        <h2 className="text-sm font-semibold text-slate-700 mb-5 uppercase tracking-wider">
           Dashboard Features
         </h2>
         {hasCards ? (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
             {cards.map((c) => (
               <NoPrefetchLink
                 key={c.key}
                 href={c.href}
                 prefetch={false}
-                className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+                className="group relative rounded-xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5"
               >
-                <div className="text-base font-semibold text-slate-900">
+                <div className="text-lg font-bold text-slate-900 mb-2 group-hover:text-slate-700 transition-colors">
                   {c.title}
                 </div>
-                <div className="mt-2 text-sm leading-relaxed text-slate-600">
+                <div className="text-sm leading-relaxed text-slate-600 group-hover:text-slate-700 transition-colors">
                   {c.desc}
                 </div>
+                {/* Subtle hover indicator */}
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
               </NoPrefetchLink>
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
+          <div className="rounded-xl border border-dashed border-slate-300/60 bg-gradient-to-br from-slate-50/50 to-white p-8 sm:p-10 text-center">
             {viewerEmptyState ? (
-              <p>
-                Your role is set to <strong>Viewer</strong>. Use the “AI Assistant”
-                link in the menu to test the chatbot—uploads and settings are
-                handled by administrators.
-              </p>
+              <div className="max-w-md mx-auto">
+                <p className="text-base text-slate-700 leading-relaxed">
+                  Your role is set to <strong className="font-semibold text-slate-900">Viewer</strong>. Use the "AI Assistant"
+                  link in the menu to test the chatbot—uploads and settings are
+                  handled by administrators.
+                </p>
+              </div>
             ) : (
-              <p>
-                No modules available for your role yet. Please contact an admin
-                if you believe this is incorrect.
-              </p>
+              <div className="max-w-md mx-auto">
+                <p className="text-base text-slate-700 leading-relaxed">
+                  No modules available for your role yet. Please contact an admin
+                  if you believe this is incorrect.
+                </p>
+              </div>
             )}
           </div>
         )}

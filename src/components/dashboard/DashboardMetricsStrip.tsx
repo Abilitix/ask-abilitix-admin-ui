@@ -16,28 +16,55 @@ function MetricCard({
   sublabel,
   status = 'neutral',
 }: MetricCardProps) {
-  const statusClasses =
-    status === 'good'
-      ? 'border-emerald-500/50 bg-emerald-50/50'
-      : status === 'warn'
-      ? 'border-amber-500/50 bg-amber-50/50'
-      : status === 'bad'
-      ? 'border-red-500/50 bg-red-50/50'
-      : 'border-slate-200 bg-white';
+  const statusConfig = {
+    good: {
+      border: 'border-emerald-200/60',
+      bg: 'bg-gradient-to-br from-emerald-50/80 to-emerald-50/40',
+      accent: 'before:bg-emerald-500',
+      text: 'text-emerald-700',
+    },
+    warn: {
+      border: 'border-amber-200/60',
+      bg: 'bg-gradient-to-br from-amber-50/80 to-amber-50/40',
+      accent: 'before:bg-amber-500',
+      text: 'text-amber-700',
+    },
+    bad: {
+      border: 'border-red-200/60',
+      bg: 'bg-gradient-to-br from-red-50/80 to-red-50/40',
+      accent: 'before:bg-red-500',
+      text: 'text-red-700',
+    },
+    neutral: {
+      border: 'border-slate-200/80',
+      bg: 'bg-gradient-to-br from-slate-50/60 to-white',
+      accent: 'before:bg-slate-400',
+      text: 'text-slate-600',
+    },
+  };
+
+  const config = statusConfig[status];
 
   return (
     <div
-      className={`rounded-2xl border p-3 sm:p-4 transition-colors ${statusClasses}`}
+      className={`relative rounded-xl border ${config.border} ${config.bg} p-4 sm:p-5 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group`}
     >
-      <div className="text-xs sm:text-sm text-slate-600 font-medium">
-        {label}
+      {/* Accent bar */}
+      <div
+        className={`absolute top-0 left-0 right-0 h-1 ${config.accent} opacity-60 group-hover:opacity-100 transition-opacity`}
+      />
+      
+      <div className="relative">
+        <div className={`text-xs sm:text-sm font-medium ${config.text} mb-2 tracking-wide uppercase`}>
+          {label}
+        </div>
+        <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
+          {value}
+        </div>
+        {sublabel && (
+          <div className="mt-2 text-xs text-slate-500 font-medium">{sublabel}</div>
+        )}
       </div>
-      <div className="mt-1 sm:mt-2 text-lg sm:text-xl md:text-2xl font-semibold text-slate-900">
-        {value}
-      </div>
-      {sublabel && (
-        <div className="mt-1 text-xs text-slate-500">{sublabel}</div>
-      )}
     </div>
   );
 }
@@ -62,11 +89,11 @@ export function DashboardMetricsStrip({
     // Determine how many skeleton cards to show based on role
     const skeletonCount = userRole === 'curator' ? 3 : 4;
     return (
-      <div className={`grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 ${userRole === 'curator' ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} mb-6`}>
+      <div className={`grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 ${userRole === 'curator' ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} mb-6`}>
         {Array.from({ length: skeletonCount }).map((_, i) => (
           <div
             key={i}
-            className="h-20 sm:h-24 rounded-2xl bg-slate-100 animate-pulse"
+            className="h-28 sm:h-32 rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 border border-slate-200/50 animate-pulse shadow-sm"
           />
         ))}
       </div>
@@ -180,7 +207,7 @@ export function DashboardMetricsStrip({
   if (metricsToShow.length === 0) return null;
 
   return (
-    <div className={`grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 ${metricsToShow.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} mb-6`}>
+    <div className={`grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 ${metricsToShow.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} mb-8`}>
       {metricsToShow}
     </div>
   );

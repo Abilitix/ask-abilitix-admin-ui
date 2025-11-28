@@ -299,10 +299,10 @@ export function DocumentManagementClient() {
                                   {doc.status}
                                 </span>
                               </div>
-                              <h3 className="font-medium text-sm text-slate-900 mb-1">
+                              <h3 className="font-medium text-sm text-slate-900 mb-1 truncate" title={doc.title}>
                                 {doc.title}
                               </h3>
-                              <p className="text-xs text-slate-500 font-mono mb-2">
+                              <p className="text-xs text-slate-500 font-mono mb-2 truncate" title={doc.id}>
                                 {doc.id}
                               </p>
                               <div className="space-y-1 text-xs text-slate-600">
@@ -341,29 +341,30 @@ export function DocumentManagementClient() {
                         open={!!mobileActionSheetOpen}
                         onClose={() => setMobileActionSheetOpen(null)}
                         title={doc.title}
+                        className="max-h-[60vh]"
                       >
-                        <div className="space-y-3">
-                          <div className="space-y-2">
-                            <div className="text-sm font-medium text-slate-700">Status</div>
+                        <div className="space-y-4 pb-4">
+                          <div className="space-y-1.5">
+                            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Status</div>
                             <div>
                               <span className={getStatusBadge(doc.status)}>
                                 {doc.status}
                               </span>
                             </div>
                           </div>
-                          <div className="space-y-2">
-                            <div className="text-sm font-medium text-slate-700">Created</div>
-                            <div className="text-sm text-slate-600">
+                          <div className="space-y-1.5">
+                            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Created</div>
+                            <div className="text-sm text-slate-700">
                               {new Date(doc.created_at).toLocaleDateString()}
                             </div>
                           </div>
                           {doc.topic_key && (
-                            <div className="space-y-2">
-                              <div className="text-sm font-medium text-slate-700">Topic</div>
-                              <div className="text-sm text-slate-600">{doc.topic_key}</div>
+                            <div className="space-y-1.5">
+                              <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Topic</div>
+                              <div className="text-sm text-slate-700">{doc.topic_key}</div>
                             </div>
                           )}
-                          <div className="pt-4 border-t">
+                          <div className="pt-2 border-t">
                             {doc.status === 'active' ? (
                               <Button
                                 onClick={() => {

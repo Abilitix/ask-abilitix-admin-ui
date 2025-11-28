@@ -673,21 +673,21 @@ export default function ChatInterface({
   return (
     <div className="rounded-xl border bg-white">
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div className="font-semibold">{documentTitle}</div>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b px-4 py-3">
+        <div className="font-semibold text-base sm:text-lg">{documentTitle}</div>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <button
             onClick={handleClearChat}
-            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 w-full sm:w-auto min-h-[44px]"
             title="Clear chat"
             aria-label="Clear chat"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-4 w-4" />
             Clear chat
           </button>
           <a
             href={uploadHref}
-            className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-md border px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 w-full sm:w-auto min-h-[44px]"
           >
             ⬆ Upload docs
           </a>
@@ -695,7 +695,7 @@ export default function ChatInterface({
       </div>
 
       {/* Chat body */}
-      <div className="flex max-h-[65vh] flex-col">
+      <div className="flex max-h-[calc(100vh-250px)] sm:max-h-[65vh] flex-col">
         <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-6">
           {/* Screen reader announcements */}
           {sending && (
@@ -761,25 +761,25 @@ export default function ChatInterface({
                   <div className="mt-1.5 flex items-center gap-2">
                     {/* Action buttons for assistant messages */}
                     {!isUser && (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
                         {/* Copy button - show for all assistant messages */}
                         <button
                           onClick={() => handleCopyMessage(m.text)}
-                          className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                          className="p-2 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                           title="Copy message"
                           aria-label="Copy message"
                         >
-                          <Copy className="h-3.5 w-3.5" />
+                          <Copy className="h-4 w-4" />
                         </button>
                         {/* Request SME review button (curator+ only) - show only for latest assistant message */}
                         {canRequestSMEReview && isLatestAssistant && (
                           <button
                             onClick={() => handleRequestSMEReview(m)}
-                            className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                            className="p-2 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                             title="Request SME review"
                             aria-label="Request SME review"
                           >
-                            <MessageSquarePlus className="h-3.5 w-3.5" />
+                            <MessageSquarePlus className="h-4 w-4" />
                           </button>
                         )}
                       </div>
@@ -842,8 +842,8 @@ export default function ChatInterface({
             </button>
             
             <div className="order-last sm:order-none w-full sm:w-auto">
-              <div className="inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs mx-auto sm:mx-0">
-                <span>TopK</span>
+              <div className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs mx-auto sm:mx-0 min-h-[44px]">
+                <span className="font-medium">TopK</span>
                 <input
                   type="number"
                   min={1}
@@ -865,7 +865,7 @@ export default function ChatInterface({
                     }
                   }}
                   onFocus={(e) => e.target.select()}
-                  className="w-12 rounded border px-1 py-0.5 text-center focus:ring-2 focus:ring-blue-200"
+                  className="w-16 sm:w-12 rounded border px-2 py-1.5 text-center focus:ring-2 focus:ring-blue-200 min-h-[36px] text-sm"
                   disabled={sending}
                   title={`Number of sources to search (1-${getGovernanceMaxTopK(tenantSettings?.RAG_TOPK ?? null)})`}
                 />

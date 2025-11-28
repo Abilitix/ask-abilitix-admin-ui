@@ -1726,10 +1726,10 @@ export function LegacyInboxPageClient({
           </div>
 
           {/* Assigned to Me Filter */}
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900 transition-colors min-h-[44px]">
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900 transition-colors min-h-[44px] py-1">
             <input
               type="checkbox"
-              className={`h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all min-h-[44px] min-w-[44px] ${
+              className={`h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all ${
                 assignedToMeOnly ? 'ring-2 ring-blue-500 ring-offset-1' : ''
               }`}
               checked={assignedToMeOnly}

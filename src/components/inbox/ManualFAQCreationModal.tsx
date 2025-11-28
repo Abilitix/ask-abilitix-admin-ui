@@ -396,14 +396,14 @@ export function ManualFAQCreationModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/30 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/30 backdrop-blur-[2px] py-4 overflow-y-auto"
       onClick={handleClose}
       role="dialog"
       aria-modal="true"
       aria-label="Create FAQ Manually"
     >
       <Card
-        className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col m-4 bg-white shadow-2xl"
+        className="w-full max-w-4xl max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col m-4 bg-white shadow-2xl my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <CardHeader className="flex-shrink-0 flex flex-row items-center justify-between border-b">
@@ -538,14 +538,14 @@ export function ManualFAQCreationModal({
 
           {/* SME Review Toggle - Phase 2 feature, will be implemented in Phase 2 */}
         </CardContent>
-        <div className="flex justify-end gap-2 p-4 border-t flex-shrink-0">
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+        <div className="flex flex-col sm:flex-row justify-end gap-2 p-4 border-t flex-shrink-0">
+          <Button variant="outline" onClick={handleClose} disabled={loading} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button variant="ghost" onClick={handleReset} disabled={loading}>
+          <Button variant="ghost" onClick={handleReset} disabled={loading} className="w-full sm:w-auto">
             Reset
           </Button>
-          <Button onClick={handleSubmit} disabled={!isFormValid || loading}>
+          <Button onClick={handleSubmit} disabled={!isFormValid || loading} className="w-full sm:w-auto">
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

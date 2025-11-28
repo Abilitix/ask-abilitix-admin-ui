@@ -761,7 +761,7 @@ export default function ChatInterface({
                   <div className="mt-1.5 flex items-center gap-2">
                     {/* Action buttons for assistant messages */}
                     {!isUser && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         {/* Copy button - show for all assistant messages */}
                         <button
                           onClick={() => handleCopyMessage(m.text)}
@@ -842,8 +842,8 @@ export default function ChatInterface({
             </button>
             
             <div className="order-last sm:order-none w-full sm:w-auto">
-              <div className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs mx-auto sm:mx-0 min-h-[44px]">
-                <span className="font-medium">TopK</span>
+              <div className="inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs mx-auto sm:mx-0">
+                <span>TopK</span>
                 <input
                   type="number"
                   min={1}
@@ -865,7 +865,7 @@ export default function ChatInterface({
                     }
                   }}
                   onFocus={(e) => e.target.select()}
-                  className="w-16 sm:w-12 rounded border px-2 py-1.5 text-center focus:ring-2 focus:ring-blue-200 min-h-[36px] text-sm"
+                  className="w-12 rounded border px-1 py-0.5 text-center focus:ring-2 focus:ring-blue-200 min-h-[44px] sm:min-h-0"
                   disabled={sending}
                   title={`Number of sources to search (1-${getGovernanceMaxTopK(tenantSettings?.RAG_TOPK ?? null)})`}
                 />

@@ -1668,13 +1668,14 @@ export function LegacyInboxPageClient({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <LegacyInboxStatsCard itemCount={filteredItems.length} refreshSignal={refreshSignal} />
         {enableFaqCreation && (
           <Button
             type="button"
             size="sm"
             onClick={() => setManualFaqModalOpen(true)}
+            className="w-full sm:w-auto min-h-[44px]"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create FAQ
@@ -1683,10 +1684,10 @@ export function LegacyInboxPageClient({
       </div>
 
       {/* Filter Bar - Always Visible */}
-      <div className="flex items-center justify-between gap-4 px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-lg">
-        <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-lg">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-wrap">
           {/* Source Filter */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 sm:flex-initial">
             <label htmlFor="source-filter" className="text-xs font-medium text-slate-600 whitespace-nowrap">
               Source:
             </label>
@@ -1694,7 +1695,7 @@ export function LegacyInboxPageClient({
               id="source-filter"
               value={sourceFilter}
               onChange={(e) => setSourceFilter(e.target.value as typeof sourceFilter)}
-              className="h-8 min-w-[140px] text-sm"
+              className="h-10 sm:h-8 w-full sm:min-w-[140px] text-sm min-h-[44px]"
             >
               <option value="all">All</option>
               <option value="widget_review">Widget Reviews</option>
@@ -1706,7 +1707,7 @@ export function LegacyInboxPageClient({
           </div>
 
           {/* Time Filter */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 sm:flex-initial">
             <label htmlFor="time-filter" className="text-xs font-medium text-slate-600 whitespace-nowrap">
               Time:
             </label>
@@ -1714,7 +1715,7 @@ export function LegacyInboxPageClient({
               id="time-filter"
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value as typeof timeFilter)}
-              className="h-8 min-w-[120px] text-sm"
+              className="h-10 sm:h-8 w-full sm:min-w-[120px] text-sm min-h-[44px]"
             >
               <option value="all">All time</option>
               <option value="24h">Last 24 hours</option>
@@ -1725,10 +1726,10 @@ export function LegacyInboxPageClient({
           </div>
 
           {/* Assigned to Me Filter */}
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900 transition-colors">
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer hover:text-slate-900 transition-colors min-h-[44px]">
             <input
               type="checkbox"
-              className={`h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all ${
+              className={`h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all min-h-[44px] min-w-[44px] ${
                 assignedToMeOnly ? 'ring-2 ring-blue-500 ring-offset-1' : ''
               }`}
               checked={assignedToMeOnly}
@@ -1749,7 +1750,7 @@ export function LegacyInboxPageClient({
               }}
               variant="outline"
               size="sm"
-              className="h-7 px-3 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400"
+              className="h-10 sm:h-7 px-3 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400 w-full sm:w-auto min-h-[44px]"
             >
               Clear all filters
             </Button>
@@ -1759,7 +1760,7 @@ export function LegacyInboxPageClient({
           onClick={fetchItems}
           variant="ghost"
           size="sm"
-          className="h-7 px-3 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          className="h-10 sm:h-7 px-3 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 w-full sm:w-auto min-h-[44px]"
           title="Refresh inbox"
         >
           <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
@@ -1769,9 +1770,9 @@ export function LegacyInboxPageClient({
 
       {/* Toggle Bar - Clean, Subtle Design */}
       {canManageFlags && onUpdateFlag && flags && (
-        <div className="flex items-center gap-6 px-4 py-2.5 bg-white border border-slate-200 rounded-lg">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6 px-4 py-2.5 bg-white border border-slate-200 rounded-lg">
           <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Options</span>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
             {/* Enable FAQ Creation Toggle */}
             <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer group">
               <div className="relative">
@@ -1874,13 +1875,14 @@ export function LegacyInboxPageClient({
         onDismiss={handleDismiss}
       />
       {(pendingCursor || needsReviewCursor) && (
-        <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 mt-4">
           {pendingCursor && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleLoadMore('pending')}
               disabled={loadingMoreStatus === 'pending'}
+              className="w-full sm:w-auto min-h-[44px]"
             >
               {loadingMoreStatus === 'pending' ? (
                 <span className="flex items-center gap-2">
@@ -1898,6 +1900,7 @@ export function LegacyInboxPageClient({
               size="sm"
               onClick={() => handleLoadMore('needs_review')}
               disabled={loadingMoreStatus === 'needs_review'}
+              className="w-full sm:w-auto min-h-[44px]"
             >
               {loadingMoreStatus === 'needs_review' ? (
                 <span className="flex items-center gap-2">

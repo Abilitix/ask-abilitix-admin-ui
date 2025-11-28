@@ -905,19 +905,6 @@ export function LegacyInboxList({
                                       maxLength={500}
                                     />
                                   </div>
-                                  {/* Dismiss reason field */}
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] text-slate-600 font-medium">
-                                      Message to requester when dismissing (optional)
-                                    </label>
-                                    <Textarea
-                                      placeholder="Add a message to the requester (e.g., 'We'll get back to you soon')"
-                                      value={dismissReasons[item.id] || ''}
-                                      onChange={(e) => setDismissReasons((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                                      className="text-xs min-h-[60px] resize-none"
-                                      maxLength={500}
-                                    />
-                                  </div>
                                 </div>
                               );
                             })()}
@@ -1021,58 +1008,6 @@ export function LegacyInboxList({
                                     <>
                                       <CheckCircle2 className="h-3 w-3 mr-1" />
                                       Mark Reviewed
-                                    </>
-                                  )}
-                                </Button>
-                              );
-                            })()}
-                            
-                            {/* Dismiss button */}
-                            {onDismiss && (() => {
-                              const isDismissing = actionStates[item.id] === 'dismissing';
-                              const isAnyAction = actionStates[item.id] !== undefined;
-                              
-                              return (
-                                <Button
-                                  onClick={() => {
-                                    setActionStates((prev) => ({ ...prev, [item.id]: 'dismissing' }));
-                                    const reason = dismissReasons[item.id]?.trim() || undefined;
-                                    onDismiss(item.id, reason);
-                                    // Clear reason after action
-                                    setDismissReasons((prev) => {
-                                      const next = { ...prev };
-                                      delete next[item.id];
-                                      return next;
-                                    });
-                                    setTimeout(() => {
-                                      setActionStates((prev) => {
-                                        const next = { ...prev };
-                                        if (next[item.id] === 'dismissing') {
-                                          delete next[item.id];
-                                        }
-                                        return next;
-                                      });
-                                    }, 3000);
-                                  }}
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-[10px] border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
-                                  disabled={
-                                    editingId === item.id ||
-                                    isDismissing ||
-                                    isAnyAction
-                                  }
-                                  title="Dismiss this review request"
-                                >
-                                  {isDismissing ? (
-                                    <>
-                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                      Dismissing...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <X className="h-3 w-3 mr-1" />
-                                      Dismiss
                                     </>
                                   )}
                                 </Button>

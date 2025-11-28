@@ -107,6 +107,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
         <DashboardMetricsStrip
           metrics={summary?.metrics}
           isLoading={isLoading}
+          userRole={user.role}
         />
       )}
 

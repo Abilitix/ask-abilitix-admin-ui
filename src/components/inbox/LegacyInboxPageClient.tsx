@@ -619,7 +619,7 @@ export function LegacyInboxPageClient({
     [assignedToMeOnly, pendingCursor, needsReviewCursor, loadingMoreStatus, normalizeRawItems]
   );
 
-  const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true) => {
+  const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true, note?: string) => {
     try {
       // Find the item to check for suggested_citations
       const item = items.find((i) => i.id === id);
@@ -633,7 +633,7 @@ export function LegacyInboxPageClient({
       const body: Record<string, unknown> = {};
       
       if (isFaq) {
-        // /promote endpoint: supports citations, answer, title, is_faq
+        // /promote endpoint: supports citations, answer, title, is_faq, note
         // If item has suggested_citations, omit citations (backend will use suggested_citations)
         // If no citations and allowEmptyCitations is true, send empty array
         // Otherwise, backend validation should catch missing citations
@@ -649,12 +649,23 @@ export function LegacyInboxPageClient({
           body.answer = editedAnswer.trim();
         }
         body.is_faq = true;
+        
+        // Add note if provided
+        if (note && note.trim().length > 0) {
+          body.note = note.trim();
+        }
       } else {
-        // /approve endpoint: only supports id, reembed, answer (no citations, no title)
+        // /approve endpoint: only supports id, reembed, answer (no citations, no title, no note)
+        // Note: legacy endpoint may not support note field
         body.id = id;
         body.reembed = true;
         if (editedAnswer && editedAnswer.trim().length > 0) {
           body.answer = editedAnswer.trim();
+        }
+        // Note: legacy /approve endpoint may not support note, but we'll send it anyway
+        // Backend will ignore if not supported
+        if (note && note.trim().length > 0) {
+          body.note = note.trim();
         }
       }
 
@@ -964,17 +975,24 @@ export function LegacyInboxPageClient({
     }
   }, [fetchItems]);
 
-  const handleReject = useCallback(async (id: string) => {
+  const handleReject = useCallback(async (id: string, note?: string) => {
     try {
       // Get item to check if it has a requester (admin_review, chat_review, widget_review)
       const item = items.find((i) => i.id === id);
+      
+      const body: Record<string, unknown> = { id };
+      
+      // Add note if provided
+      if (note && note.trim().length > 0) {
+        body.note = note.trim();
+      }
       
       const response = await fetch('/api/admin/inbox/reject', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();

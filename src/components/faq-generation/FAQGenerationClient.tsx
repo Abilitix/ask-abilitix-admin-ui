@@ -251,7 +251,7 @@ export function FAQGenerationClient() {
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <div className="font-medium break-words" title={doc.title}>{doc.title}</div>
+                  <div className="font-medium break-all whitespace-normal" title={doc.title} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{doc.title}</div>
                   <div className="text-sm text-muted-foreground">
                     Created {new Date(doc.created_at).toLocaleDateString()}
                   </div>

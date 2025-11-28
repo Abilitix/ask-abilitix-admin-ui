@@ -550,8 +550,8 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
           {/* Upload Type Selection */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Upload Type</Label>
-            <div className="flex gap-4">
-              <label className="flex items-center space-x-2 cursor-pointer">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <label className="flex items-center space-x-2 cursor-pointer min-h-[44px]">
                 <input
                   type="radio"
                   value="file"
@@ -564,7 +564,7 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
                   <span className="text-sm">Upload File (PDF, DOCX, JPG, PNG, MP4, WEBM)</span>
                 </div>
               </label>
-              <label className="flex items-center space-x-2 cursor-pointer">
+              <label className="flex items-center space-x-2 cursor-pointer min-h-[44px]">
                 <input
                   type="radio"
                   value="text"
@@ -591,7 +591,7 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Enter document title"
-              className="w-full"
+              className="w-full min-h-[44px]"
             />
           </div>
 
@@ -606,7 +606,7 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
                 type="file"
                 onChange={handleFileChange}
                 accept=".pdf,.txt,.docx,.jpg,.jpeg,.png,.mp4,.webm"
-                className="w-full"
+                className="w-full min-h-[44px]"
               />
               <p className="text-xs text-gray-500">
                 Supported formats: PDF, DOCX, JPG, PNG, MP4, WEBM (max 20MB)
@@ -623,7 +623,7 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Paste your text content here..."
                 rows={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[120px] sm:min-h-[150px]"
               />
               <p className="text-xs text-gray-500">
                 Minimum 10 characters required
@@ -653,7 +653,7 @@ export function TusUploadForm({ onDone }: TusUploadFormProps) {
           <Button
             type="submit"
             disabled={!isFormValid || loading || uploadProgress.status === 'uploading' || uploadProgress.status === 'processing'}
-            className="w-full"
+            className="w-full min-h-[44px]"
           >
             {loading || uploadProgress.status === 'uploading' || uploadProgress.status === 'processing' ? (
               <>

@@ -121,8 +121,8 @@ export function LegacyUploadForm({ onDone }: LegacyUploadFormProps) {
           {/* Upload Type Selector */}
           <div className="space-y-2">
             <Label>Upload Type</Label>
-            <div className="flex space-x-4">
-              <label className="flex items-center space-x-2 cursor-pointer">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <label className="flex items-center space-x-2 cursor-pointer min-h-[44px]">
                 <input
                   type="radio"
                   name="uploadType"
@@ -130,12 +130,12 @@ export function LegacyUploadForm({ onDone }: LegacyUploadFormProps) {
                   checked={uploadType === 'file'}
                   onChange={(e) => setUploadType(e.target.value as UploadType)}
                   disabled={loading}
-                  className="text-blue-600"
+                  className="text-blue-600 w-4 h-4"
                 />
                 <File className="h-4 w-4" />
                 <span>Upload File (PDF, DOCX)</span>
               </label>
-              <label className="flex items-center space-x-2 cursor-pointer">
+              <label className="flex items-center space-x-2 cursor-pointer min-h-[44px]">
                 <input
                   type="radio"
                   name="uploadType"
@@ -143,7 +143,7 @@ export function LegacyUploadForm({ onDone }: LegacyUploadFormProps) {
                   checked={uploadType === 'text'}
                   onChange={(e) => setUploadType(e.target.value as UploadType)}
                   disabled={loading}
-                  className="text-blue-600"
+                  className="text-blue-600 w-4 h-4"
                 />
                 <FileText className="h-4 w-4" />
                 <span>Paste Text</span>
@@ -160,6 +160,7 @@ export function LegacyUploadForm({ onDone }: LegacyUploadFormProps) {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Enter document title"
               disabled={loading}
+              className="min-h-[44px]"
             />
           </div>
 
@@ -173,7 +174,7 @@ export function LegacyUploadForm({ onDone }: LegacyUploadFormProps) {
                 accept=".pdf,.txt,.docx"
                 onChange={handleFileChange}
                 disabled={loading}
-                className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 min-h-[44px]"
               />
               <div className="text-xs text-muted-foreground">
                 Supported formats: PDF, DOCX (max 5MB)
@@ -194,6 +195,7 @@ export function LegacyUploadForm({ onDone }: LegacyUploadFormProps) {
                 placeholder="Enter document content (minimum 10 characters)"
                 rows={6}
                 disabled={loading}
+                className="min-h-[120px] sm:min-h-[150px]"
               />
               <div className="text-xs text-muted-foreground">
                 {text.trim().length} characters (minimum 10)
@@ -204,7 +206,7 @@ export function LegacyUploadForm({ onDone }: LegacyUploadFormProps) {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full"
+            className="w-full min-h-[44px]"
           >
             {loading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

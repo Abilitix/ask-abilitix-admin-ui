@@ -28,6 +28,9 @@ export default async function GenerateFAQsPage() {
           <p className="text-sm text-muted-foreground mt-1">
             Generate FAQs from your active documents
           </p>
+          <p className="text-xs text-muted-foreground mt-2 italic">
+            FAQ statistics, generation history, and advanced features coming soon.
+          </p>
         </div>
       </div>
       

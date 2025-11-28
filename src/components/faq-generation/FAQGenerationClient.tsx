@@ -216,7 +216,7 @@ export function FAQGenerationClient() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <FileText className="h-5 w-5" />
+            <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
             <span>Select Document</span>
           </CardTitle>
         </CardHeader>
@@ -224,13 +224,16 @@ export function FAQGenerationClient() {
           {loadingDocs ? (
             <div className="text-center py-8 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-              Loading documents...
+              <p className="text-sm">Loading documents...</p>
             </div>
           ) : documents.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <p>No active documents found.</p>
+              <p className="text-sm">No active documents found.</p>
               <p className="text-sm mt-2">
-                <a href="/admin/docs" className="text-blue-600 hover:underline">
+                <a 
+                  href="/admin/docs" 
+                  className="text-blue-600 hover:underline inline-block min-h-[44px] py-2"
+                >
                   Upload a document
                 </a>{' '}
                 to generate FAQs.
@@ -242,13 +245,13 @@ export function FAQGenerationClient() {
                 <button
                   key={doc.id}
                   onClick={() => setSelectedDocId(doc.id)}
-                  className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
+                  className={`w-full text-left p-3 rounded-lg border-2 transition-colors min-h-[44px] ${
                     selectedDocId === doc.id
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <div className="font-medium">{doc.title}</div>
+                  <div className="font-medium truncate" title={doc.title}>{doc.title}</div>
                   <div className="text-sm text-muted-foreground">
                     Created {new Date(doc.created_at).toLocaleDateString()}
                   </div>
@@ -264,7 +267,7 @@ export function FAQGenerationClient() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Sparkles className="h-5 w-5" />
+              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6" />
               <span>Generation Settings</span>
             </CardTitle>
           </CardHeader>
@@ -283,6 +286,7 @@ export function FAQGenerationClient() {
                     max_faqs: Math.max(1, Math.min(50, parseInt(e.target.value) || 10)),
                   }))
                 }
+                className="min-h-[44px]"
               />
               <p className="text-xs text-muted-foreground">
                 Maximum number of FAQs to generate (1-50)
@@ -307,6 +311,7 @@ export function FAQGenerationClient() {
                     ),
                   }))
                 }
+                className="min-h-[44px]"
               />
               <p className="text-xs text-muted-foreground">
                 Minimum confidence score (0.0-1.0). Higher values = fewer, higher-quality FAQs.
@@ -316,7 +321,7 @@ export function FAQGenerationClient() {
             <Button
               onClick={handleStartGeneration}
               disabled={generating || !selectedDocId}
-              className="w-full"
+              className="w-full min-h-[44px]"
               size="lg"
             >
               {generating ? (

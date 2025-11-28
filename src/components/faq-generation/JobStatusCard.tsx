@@ -82,12 +82,14 @@ export function JobStatusCard({ job, documentTitle }: JobStatusCardProps) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Generation Status</CardTitle>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <CardTitle className="text-base sm:text-lg">Generation Status</CardTitle>
           {getStatusBadge()}
         </div>
         {documentTitle && (
-          <p className="text-sm text-muted-foreground mt-1">{documentTitle}</p>
+          <p className="text-sm text-muted-foreground mt-1 truncate" title={documentTitle}>
+            {documentTitle}
+          </p>
         )}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -102,8 +104,8 @@ export function JobStatusCard({ job, documentTitle }: JobStatusCardProps) {
 
         {job.progress && job.progress.percent > 0 && (
           <div className="space-y-2">
-            <Progress value={job.progress.percent} className="h-2" />
-            <p className="text-xs text-muted-foreground text-center">
+            <Progress value={job.progress.percent} className="h-2 sm:h-2" />
+            <p className="text-xs sm:text-sm text-muted-foreground text-center">
               {job.progress.percent}% complete
             </p>
           </div>

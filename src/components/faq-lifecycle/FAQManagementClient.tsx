@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, Search, Archive, ArchiveRestore, RefreshCw, X, RotateCcw } from 'lucide-react';
+import { Loader2, Search, Archive, ArchiveRestore, RefreshCw, X, RotateCcw, MoreVertical } from 'lucide-react';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
 import type { FAQ, FAQStatus, FAQListResponse } from '@/lib/types/faq-lifecycle';
 
 type StatusFilter = FAQStatus | 'all';
@@ -66,6 +67,13 @@ export function FAQManagementClient() {
     confirmText: 'Confirm',
     variant: 'warning',
     onConfirm: null,
+  });
+  const [mobileActionSheet, setMobileActionSheet] = useState<{
+    open: boolean;
+    faq: FAQ | null;
+  }>({
+    open: false,
+    faq: null,
   });
 
   // Lock body scroll when supersede modal is open
@@ -620,6 +628,7 @@ export function FAQManagementClient() {
                   setStatusFilter(e.target.value as StatusFilter);
                   setOffset(0);
                 }}
+                className="min-h-[44px] sm:h-9 sm:min-h-0"
               >
                 <option value="all">All</option>
                 <option value="active">Active</option>
@@ -638,8 +647,9 @@ export function FAQManagementClient() {
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onKeyPress={handleSearchKeyPress}
+                  className="min-h-[44px]"
                 />
-                <Button onClick={handleSearch} variant="outline">
+                <Button onClick={handleSearch} variant="outline" className="min-h-[44px] min-w-[44px]">
                   <Search className="h-4 w-4" />
                 </Button>
               </div>
@@ -657,7 +667,7 @@ export function FAQManagementClient() {
                     onClick={handleClearDoc}
                     variant="outline"
                     size="sm"
-                    className="h-9"
+                    className="min-h-[44px] min-w-[44px] sm:h-9 sm:min-h-0"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -674,6 +684,7 @@ export function FAQManagementClient() {
                         setShowDocDropdown(true);
                       }
                     }}
+                    className="min-h-[44px]"
                   />
                   {showDocDropdown && documents.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
@@ -687,7 +698,7 @@ export function FAQManagementClient() {
                           <button
                             key={doc.id}
                             onClick={() => handleDocSelect(doc)}
-                            className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm border-b last:border-b-0"
+                            className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm border-b last:border-b-0 min-h-[44px]"
                           >
                             {doc.title}
                           </button>
@@ -706,7 +717,7 @@ export function FAQManagementClient() {
 
             {/* Refresh */}
             <div className="flex items-end">
-              <Button onClick={fetchFAQs} variant="outline" disabled={loading}>
+              <Button onClick={fetchFAQs} variant="outline" disabled={loading} className="min-h-[44px] min-w-[44px]">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             </div>
@@ -762,6 +773,7 @@ export function FAQManagementClient() {
                       variant="outline"
                       onClick={handleBulkArchive}
                       disabled={!canBulkArchive || bulkActionLoading}
+                      className="min-h-[44px] w-full sm:w-auto"
                     >
                       <Archive className="h-3 w-3 mr-1" />
                       Archive
@@ -771,6 +783,7 @@ export function FAQManagementClient() {
                       variant="outline"
                       onClick={handleBulkUnarchive}
                       disabled={!canBulkUnarchive || bulkActionLoading}
+                      className="min-h-[44px] w-full sm:w-auto"
                     >
                       <ArchiveRestore className="h-3 w-3 mr-1" />
                       Unarchive
@@ -780,6 +793,7 @@ export function FAQManagementClient() {
                       variant="outline"
                       onClick={handleOpenBulkSupersede}
                       disabled={!canBulkSupersede || bulkActionLoading}
+                      className="min-h-[44px] w-full sm:w-auto"
                     >
                       <RotateCcw className="h-3 w-3 mr-1" />
                       Supersede
@@ -789,25 +803,29 @@ export function FAQManagementClient() {
                       variant="ghost"
                       onClick={clearSelection}
                       disabled={bulkActionLoading}
+                      className="min-h-[44px] w-full sm:w-auto"
                     >
                       Clear selection
                     </Button>
                   </div>
                 </div>
               )}
-              <div className="overflow-x-auto">
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b">
                       <th className="p-3 w-10">
-                        <input
-                          ref={selectAllRef}
-                          type="checkbox"
-                          className="h-4 w-4"
-                          onChange={toggleSelectAll}
-                          checked={faqs.length > 0 && faqs.every((faq) => selectedIds.has(faq.id))}
-                          disabled={faqs.length === 0 || bulkActionLoading}
-                        />
+                        <label className="flex items-center min-h-[44px] min-w-[44px] py-1 cursor-pointer">
+                          <input
+                            ref={selectAllRef}
+                            type="checkbox"
+                            className="h-4 w-4"
+                            onChange={toggleSelectAll}
+                            checked={faqs.length > 0 && faqs.every((faq) => selectedIds.has(faq.id))}
+                            disabled={faqs.length === 0 || bulkActionLoading}
+                          />
+                        </label>
                       </th>
                       <th className="text-left p-3 font-medium text-sm text-slate-700">Question</th>
                       <th className="text-left p-3 font-medium text-sm text-slate-700">Answer</th>
@@ -820,13 +838,15 @@ export function FAQManagementClient() {
                       {faqs.map((faq) => (
                         <tr key={faq.id} className="border-b hover:bg-slate-50">
                           <td className="p-3">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4"
-                              checked={selectedIds.has(faq.id)}
-                              onChange={() => toggleSelect(faq.id)}
-                              disabled={bulkActionLoading}
-                            />
+                            <label className="flex items-center min-h-[44px] min-w-[44px] py-1 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                checked={selectedIds.has(faq.id)}
+                                onChange={() => toggleSelect(faq.id)}
+                                disabled={bulkActionLoading}
+                              />
+                            </label>
                           </td>
                         <td className="p-3">
                           <div className="font-medium text-sm">{truncate(faq.question, 60)}</div>
@@ -906,18 +926,80 @@ export function FAQManagementClient() {
                 </table>
               </div>
 
+              {/* Mobile Card View */}
+              <div className="lg:hidden space-y-3">
+                {faqs.map((faq) => {
+                  const isBulkSelected = selectedIds.has(faq.id);
+                  return (
+                    <Card key={faq.id} className="border">
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-2">
+                          <label className="flex items-center min-h-[44px] min-w-[44px] py-1 -mr-1 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="form-checkbox h-4 w-4 text-blue-600"
+                              checked={isBulkSelected}
+                              onChange={() => toggleSelect(faq.id)}
+                              disabled={bulkActionLoading}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </label>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-medium text-sm truncate" title={faq.question}>
+                                  {faq.question}
+                                </h3>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 flex-shrink-0"
+                                onClick={() => setMobileActionSheet({ open: true, faq })}
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <p className="text-sm text-slate-600 line-clamp-2 mb-2" title={faq.answer}>
+                              {faq.answer}
+                            </p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {getStatusBadge(faq.status)}
+                              <span className="text-xs text-slate-500">
+                                {formatDate(faq.created_at)}
+                              </span>
+                              {faq.archived_at && (
+                                <span className="text-xs text-slate-500">
+                                  Archived: {formatDate(faq.archived_at)}
+                                </span>
+                              )}
+                              {faq.superseded_by && (
+                                <span className="text-xs text-slate-500">
+                                  Superseded by: {faq.superseded_by.substring(0, 8)}...
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
               {/* Pagination (if needed) */}
               {total > limit && (
-                <div className="flex items-center justify-between pt-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between pt-4 gap-3">
                   <div className="text-sm text-slate-600">
                     Showing {offset + 1} to {Math.min(offset + limit, total)} of {total}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 w-full sm:w-auto">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setOffset(Math.max(0, offset - limit))}
                       disabled={offset === 0 || loading}
+                      className="min-h-[44px] flex-1 sm:flex-none"
                     >
                       Previous
                     </Button>
@@ -926,6 +1008,7 @@ export function FAQManagementClient() {
                       size="sm"
                       onClick={() => setOffset(offset + limit)}
                       disabled={offset + limit >= total || loading}
+                      className="min-h-[44px] flex-1 sm:flex-none"
                     >
                       Next
                     </Button>
@@ -940,18 +1023,18 @@ export function FAQManagementClient() {
       {/* Supersede Modal */}
       {supersedeModal.open && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4"
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-3 sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-label="Supersede FAQ"
           onClick={handleCloseSupersede}
         >
-          <div className="flex min-h-full items-center justify-center">
+          <div className="flex min-h-full items-center justify-center py-4">
             <Card
-              className="w-full max-w-4xl rounded-2xl bg-white shadow-2xl"
+              className="w-full max-w-4xl rounded-2xl bg-white shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col my-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+              <CardHeader className="flex flex-row items-center justify-between border-b pb-4 flex-shrink-0">
                 <CardTitle>
                   {modalIsBulk
                     ? `Supersede ${supersedeModal.obsoleteIds.length} FAQs`
@@ -963,11 +1046,12 @@ export function FAQManagementClient() {
                   onClick={handleCloseSupersede}
                   disabled={supersedeModalLoading}
                   aria-label="Close supersede dialog"
+                  className="min-h-[44px] min-w-[44px]"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-4 pb-6 pt-4">
+              <CardContent className="space-y-4 pb-6 pt-4 flex-1 overflow-y-auto">
                 <div className="text-sm text-slate-600">
                   Select the new FAQ that will replace the obsolete one(s). Only active FAQs with citations are listed.
                 </div>
@@ -976,7 +1060,7 @@ export function FAQManagementClient() {
                     <button
                       key={faq.id}
                       type="button"
-                      className="w-full text-left border rounded-md p-3 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      className="w-full text-left border rounded-md p-3 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 min-h-[44px]"
                       onClick={() =>
                         showConfirmationDialog({
                           title: modalIsBulk
@@ -1000,11 +1084,12 @@ export function FAQManagementClient() {
                     </div>
                   )}
                 </div>
-                <div className="flex justify-end border-t pt-4">
+                <div className="flex justify-end border-t pt-4 flex-shrink-0">
                   <Button
                     variant="outline"
                     onClick={handleCloseSupersede}
                     disabled={supersedeModalLoading}
+                    className="min-h-[44px] w-full sm:w-auto"
                   >
                     Cancel
                   </Button>
@@ -1027,6 +1112,102 @@ export function FAQManagementClient() {
         confirmText={confirmationDialog.confirmText}
         variant={confirmationDialog.variant}
       />
+
+      {/* Mobile Action Bottom Sheet */}
+      <BottomSheet
+        open={mobileActionSheet.open}
+        onClose={() => setMobileActionSheet({ open: false, faq: null })}
+        title={mobileActionSheet.faq ? 'FAQ Actions' : ''}
+        className="max-h-[60vh]"
+      >
+        {mobileActionSheet.faq && (
+          <div className="space-y-4 pb-2">
+            <div className="pt-3 border-t">
+              <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                Question
+              </div>
+              <p className="text-sm text-slate-900">{mobileActionSheet.faq.question}</p>
+            </div>
+            <div className="border-t pt-3">
+              <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                Answer
+              </div>
+              <p className="text-sm text-slate-600 line-clamp-3">{mobileActionSheet.faq.answer}</p>
+            </div>
+            <div className="border-t pt-3">
+              <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                Status
+              </div>
+              <div className="mb-2">{getStatusBadge(mobileActionSheet.faq.status)}</div>
+              {mobileActionSheet.faq.archived_at && (
+                <p className="text-xs text-slate-500">
+                  Archived: {formatDate(mobileActionSheet.faq.archived_at)}
+                </p>
+              )}
+              {mobileActionSheet.faq.superseded_by && (
+                <p className="text-xs text-slate-500">
+                  Superseded by: {mobileActionSheet.faq.superseded_by.substring(0, 8)}...
+                </p>
+              )}
+            </div>
+            <div className="border-t pt-3 space-y-2">
+              {mobileActionSheet.faq.status === 'active' && (
+                <>
+                  <Button
+                    variant="outline"
+                    className="w-full min-h-[44px]"
+                    onClick={() => {
+                      setMobileActionSheet({ open: false, faq: null });
+                      handleArchive(mobileActionSheet.faq!);
+                    }}
+                    disabled={isFaqLoading(mobileActionSheet.faq.id) || bulkActionLoading}
+                  >
+                    {isFaqLoading(mobileActionSheet.faq.id) ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Archive className="h-4 w-4 mr-2" />
+                    )}
+                    Archive
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full min-h-[44px]"
+                    onClick={() => {
+                      setMobileActionSheet({ open: false, faq: null });
+                      handleOpenSupersede(mobileActionSheet.faq!);
+                    }}
+                    disabled={isFaqLoading(mobileActionSheet.faq.id) || bulkActionLoading}
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Supersede
+                  </Button>
+                </>
+              )}
+              {mobileActionSheet.faq.status === 'archived' && (
+                <Button
+                  variant="outline"
+                  className="w-full min-h-[44px]"
+                  onClick={() => {
+                    setMobileActionSheet({ open: false, faq: null });
+                    handleUnarchive(mobileActionSheet.faq!);
+                  }}
+                  disabled={isFaqLoading(mobileActionSheet.faq.id) || bulkActionLoading}
+                >
+                  {isFaqLoading(mobileActionSheet.faq.id) ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <ArchiveRestore className="h-4 w-4 mr-2" />
+                  )}
+                  Unarchive
+                </Button>
+              )}
+              {mobileActionSheet.faq.status === 'superseded' && (
+                <p className="text-sm text-slate-500 italic text-center py-2">Read-only</p>
+              )}
+            </div>
+          </div>
+        )}
+      </BottomSheet>
     </div>
   );
 }

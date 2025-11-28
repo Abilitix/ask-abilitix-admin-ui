@@ -38,16 +38,38 @@ Transform the Admin UI into a best-in-class mobile-responsive SaaS experience. A
 ## Pages Inventory
 
 ### 1. Inbox Page (`/admin/inbox`)
-**Status**: ❌ Not Mobile Ready (30%)
+**Status**: ✅ P0 Complete (Mobile Ready)
 **Components**: `LegacyInboxPageClient`, `LegacyInboxList`
+**Completed**: Mobile card view, bottom sheet, responsive filters, touch targets
 
-### 2. RAG Page (`/admin/rag-new`)
-**Status**: ⚠️ Unknown - Needs Review
+### 2. AI Assistant Page (`/admin/rag-new`)
+**Status**: ✅ P0 Complete (Mobile Ready)
+**Components**: `RagNewPageClient`, `ChatInterface`, `RagHitsTable`
+**Completed**: Mobile card view, responsive header, touch-friendly actions, TopK optimization
 
-### 3. FAQ Generation (`/admin/docs/generate-faqs`)
-**Status**: ⚠️ Unknown - Needs Review
+### 3. Documents/Upload Page (`/admin/docs`)
+**Status**: ⚠️ P0 Assessment Complete - Ready for Implementation
+**Components**: `DocumentManagementClient`, `DocsUploadForm`, `TusUploadForm`, `LegacyUploadForm`, `DocsStatsCard`
+**Assessment**: See `docs/UPLOAD_PAGE_MOBILE_ASSESSMENT.md`
+**P0 Issues**: 10 critical issues identified (~7-8 hours)
 
-### 4. Documents Page (`/admin/docs`)
+### 4. Documents/Upload Page (`/admin/docs`)
+**Status**: ✅ P0 Complete (Mobile Ready)
+**Components**: `DocumentManagementClient`, `DocsUploadForm`, `TusUploadForm`, `LegacyUploadForm`, `DocsStatsCard`
+**Completed**: Mobile card view, bottom sheet, responsive forms, touch targets
+
+### 5. Settings Page (`/admin/settings`)
+**Status**: ✅ P0 Complete (Mobile Ready)
+**Components**: `SettingsPage`, `WidgetSettingsSection`
+**Completed**: Responsive forms, touch targets, sliders, all interactive elements
+
+### 6. FAQ Management Page (`/admin/faqs`)
+**Status**: ⚠️ P0 Assessment Complete - Ready for Implementation
+**Components**: `FAQManagementClient`
+**Assessment**: See `docs/FAQ_MANAGEMENT_PAGE_MOBILE_ASSESSMENT.md`
+**P0 Issues**: 10 critical issues identified (~8-9 hours)
+
+### 7. FAQ Generation (`/admin/docs/generate-faqs`)
 **Status**: ⚠️ Unknown - Needs Review
 
 ### 5. Settings Pages
@@ -306,11 +328,14 @@ Transform the Admin UI into a best-in-class mobile-responsive SaaS experience. A
 ## Next Steps
 
 1. ✅ Review plan
-2. ⏳ Implement P0 fixes for Inbox page
-3. ⏳ Test on mobile devices
-4. ⏳ Deploy to preview
-5. ⏳ Review other pages and apply P0 fixes
-6. ⏳ Iterate based on feedback
+2. ✅ Implement P0 fixes for Inbox page
+3. ✅ Test on mobile devices
+4. ✅ Deploy to preview and main
+5. ✅ Implement P0 fixes for AI Assistant page
+6. ✅ Deploy to preview and main
+7. ⏳ Implement P0 fixes for Documents/Upload page
+8. ⏳ Review other pages and apply P0 fixes
+9. ⏳ Iterate based on feedback
 
 ---
 

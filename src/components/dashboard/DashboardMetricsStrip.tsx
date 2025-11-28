@@ -1,6 +1,7 @@
 'use client';
 
 import type { DashboardSummary } from '@/hooks/useDashboardSummary';
+import type { UserRole } from '@/lib/roles';
 
 interface MetricCardProps {
   label: string;
@@ -44,16 +45,25 @@ function MetricCard({
 interface DashboardMetricsStripProps {
   metrics?: DashboardSummary['metrics'];
   isLoading: boolean;
+  userRole?: UserRole;
 }
 
 export function DashboardMetricsStrip({
   metrics,
   isLoading,
+  userRole,
 }: DashboardMetricsStripProps) {
+  // Viewers: Hide metrics strip entirely
+  if (userRole === 'viewer') {
+    return null;
+  }
+
   if (isLoading && !metrics) {
+    // Determine how many skeleton cards to show based on role
+    const skeletonCount = userRole === 'curator' ? 3 : 4;
     return (
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-        {[1, 2, 3, 4].map((i) => (
+      <div className={`grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 ${userRole === 'curator' ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} mb-6`}>
+        {Array.from({ length: skeletonCount }).map((_, i) => (
           <div
             key={i}
             className="h-20 sm:h-24 rounded-2xl bg-slate-100 animate-pulse"
@@ -101,32 +111,77 @@ export function DashboardMetricsStrip({
       ? 'warn'
       : 'good';
 
-  return (
-    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+  // Determine which metrics to show based on role
+  const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
+  const isCurator = userRole === 'curator';
+
+  const metricsToShow = [];
+
+  // Governance metrics (only for admin/owner)
+  if (isAdminOrOwner) {
+    metricsToShow.push(
       <MetricCard
+        key="cited"
         label="Cited answers (24h)"
         value={fmtPct(metrics.cited_pct)}
         sublabel="Governance quality"
         status={citedStatus}
-      />
+      />,
       <MetricCard
+        key="faq-hit"
         label="FAQ fast-path"
         value={fmtPct(metrics.faq_hit_pct)}
         sublabel="Answered from FAQs"
         status={faqStatus}
-      />
+      />,
       <MetricCard
-        label="Inbox to review"
-        value={metrics.pending_reviews.toString()}
-        sublabel="Items pending"
-        status={inboxStatus}
-      />
-      <MetricCard
+        key="runtime"
         label="Runtime p95"
         value={fmtLatency(metrics.runtime_p95)}
         sublabel="Last 24h"
         status={runtimeStatus}
       />
+    );
+  }
+
+  // Inbox count (for curators and admins/owners)
+  if (isCurator || isAdminOrOwner) {
+    metricsToShow.push(
+      <MetricCard
+        key="inbox"
+        label="Inbox to review"
+        value={metrics.pending_reviews.toString()}
+        sublabel="Items pending"
+        status={inboxStatus}
+      />
+    );
+  }
+
+  // Basic counts for curators (if not already shown)
+  if (isCurator) {
+    metricsToShow.push(
+      <MetricCard
+        key="faqs"
+        label="Total FAQs"
+        value={metrics.faq_count.toString()}
+        sublabel="Live FAQs"
+        status="neutral"
+      />,
+      <MetricCard
+        key="docs"
+        label="Active docs"
+        value={metrics.docs_active.toString()}
+        sublabel="Documents"
+        status="neutral"
+      />
+    );
+  }
+
+  if (metricsToShow.length === 0) return null;
+
+  return (
+    <div className={`grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 ${metricsToShow.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} mb-6`}>
+      {metricsToShow}
     </div>
   );
 }

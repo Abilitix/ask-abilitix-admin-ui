@@ -651,12 +651,12 @@ export default function SettingsPage() {
 
   return (
     <TooltipProvider>
-      <div className="p-4 sm:p-6 max-w-4xl">
+      <div className="p-3 sm:p-4 md:p-6 max-w-4xl">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <Settings className="h-8 w-8 text-blue-600" />
-          <h1 className="text-3xl font-bold">AI Assistant Settings</h1>
+      <div className="mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 sm:gap-3 mb-2">
+          <Settings className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">AI Assistant Settings</h1>
         </div>
         <p className="text-sm text-gray-600">
           Tenant: <Badge variant="outline">{data?.tenant_slug || data?.tenant_name || 'Loading...'}</Badge>
@@ -700,7 +700,7 @@ export default function SettingsPage() {
               <Select
                 value={getPresetKey('answerQuality', form.DOC_MIN_SCORE ?? 0.15)}
                 onChange={(e) => setPreset('answerQuality', e.target.value)}
-                className="w-48"
+                className="w-full sm:w-48 min-h-[44px]"
               >
                 <option value="low">Low (0.1)</option>
                 <option value="medium">Medium (0.15)</option>
@@ -715,7 +715,7 @@ export default function SettingsPage() {
                     min="0" max="1" step="0.01"
                     value={form.DOC_MIN_SCORE ?? ''}
                     onChange={(e) => set('DOC_MIN_SCORE', parseFloat(e.target.value))}
-                    className="w-24"
+                    className="w-full sm:w-24 min-h-[44px]"
                   />
                 </div>
               )}
@@ -744,7 +744,7 @@ export default function SettingsPage() {
               <Select
                 value={getPresetKey('answerDetail', form.RAG_TOPK ?? 6)}
                 onChange={(e) => setPreset('answerDetail', e.target.value)}
-                className="w-48"
+                className="w-full sm:w-48 min-h-[44px]"
               >
                 <option value="concise">Concise (3)</option>
                 <option value="balanced">Balanced (6)</option>
@@ -765,7 +765,7 @@ export default function SettingsPage() {
                       const correspondingTokens = getTokenLimitForRagTopK(newTopK);
                       set('LLM_MAX_OUTPUT_TOKENS', correspondingTokens);
                     }}
-                    className="w-24"
+                    className="w-full sm:w-24 min-h-[44px]"
                   />
                 </div>
               )}
@@ -794,7 +794,7 @@ export default function SettingsPage() {
               <Select
                 value={getPresetKey('understandingFocus', form.DOC_VEC_W ?? 0.6)}
                 onChange={(e) => setPreset('understandingFocus', e.target.value)}
-                className="w-48"
+                className="w-full sm:w-48 min-h-[44px]"
               >
                 <option value="keywordMatching">Keyword Matching (0.3)</option>
                 <option value="balanced">Balanced (0.6)</option>
@@ -809,7 +809,7 @@ export default function SettingsPage() {
                     min="0" max="1" step="0.01"
                     value={form.DOC_VEC_W ?? ''}
                     onChange={(e) => set('DOC_VEC_W', parseFloat(e.target.value))}
-                    className="w-24"
+                    className="w-full sm:w-24 min-h-[44px]"
                   />
                 </div>
               )}
@@ -838,7 +838,7 @@ export default function SettingsPage() {
               <Select
                 value={getPresetKey('typoTolerance', form.DOC_TRGM_W ?? 0.4)}
                 onChange={(e) => setPreset('typoTolerance', e.target.value)}
-                className="w-48"
+                className="w-full sm:w-48 min-h-[44px]"
               >
                 <option value="strict">Strict (0.2)</option>
                 <option value="medium">Medium (0.4)</option>
@@ -853,7 +853,7 @@ export default function SettingsPage() {
                     min="0" max="1" step="0.01"
                     value={form.DOC_TRGM_W ?? ''}
                     onChange={(e) => set('DOC_TRGM_W', parseFloat(e.target.value))}
-                    className="w-24"
+                    className="w-full sm:w-24 min-h-[44px]"
                   />
                 </div>
               )}
@@ -883,7 +883,7 @@ export default function SettingsPage() {
                 <Select
                   value={getPresetKey('widgetSecurity', form.REQUIRE_WIDGET_KEY ?? 0)}
                   onChange={(e) => setPreset('widgetSecurity', e.target.value)}
-                  className="w-48"
+                  className="w-full sm:w-48 min-h-[44px]"
                 >
                   <option value="openAccess">Open Access</option>
                   <option value="keyRequired">Key Required</option>
@@ -894,7 +894,7 @@ export default function SettingsPage() {
                     <Select
                       value={form.REQUIRE_WIDGET_KEY ?? 0}
                       onChange={(e) => set('REQUIRE_WIDGET_KEY', parseInt(e.target.value))}
-                      className="w-full sm:w-24"
+                      className="w-full sm:w-24 min-h-[44px]"
                     >
                       <option value="0">Disabled</option>
                       <option value="1">Enabled</option>
@@ -930,7 +930,7 @@ export default function SettingsPage() {
               <Select
                 value={presetState.preset}
                 onChange={(e) => applyPreset(e.target.value as PresetKey)}
-                className="w-48"
+                className="w-full sm:w-48 min-h-[44px]"
               >
                 <option value="Concise">Concise</option>
                 <option value="Standard">Standard</option>
@@ -966,7 +966,8 @@ export default function SettingsPage() {
                     step="50"
                     value={presetState.maxTokens}
                     onChange={(e) => updateMaxTokens(parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    className="w-full h-4 sm:h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer touch-none"
+                    style={{ padding: '12px 0' }}
                   />
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>100</span>
@@ -1000,7 +1001,8 @@ export default function SettingsPage() {
                       step="1"
                       value={presetState.promptTopK}
                       onChange={(e) => updatePromptTopK(parseInt(e.target.value))}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      className="w-full h-4 sm:h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer touch-none"
+                      style={{ padding: '12px 0' }}
                     />
                     <div className="flex justify-between text-xs text-gray-500">
                       <span>1</span>
@@ -1031,18 +1033,18 @@ export default function SettingsPage() {
 
           {/* Advanced Mode Toggle */}
           <div className="pt-4 border-t">
-            <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
               <input
                 type="checkbox"
                 id="advanced-mode"
                 checked={advancedMode}
                 onChange={(e) => setAdvancedMode(e.target.checked)}
-                className="rounded"
+                className="rounded w-4 h-4"
               />
-              <Label htmlFor="advanced-mode" className="text-sm font-medium">
+              <Label htmlFor="advanced-mode" className="text-sm font-medium cursor-pointer">
                 Show Advanced Settings
               </Label>
-            </div>
+            </label>
             <p className="text-xs text-gray-500 mt-1 break-words">
               Display technical parameter names and allow custom value input
             </p>
@@ -1053,7 +1055,7 @@ export default function SettingsPage() {
             <Button
               onClick={save}
               disabled={saving}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full sm:w-auto min-h-[44px]"
             >
               {saving ? (
                 <>
@@ -1071,7 +1073,7 @@ export default function SettingsPage() {
             <Button
               onClick={resetToDefaults}
               variant="outline"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full sm:w-auto min-h-[44px]"
             >
               Reset to Defaults
             </Button>
@@ -1137,7 +1139,7 @@ export default function SettingsPage() {
                         size="sm"
                         onClick={() => offboardUser(member.user_id, member.name || member.email)}
                         disabled={offboardingUsers.has(member.user_id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 w-full sm:w-auto min-h-[44px] sm:min-h-0"
                       >
                         {offboardingUsers.has(member.user_id) ? (
                           <>
@@ -1193,25 +1195,25 @@ export default function SettingsPage() {
               {/* Email */}
               <div className="flex-1">
                 <label htmlFor="invite-email" className="sr-only">Email address</label>
-                <Input
-                  id="invite-email"
-                  name="inviteEmail"
-                  type="email"
-                  autoComplete="email"
-                  inputMode="email"
-                  enterKeyHint="send"
-                  placeholder="Enter email address"
-                  value={inviteEmail}
-                  onChange={(e) => {
-                    setInviteEmail(e.target.value);
-                    // Clear error when user starts typing
-                    if (err) setErr('');
-                  }}
-                  className="h-9 w-full"
-                  aria-invalid={!!err}
-                  aria-describedby={err ? "email-error" : undefined}
-                  required
-                />
+                  <Input
+                    id="invite-email"
+                    name="inviteEmail"
+                    type="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    enterKeyHint="send"
+                    placeholder="Enter email address"
+                    value={inviteEmail}
+                    onChange={(e) => {
+                      setInviteEmail(e.target.value);
+                      // Clear error when user starts typing
+                      if (err) setErr('');
+                    }}
+                    className="min-h-[44px] w-full"
+                    aria-invalid={!!err}
+                    aria-describedby={err ? "email-error" : undefined}
+                    required
+                  />
               </div>
 
               {/* Role + Button */}
@@ -1228,7 +1230,7 @@ export default function SettingsPage() {
                         setInviteRole(v);
                       }
                     }}
-                    className="h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm
+                    className="min-h-[44px] w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm
                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                disabled:cursor-not-allowed disabled:opacity-50 sm:w-32"
                     aria-label="Select user role"
@@ -1242,7 +1244,7 @@ export default function SettingsPage() {
                 <Button
                   type="submit"
                   disabled={inviting || !inviteEmail.trim() || !isEmailValid(normalizeEmail(inviteEmail))}
-                  className="h-9 w-full whitespace-nowrap sm:w-auto"
+                  className="min-h-[44px] w-full whitespace-nowrap sm:w-auto"
                   aria-busy={inviting ? true : undefined}
                 >
                   {inviting ? (

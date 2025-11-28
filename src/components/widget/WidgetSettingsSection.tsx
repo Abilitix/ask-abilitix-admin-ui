@@ -355,7 +355,7 @@ export function WidgetSettingsSection() {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Enabled Toggle - Phase 2 */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <label className="text-sm font-medium">Widget Status</label>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -368,7 +368,7 @@ export function WidgetSettingsSection() {
             onClick={handleToggleEnabled}
             disabled={togglingEnabled}
             variant={config.enabled ? 'default' : 'outline'}
-            className={`min-w-[100px] ${
+            className={`w-full sm:w-auto min-w-[100px] min-h-[44px] ${
               config.enabled
                 ? 'bg-green-600 hover:bg-green-700 text-white'
                 : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
@@ -437,7 +437,7 @@ export function WidgetSettingsSection() {
                       id="primary-color"
                       value={themeSettings.primary_color}
                       onChange={(e) => saveThemeSettings({ primary_color: e.target.value })}
-                      className="h-10 w-16 rounded border border-gray-300 cursor-pointer"
+                      className="h-11 w-16 sm:h-10 rounded border border-gray-300 cursor-pointer min-h-[44px] min-w-[44px]"
                     />
                   </div>
                   <Input
@@ -450,7 +450,7 @@ export function WidgetSettingsSection() {
                       }
                     }}
                     placeholder="#3b82f6"
-                    className="flex-1 font-mono text-sm"
+                    className="flex-1 font-mono text-sm min-h-[44px]"
                     maxLength={7}
                   />
                 </div>
@@ -480,7 +480,7 @@ export function WidgetSettingsSection() {
                       id="accent-color"
                       value={themeSettings.accent_color}
                       onChange={(e) => saveThemeSettings({ accent_color: e.target.value })}
-                      className="h-10 w-16 rounded border border-gray-300 cursor-pointer"
+                      className="h-11 w-16 sm:h-10 rounded border border-gray-300 cursor-pointer min-h-[44px] min-w-[44px]"
                     />
                   </div>
                   <Input
@@ -493,7 +493,7 @@ export function WidgetSettingsSection() {
                       }
                     }}
                     placeholder="#8b5cf6"
-                    className="flex-1 font-mono text-sm"
+                    className="flex-1 font-mono text-sm min-h-[44px]"
                     maxLength={7}
                   />
                 </div>
@@ -524,7 +524,7 @@ export function WidgetSettingsSection() {
                 onChange={(e) => saveThemeSettings({ title: e.target.value })}
                 placeholder="Chat with us"
                 maxLength={50}
-                className="w-full"
+                className="w-full min-h-[44px]"
               />
               <p className="text-xs text-muted-foreground">
                 {themeSettings.title.length}/50 characters
@@ -555,7 +555,7 @@ export function WidgetSettingsSection() {
                 placeholder="Hi! How can I help you today?"
                 maxLength={200}
                 rows={3}
-                className="w-full"
+                className="w-full min-h-[120px] sm:min-h-[90px]"
               />
               <p className="text-xs text-muted-foreground">
                 {themeSettings.welcome_message.length}/200 characters
@@ -583,7 +583,7 @@ export function WidgetSettingsSection() {
                 id="widget-position"
                 value={themeSettings.position}
                 onChange={(e) => saveThemeSettings({ position: e.target.value })}
-                className="w-full"
+                className="w-full min-h-[44px]"
               >
                 <option value="bottom-right">Bottom Right</option>
                 <option value="bottom-left">Bottom Left</option>

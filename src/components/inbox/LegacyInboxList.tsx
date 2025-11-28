@@ -208,6 +208,8 @@ export function LegacyInboxList({
   const [faqSelections, setFaqSelections] = useState<Record<string, boolean>>({});
   const [approveNotes, setApproveNotes] = useState<Record<string, string>>({});
   const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
+  const [markReviewedNotes, setMarkReviewedNotes] = useState<Record<string, string>>({});
+  const [dismissReasons, setDismissReasons] = useState<Record<string, string>>({});
   const [attachModalOpen, setAttachModalOpen] = useState<string | null>(null);
   const [attachCitations, setAttachCitations] = useState<EditableCitation[]>([{ docId: '', page: '', spanStart: '', spanEnd: '', spanText: '' }]);
   const [attachLoading, setAttachLoading] = useState(false);
@@ -882,7 +884,44 @@ export function LegacyInboxList({
                       <div className="flex flex-col gap-1.5 mt-auto pt-1">
                         {/* Chat/Widget Review Items: Show specialized actions */}
                         {canActOnItem(item) && (item.source_type === 'chat_review' || item.source_type === 'widget_review') && (
-                          <div className="flex flex-row gap-1.5 flex-nowrap">
+                          <div className="flex flex-col gap-2">
+                            {/* Show note fields only when requester exists */}
+                            {(() => {
+                              const hasRequester = item.requestedBy || item.metadata?.user_email;
+                              if (!hasRequester) return null;
+                              
+                              return (
+                                <div className="flex flex-col gap-2">
+                                  {/* Mark Reviewed note field */}
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] text-slate-600 font-medium">
+                                      Message to requester when marking reviewed (optional)
+                                    </label>
+                                    <Textarea
+                                      placeholder="Add a message to the requester (e.g., 'We'll get back to you soon')"
+                                      value={markReviewedNotes[item.id] || ''}
+                                      onChange={(e) => setMarkReviewedNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                      className="text-xs min-h-[60px] resize-none"
+                                      maxLength={500}
+                                    />
+                                  </div>
+                                  {/* Dismiss reason field */}
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] text-slate-600 font-medium">
+                                      Message to requester when dismissing (optional)
+                                    </label>
+                                    <Textarea
+                                      placeholder="Add a message to the requester (e.g., 'We'll get back to you soon')"
+                                      value={dismissReasons[item.id] || ''}
+                                      onChange={(e) => setDismissReasons((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                      className="text-xs min-h-[60px] resize-none"
+                                      maxLength={500}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            <div className="flex flex-row gap-1.5 flex-nowrap">
                             {/* Convert to FAQ button */}
                             {onConvertToFaq && (() => {
                               const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
@@ -945,7 +984,14 @@ export function LegacyInboxList({
                                 <Button
                                   onClick={() => {
                                     setActionStates((prev) => ({ ...prev, [item.id]: 'marking' }));
-                                    onMarkReviewed(item.id);
+                                    const note = markReviewedNotes[item.id]?.trim() || undefined;
+                                    onMarkReviewed(item.id, note);
+                                    // Clear note after action
+                                    setMarkReviewedNotes((prev) => {
+                                      const next = { ...prev };
+                                      delete next[item.id];
+                                      return next;
+                                    });
                                     setTimeout(() => {
                                       setActionStates((prev) => {
                                         const next = { ...prev };
@@ -990,7 +1036,14 @@ export function LegacyInboxList({
                                 <Button
                                   onClick={() => {
                                     setActionStates((prev) => ({ ...prev, [item.id]: 'dismissing' }));
-                                    onDismiss(item.id);
+                                    const reason = dismissReasons[item.id]?.trim() || undefined;
+                                    onDismiss(item.id, reason);
+                                    // Clear reason after action
+                                    setDismissReasons((prev) => {
+                                      const next = { ...prev };
+                                      delete next[item.id];
+                                      return next;
+                                    });
                                     setTimeout(() => {
                                       setActionStates((prev) => {
                                         const next = { ...prev };
@@ -1025,6 +1078,7 @@ export function LegacyInboxList({
                                 </Button>
                               );
                             })()}
+                            </div>
                           </div>
                         )}
                         

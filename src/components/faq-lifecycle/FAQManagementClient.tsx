@@ -933,7 +933,7 @@ export function FAQManagementClient() {
                   return (
                     <Card key={faq.id} className="border">
                       <CardContent className="p-4">
-                        <div className="flex items-start gap-2">
+                        <div className="flex items-start gap-0">
                           <label className="flex items-center min-h-[44px] min-w-[44px] py-1 -mr-1 cursor-pointer">
                             <input
                               type="checkbox"
@@ -944,7 +944,7 @@ export function FAQManagementClient() {
                               onClick={(e) => e.stopPropagation()}
                             />
                           </label>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 -ml-1">
                             <div className="flex items-start justify-between gap-2 mb-2">
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-medium text-sm truncate" title={faq.question}>

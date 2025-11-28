@@ -334,10 +334,10 @@ export function ChatSMEReviewModal({
   if (!open) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] px-4">
-      <div className="w-full max-w-3xl">
-        <Card className="shadow-2xl border-slate-200 bg-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] px-4 py-4 overflow-y-auto">
+      <div className="w-full max-w-3xl my-auto">
+        <Card className="shadow-2xl border-slate-200 bg-white max-h-[calc(100vh-2rem)] flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 flex-shrink-0">
             <CardTitle className="text-base">Request SME Review</CardTitle>
             <button
               type="button"
@@ -347,7 +347,7 @@ export function ChatSMEReviewModal({
               <X className="h-4 w-4" />
             </button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 overflow-y-auto">
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -473,11 +473,11 @@ export function ChatSMEReviewModal({
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2 border-t border-slate-200 flex-shrink-0">
+                <Button type="button" variant="outline" onClick={onClose} disabled={submitting} className="w-full sm:w-auto">
                   Cancel
                 </Button>
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
                   {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Send request
                 </Button>

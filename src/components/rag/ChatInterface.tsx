@@ -761,7 +761,7 @@ export default function ChatInterface({
                   <div className="mt-1.5 flex items-center gap-2">
                     {/* Action buttons for assistant messages */}
                     {!isUser && (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-0.5">
                         {/* Copy button - show for all assistant messages */}
                         <button
                           onClick={() => handleCopyMessage(m.text)}

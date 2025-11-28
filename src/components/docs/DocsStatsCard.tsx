@@ -78,17 +78,17 @@ export function DocsStatsCard({ refreshSignal, onLoaded }: DocsStatsCardProps) {
             Error: {error}
           </div>
         ) : stats ? (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-xl sm:text-2xl font-bold">{stats.total}</div>
               <div className="text-xs text-muted-foreground">Total</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{stats.with_vec}</div>
+              <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.with_vec}</div>
               <div className="text-xs text-muted-foreground">With Vectors</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">{stats.missing_vec}</div>
+              <div className="text-xl sm:text-2xl font-bold text-orange-600">{stats.missing_vec}</div>
               <div className="text-xs text-muted-foreground">Missing Vectors</div>
             </div>
           </div>

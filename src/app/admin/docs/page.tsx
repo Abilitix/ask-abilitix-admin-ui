@@ -14,14 +14,14 @@ export default async function AdminDocsPage() {
   const canManage = canManageDocs(user.role);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Documents</h1>
+    <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Documents</h1>
         {canManage && (
-          <Link href="/admin/docs/generate-faqs">
+          <Link href="/admin/docs/generate-faqs" className="w-full sm:w-auto">
             <Button 
               variant="default" 
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm min-h-[44px]"
             >
               <Sparkles className="h-4 w-4" />
               Generate FAQs

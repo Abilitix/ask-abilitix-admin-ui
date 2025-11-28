@@ -71,9 +71,9 @@ export default function PilotStepper() {
         : STEPS; // Owners/Admins see all steps
 
   return (
-    <div className="w-full border-b border-slate-200 bg-white/95 backdrop-blur-sm sm:sticky sm:top-[56px] z-20">
-      <div className="mx-auto max-w-7xl px-4">
-        <nav className="flex items-center gap-2 overflow-x-auto py-2.5 text-xs text-slate-600" aria-label="Pilot steps">
+    <div className="w-full border-b border-slate-200 bg-white/80 backdrop-blur">
+      <div className="mx-auto max-w-6xl px-4">
+        <nav className="flex items-center gap-2 overflow-x-auto py-2 text-xs text-slate-600" aria-label="Pilot steps">
           {!roleLoaded && (
             <div className="flex items-center gap-2">
               {[1, 2, 3].map((key) => (
@@ -92,10 +92,10 @@ export default function PilotStepper() {
                 <Link
                   href={s.href}
                   className={[
-                    "inline-flex items-center rounded-full border px-3 py-1.5 whitespace-nowrap font-medium transition-colors",
+                    "inline-flex items-center rounded-full border px-3 py-1 whitespace-nowrap transition-colors",
                     isActive
-                      ? "border-amber-600 bg-amber-50 text-amber-800 shadow-sm"
-                      : "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300",
+                      ? "border-blue-400 bg-blue-50 text-blue-700 font-medium"
+                      : "border-slate-200 bg-white hover:bg-slate-50",
                   ].join(" ")}
                   aria-current={isActive ? "step" : undefined}
                 >

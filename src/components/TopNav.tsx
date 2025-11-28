@@ -171,7 +171,7 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-[100] w-full bg-gradient-to-r from-blue-600 to-blue-700 shadow-md border-b border-blue-800/20">
+      <header className="sm:fixed top-0 left-0 right-0 z-[100] w-full bg-gradient-to-r from-blue-600 to-blue-700 shadow-md border-b border-blue-800/20">
         <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2.5 hover:opacity-90 transition-opacity">
             <Image

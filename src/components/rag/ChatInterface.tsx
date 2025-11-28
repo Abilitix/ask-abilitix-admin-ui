@@ -761,11 +761,11 @@ export default function ChatInterface({
                   <div className="mt-1.5 flex items-center gap-2">
                     {/* Action buttons for assistant messages */}
                     {!isUser && (
-                      <div className="flex items-center gap-0.5">
+                      <div className="flex items-center gap-1">
                         {/* Copy button - show for all assistant messages */}
                         <button
                           onClick={() => handleCopyMessage(m.text)}
-                          className="p-2 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                          className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                           title="Copy message"
                           aria-label="Copy message"
                         >
@@ -775,7 +775,7 @@ export default function ChatInterface({
                         {canRequestSMEReview && isLatestAssistant && (
                           <button
                             onClick={() => handleRequestSMEReview(m)}
-                            className="p-2 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                            className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                             title="Request SME review"
                             aria-label="Request SME review"
                           >

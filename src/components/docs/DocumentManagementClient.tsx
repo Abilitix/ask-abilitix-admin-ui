@@ -343,7 +343,7 @@ export function DocumentManagementClient() {
                         title={doc.title}
                         className="max-h-[60vh]"
                       >
-                        <div className="space-y-4 pb-4">
+                        <div className="space-y-4 pb-2">
                           <div className="space-y-1.5">
                             <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Status</div>
                             <div>
@@ -364,7 +364,11 @@ export function DocumentManagementClient() {
                               <div className="text-sm text-slate-700">{doc.topic_key}</div>
                             </div>
                           )}
-                          <div className="pt-2 border-t">
+                          <div className="space-y-1.5">
+                            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Document ID</div>
+                            <div className="text-xs text-slate-500 font-mono break-all">{doc.id}</div>
+                          </div>
+                          <div className="pt-3 border-t mt-2">
                             {doc.status === 'active' ? (
                               <Button
                                 onClick={() => {

@@ -934,10 +934,10 @@ export function FAQManagementClient() {
                     <Card key={faq.id} className="border">
                       <CardContent className="p-4">
                         <div className="flex items-start gap-0">
-                          <label className="flex items-center min-h-[44px] min-w-[44px] py-1 -mr-1 cursor-pointer">
+                          <label className="flex items-start min-h-[44px] min-w-[44px] -mr-1 cursor-pointer pt-1">
                             <input
                               type="checkbox"
-                              className="form-checkbox h-4 w-4 text-blue-600"
+                              className="form-checkbox h-4 w-4 text-blue-600 mt-0.5"
                               checked={isBulkSelected}
                               onChange={() => toggleSelect(faq.id)}
                               disabled={bulkActionLoading}
@@ -947,7 +947,7 @@ export function FAQManagementClient() {
                           <div className="flex-1 min-w-0 -ml-1">
                             <div className="flex items-start justify-between gap-2 mb-2">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-medium text-sm truncate" title={faq.question}>
+                                <h3 className="font-medium text-sm truncate leading-tight" title={faq.question}>
                                   {faq.question}
                                 </h3>
                               </div>

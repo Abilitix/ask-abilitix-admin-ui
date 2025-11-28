@@ -15,6 +15,7 @@ import {
   DocOption,
 } from '@/components/inbox/CitationsEditor';
 import { LegacyInboxItem } from './LegacyInboxPageClient';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
 import {
   Check,
   X,
@@ -30,6 +31,7 @@ import {
   CheckCircle2,
   XCircle,
   ListChecks,
+  MoreVertical,
 } from 'lucide-react';
 
 type LegacyInboxListProps = {
@@ -215,6 +217,8 @@ export function LegacyInboxList({
   const [attachLoading, setAttachLoading] = useState(false);
   const [copiedQuestionId, setCopiedQuestionId] = useState<string | null>(null);
   const [actionStates, setActionStates] = useState<Record<string, 'approving' | 'approved' | 'rejecting' | 'rejected' | 'converting' | 'marking' | 'dismissing'>>({});
+  const [mobileActionSheetOpen, setMobileActionSheetOpen] = useState<string | null>(null);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
 
@@ -475,24 +479,24 @@ export function LegacyInboxList({
     <>
       {selectedIds && selectedIds.size > 0 && onBulkApprove && onBulkReject && (
         <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="py-3 flex items-center justify-between">
+          <CardContent className="py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-blue-900">
                 {selectedIds.size} item(s) selected
               </span>
               {onClearSelection && (
-                <Button variant="link" size="sm" onClick={onClearSelection} className="text-blue-800">
+                <Button variant="link" size="sm" onClick={onClearSelection} className="text-blue-800 min-h-[44px]">
                   Clear selection
                 </Button>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={onBulkApprove}
                 disabled={bulkActionLoading}
-                className="bg-green-50 border-green-300 text-green-800 hover:bg-green-100"
+                className="bg-green-50 border-green-300 text-green-800 hover:bg-green-100 w-full sm:w-auto min-h-[44px]"
               >
                 {bulkActionLoading ? (
                   <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -506,7 +510,7 @@ export function LegacyInboxList({
                 variant="outline"
                 onClick={onBulkReject}
                 disabled={bulkActionLoading}
-                className="bg-red-50 border-red-300 text-red-800 hover:bg-red-100"
+                className="bg-red-50 border-red-300 text-red-800 hover:bg-red-100 w-full sm:w-auto min-h-[44px]"
               >
                 {bulkActionLoading ? (
                   <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -534,8 +538,10 @@ export function LegacyInboxList({
             </div>
           )}
           {items.length > 0 && (
-            <div className="overflow-x-auto">
-              <Table>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
+                <Table>
               <TableHeader>
                 <TableRow>
                   {selectedIds !== undefined && onToggleSelect && onSelectAll && (
@@ -1142,8 +1148,450 @@ export function LegacyInboxList({
             </TableBody>
           </Table>
         </div>
+
+        {/* Mobile Card View */}
+        <div className="lg:hidden space-y-4">
+          {items.map((item) => {
+            const isBulkSelected = selectedIds?.has(item.id) ?? false;
+            const isExpanded = expandedItems.has(item.id);
+            const isRefItem = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('ref') === item.id;
+            
+            return (
+              <Card
+                key={item.id}
+                data-item-id={item.id}
+                id={`inbox-item-${item.id}`}
+                className={isRefItem ? 'bg-blue-100 border-4 border-blue-500 shadow-lg' : ''}
+              >
+                <CardContent className="p-4 space-y-3">
+                  {/* Header: Checkbox, Status, Actions */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      {selectedIds !== undefined && onToggleSelect && (
+                        <input
+                          type="checkbox"
+                          className="form-checkbox h-5 w-5 text-blue-600 mt-1 min-h-[44px] min-w-[44px]"
+                          checked={isBulkSelected}
+                          onChange={() => onToggleSelect(item.id)}
+                          disabled={bulkActionLoading}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          {renderStatusBadge(item.status)}
+                          {item.source_type === 'chat_review' && (
+                            <Badge className="text-[10px] bg-blue-100 text-blue-900 border-blue-300 font-semibold">
+                              💬 Chat Review
+                            </Badge>
+                          )}
+                          {item.source_type === 'widget_review' && (
+                            <Badge className="text-[10px] bg-indigo-100 text-indigo-900 border-indigo-300 font-semibold">
+                              📱 Widget Review
+                            </Badge>
+                          )}
+                          {(item.source_type === 'auto' || item.source === 'faq_generation') && (
+                            <Badge className="text-[10px] bg-purple-100 text-purple-900 border-purple-300 font-semibold">
+                              📚 FAQ Generated
+                            </Badge>
+                          )}
+                          {item.has_pii && (
+                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0.5 flex items-center gap-0.5">
+                              <AlertTriangle className="h-2.5 w-2.5" />
+                              PII
+                            </Badge>
+                          )}
+                        </div>
+                        <h3 className="font-medium text-sm text-slate-900 mb-1 line-clamp-2">
+                          {item.question}
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          {new Date(item.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    {canActOnItem(item) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setMobileActionSheetOpen(item.id)}
+                        className="h-11 w-11 min-h-[44px] min-w-[44px] flex-shrink-0"
+                        aria-label="Actions"
+                      >
+                        <MoreVertical className="h-5 w-5" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Answer Preview */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      Answer
+                    </div>
+                    <div className="text-sm text-slate-700 line-clamp-3">
+                      {item.answer}
+                    </div>
+                    {item.answer.length > 150 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setExpandedItems((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(item.id)) {
+                              next.delete(item.id);
+                            } else {
+                              next.add(item.id);
+                            }
+                            return next;
+                          });
+                        }}
+                        className="h-8 text-xs min-h-[44px]"
+                      >
+                        {isExpanded ? 'Show less' : 'Show more'}
+                      </Button>
+                    )}
+                    {isExpanded && (
+                      <div className="text-sm text-slate-700 whitespace-pre-wrap">
+                        {item.answer}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Citations */}
+                  {item.suggested_citations && item.suggested_citations.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        Citations
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {item.suggested_citations.slice(0, 3).map((cite, idx) => {
+                          const docId = cite.doc_id;
+                          if (!docId) return null;
+                          const title = (docTitles && docTitles[docId]) || cite.title || docId;
+                          const displayTitle = title.length > 20 ? `${title.substring(0, 20)}…` : title;
+                          return (
+                            <Badge key={idx} variant="outline" className="text-[10px]">
+                              {displayTitle}
+                              {cite.page && <span className="ml-1">p.{cite.page}</span>}
+                            </Badge>
+                          );
+                        })}
+                        {item.suggested_citations.length > 3 && (
+                          <Badge variant="outline" className="text-[10px]">
+                            +{item.suggested_citations.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Requested By */}
+                  {(item.requestedBy || item.metadata?.user_email) && (item.source_type === 'chat_review' || item.source_type === 'widget_review') && (
+                    <div className="text-xs text-slate-600">
+                      👤 Requested by: {item.requestedBy?.name || item.requestedBy?.email || item.metadata?.user_email || 'Unknown'}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+            </>
           )}
         </CardContent>
+      {/* Mobile Action Bottom Sheet */}
+      {mobileActionSheetOpen && (() => {
+        const item = items.find((i) => i.id === mobileActionSheetOpen);
+        if (!item) return null;
+        
+        return (
+          <BottomSheet
+            open={!!mobileActionSheetOpen}
+            onClose={() => setMobileActionSheetOpen(null)}
+            title="Item Actions"
+          >
+            <div className="space-y-4">
+              {/* Question */}
+              <div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                  Question
+                </div>
+                <p className="text-sm text-slate-900">{item.question}</p>
+              </div>
+
+              {/* Answer */}
+              <div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                  Answer
+                </div>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap">{item.answer}</p>
+              </div>
+
+              {/* Citations */}
+              {item.suggested_citations && item.suggested_citations.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    Citations
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {item.suggested_citations.map((cite, idx) => {
+                      const docId = cite.doc_id;
+                      if (!docId) return null;
+                      const title = (docTitles && docTitles[docId]) || cite.title || docId;
+                      return (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {title}
+                          {cite.page && <span className="ml-1">p.{cite.page}</span>}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="space-y-3 pt-4 border-t">
+                {/* Chat/Widget Review Actions */}
+                {canActOnItem(item) && (item.source_type === 'chat_review' || item.source_type === 'widget_review') && (
+                  <>
+                    {(() => {
+                      const hasRequester = item.requestedBy || item.metadata?.user_email;
+                      if (hasRequester) {
+                        return (
+                          <div className="space-y-3">
+                            <div>
+                              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                                Message to requester (optional)
+                              </label>
+                              <Textarea
+                                placeholder="Add a message..."
+                                value={markReviewedNotes[item.id] || ''}
+                                onChange={(e) => setMarkReviewedNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                className="text-sm min-h-[80px] resize-none"
+                                maxLength={500}
+                              />
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                    
+                    <div className="flex flex-col gap-2">
+                      {onConvertToFaq && (() => {
+                        const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
+                        const citationsRequired = allowEmptyCitations === false;
+                        const missingCitations = citationsRequired && !hasCitations;
+                        const isConverting = actionStates[item.id] === 'converting';
+                        
+                        return (
+                          <Button
+                            onClick={() => {
+                              setActionStates((prev) => ({ ...prev, [item.id]: 'converting' }));
+                              const editedAnswer = editedAnswers[item.id];
+                              onConvertToFaq(item.id, editedAnswer);
+                              setMobileActionSheetOpen(null);
+                              setTimeout(() => {
+                                setActionStates((prev) => {
+                                  const next = { ...prev };
+                                  if (next[item.id] === 'converting') {
+                                    delete next[item.id];
+                                  }
+                                  return next;
+                                });
+                              }, 3000);
+                            }}
+                            disabled={missingCitations || isConverting}
+                            className="w-full min-h-[44px] bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            {isConverting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Converting...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                Convert to FAQ
+                              </>
+                            )}
+                          </Button>
+                        );
+                      })()}
+                      
+                      {onMarkReviewed && (
+                        <Button
+                          onClick={() => {
+                            setActionStates((prev) => ({ ...prev, [item.id]: 'marking' }));
+                            const note = markReviewedNotes[item.id]?.trim() || undefined;
+                            onMarkReviewed(item.id, note);
+                            setMobileActionSheetOpen(null);
+                            setMarkReviewedNotes((prev) => {
+                              const next = { ...prev };
+                              delete next[item.id];
+                              return next;
+                            });
+                            setTimeout(() => {
+                              setActionStates((prev) => {
+                                const next = { ...prev };
+                                if (next[item.id] === 'marking') {
+                                  delete next[item.id];
+                                }
+                                return next;
+                              });
+                            }, 3000);
+                          }}
+                          disabled={actionStates[item.id] === 'marking'}
+                          variant="outline"
+                          className="w-full min-h-[44px]"
+                        >
+                          {actionStates[item.id] === 'marking' ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Marking...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Mark Reviewed
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Regular Item Actions */}
+                {canActOnItem(item) && item.source_type !== 'chat_review' && item.source_type !== 'widget_review' && (
+                  <>
+                    {(() => {
+                      const hasRequester = item.requestedBy || item.metadata?.user_email;
+                      if (hasRequester) {
+                        return (
+                          <div className="space-y-3">
+                            <div>
+                              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                                Message to requester when approving (optional)
+                              </label>
+                              <Textarea
+                                placeholder="Add a message..."
+                                value={approveNotes[item.id] || ''}
+                                onChange={(e) => setApproveNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                className="text-sm min-h-[80px] resize-none"
+                                maxLength={500}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-slate-600 mb-1 block">
+                                Message to requester when rejecting (optional)
+                              </label>
+                              <Textarea
+                                placeholder="Add a message..."
+                                value={rejectNotes[item.id] || ''}
+                                onChange={(e) => setRejectNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                className="text-sm min-h-[80px] resize-none"
+                                maxLength={500}
+                              />
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                    
+                    <div className="flex flex-col gap-2">
+                      {(() => {
+                        const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
+                        const citationsRequired = allowEmptyCitations === false;
+                        const missingCitations = citationsRequired && !hasCitations;
+                        const isApproving = actionStates[item.id] === 'approving';
+                        
+                        return (
+                          <Button
+                            onClick={() => {
+                              handleApprove(item.id);
+                              setMobileActionSheetOpen(null);
+                            }}
+                            disabled={missingCitations || isApproving}
+                            className="w-full min-h-[44px] bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            {isApproving ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Approving...
+                              </>
+                            ) : (
+                              <>
+                                <Check className="h-4 w-4 mr-2" />
+                                Approve
+                              </>
+                            )}
+                          </Button>
+                        );
+                      })()}
+                      
+                      <Button
+                        onClick={() => {
+                          handleReject(item.id);
+                          setMobileActionSheetOpen(null);
+                        }}
+                        disabled={actionStates[item.id] === 'rejecting'}
+                        variant="outline"
+                        className="w-full min-h-[44px] border-red-300 text-red-700 hover:bg-red-50"
+                      >
+                        {actionStates[item.id] === 'rejecting' ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Rejecting...
+                          </>
+                        ) : (
+                          <>
+                            <X className="h-4 w-4 mr-2" />
+                            Reject
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                {/* Attach Citations */}
+                {canActOnItem(item) && (
+                  <Button
+                    onClick={() => {
+                      setMobileActionSheetOpen(null);
+                      handleOpenAttachModal(item.id);
+                    }}
+                    variant="outline"
+                    className="w-full min-h-[44px]"
+                  >
+                    <Paperclip className="h-4 w-4 mr-2" />
+                    Attach Citations
+                  </Button>
+                )}
+
+                {/* Request Review */}
+                {onRequestReview && item.status === 'pending' && (!item.assignedTo || item.assignedTo.length === 0) && (
+                  <Button
+                    onClick={() => {
+                      setMobileActionSheetOpen(null);
+                      onRequestReview(item);
+                    }}
+                    variant="outline"
+                    className="w-full min-h-[44px]"
+                  >
+                    <ListChecks className="h-4 w-4 mr-2" />
+                    Request Review
+                  </Button>
+                )}
+              </div>
+            </div>
+          </BottomSheet>
+        );
+      })()}
+
       {attachModalOpen && typeof window !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/30 backdrop-blur-[2px]"

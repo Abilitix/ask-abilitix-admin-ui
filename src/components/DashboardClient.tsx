@@ -111,6 +111,13 @@ export default function DashboardClient({ user }: DashboardClientProps) {
         />
       )}
 
+      {/* Coming Soon Note */}
+      <div className="flex items-center justify-center py-2">
+        <p className="text-xs sm:text-sm text-slate-500 italic">
+          More dashboard features coming soon
+        </p>
+      </div>
+
       <section>
         <h2 className="text-sm font-semibold text-slate-700 mb-5 uppercase tracking-wider">
           Dashboard Features

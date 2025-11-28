@@ -3,6 +3,9 @@
 import NoPrefetchLink from "@/components/NoPrefetchLink";
 import type { User } from "@/lib/auth"; // Adjust path if needed
 import { hasPermission } from "@/lib/roles";
+import { useDashboardSummary } from "@/hooks/useDashboardSummary";
+import { DashboardGreeting } from "@/components/dashboard/DashboardGreeting";
+import { DashboardMetricsStrip } from "@/components/dashboard/DashboardMetricsStrip";
 
 type DashboardClientProps = {
   user: User;
@@ -56,6 +59,7 @@ const AI_CARD: Card = {
 };
 
 export default function DashboardClient({ user }: DashboardClientProps) {
+  const { summary, isLoading, isError } = useDashboardSummary();
   const hideOld = process.env.NEXT_PUBLIC_HIDE_OLD_RAG === "1";
   const showPilot = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";
 
@@ -90,7 +94,22 @@ export default function DashboardClient({ user }: DashboardClientProps) {
   const viewerEmptyState = !hasCards && user.role === "viewer";
 
   return (
-    <div className="mx-auto max-w-6xl px-4 space-y-10">
+    <div className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6 space-y-6 sm:space-y-8 md:space-y-10">
+      {/* Greeting */}
+      <DashboardGreeting
+        name={summary?.user.name}
+        tenantName={summary?.tenant.name}
+        industry={summary?.tenant.industry}
+      />
+
+      {/* Metrics Strip */}
+      {!isError && (
+        <DashboardMetricsStrip
+          metrics={summary?.metrics}
+          isLoading={isLoading}
+        />
+      )}
+
       <section>
         <h2 className="text-sm font-semibold text-slate-700 mb-4">
           Dashboard Features

@@ -170,9 +170,9 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
 
   return (
     <>
-      <header className="sticky top-0 z-30 w-full border-b bg-white">
-        <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          <Link href="/" className="flex shrink-0 items-center gap-2">
+      <header className="sticky top-0 z-30 w-full bg-gradient-to-r from-blue-600 to-blue-700 shadow-md border-b border-blue-800/20">
+        <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
+          <Link href="/" className="flex shrink-0 items-center gap-2.5 hover:opacity-90 transition-opacity">
             <Image
               src="/abilitix-logo.png"
               alt="Abilitix"
@@ -181,23 +181,29 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
               className="rounded"
               priority
             />
-            <span className="font-semibold tracking-tight">Admin Portal</span>
+            <span className="font-semibold tracking-tight text-white">Admin Portal</span>
           </Link>
 
           <div className="flex items-center gap-3">
             {/* Mobile: show only email */}
             {effectiveEmail && (
-              <span className="md:hidden truncate text-xs text-slate-600 whitespace-nowrap">
+              <span className="md:hidden truncate text-xs text-blue-50/90 whitespace-nowrap font-medium">
                 {effectiveEmail}
               </span>
             )}
 
             {/* Desktop: horizontal identity block */}
             {identity && (
-              <div className="hidden md:flex items-center gap-2 text-xs text-slate-600 whitespace-nowrap">
+              <div className="hidden md:flex items-center gap-2.5 text-xs text-blue-50/90 whitespace-nowrap font-medium">
                 {me?.tenant?.slug && <span>Tenant: {me.tenant.slug}</span>}
-                {effectiveRole && <span>• {roleBadge(effectiveRole)}</span>}
-                {effectiveEmail && <span>• {effectiveEmail}</span>}
+                {effectiveRole && <span className="text-blue-200/70">•</span>}
+                {effectiveRole && (
+                  <span className="[&>span]:bg-blue-500/30 [&>span]:text-white [&>span]:border-blue-400/50">
+                    {roleBadge(effectiveRole)}
+                  </span>
+                )}
+                {effectiveEmail && <span className="text-blue-200/70">•</span>}
+                {effectiveEmail && <span>{effectiveEmail}</span>}
               </div>
             )}
 
@@ -206,7 +212,7 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
               type="button"
               onClick={toggle}
               aria-label="Open menu"
-              className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-md border border-blue-400/30 bg-blue-500/20 backdrop-blur-sm px-2.5 py-1.5 text-xs text-white hover:bg-blue-500/30 transition-colors"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -262,9 +268,9 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
 
               {/* Mobile identity block */}
               {identity && (
-                <div className="px-4 py-2 text-xs text-slate-600 border-b">
-                  {me?.tenant?.slug && <div>Tenant: {me.tenant.slug}</div>}
-                  {effectiveRole && <div>Role: {roleBadge(effectiveRole)}</div>}
+                <div className="px-4 py-3 text-xs text-slate-600 border-b bg-gradient-to-r from-blue-50 to-white">
+                  {me?.tenant?.slug && <div className="font-medium">Tenant: {me.tenant.slug}</div>}
+                  {effectiveRole && <div className="mt-1">Role: {roleBadge(effectiveRole)}</div>}
                 </div>
               )}
 

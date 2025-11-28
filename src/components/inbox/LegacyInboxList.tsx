@@ -705,12 +705,13 @@ export function LegacyInboxList({
                       {(item.requestedBy || item.metadata?.user_email) && (item.source_type === 'chat_review' || item.source_type === 'widget_review') && (() => {
                         // For internal users: use requestedBy (name/email)
                         // For external users: use metadata.user_email
+                        // Priority: name > email > id > metadata.user_email > fallback
                         const requesterName = item.requestedBy 
-                          ? (item.requestedBy.name || item.requestedBy.email || 'Unknown')
+                          ? (item.requestedBy.name || item.requestedBy.email || item.requestedBy.id || 'Unknown')
                           : (item.metadata?.user_email || 'External User');
                         const displayName = requesterName.length > 12 ? `${requesterName.substring(0, 12)}...` : requesterName;
                         const fullName = item.requestedBy
-                          ? (item.requestedBy.name || item.requestedBy.email || item.requestedBy.id)
+                          ? (item.requestedBy.name || item.requestedBy.email || item.requestedBy.id || 'Unknown')
                           : (item.metadata?.user_email || 'External User');
                         return (
                           <TooltipProvider>
@@ -722,6 +723,9 @@ export function LegacyInboxList({
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>Requested by: {fullName}</p>
+                                {item.requestedBy && !item.requestedBy.email && !item.requestedBy.name && (
+                                  <p className="text-xs text-muted-foreground mt-1">Email/name not available from backend</p>
+                                )}
                                 {item.source_type === 'widget_review' && !item.requestedBy && (
                                   <p className="text-xs text-muted-foreground mt-1">External user (no email on file)</p>
                                 )}

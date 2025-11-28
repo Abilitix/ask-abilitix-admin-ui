@@ -158,11 +158,47 @@ export function LegacyInboxPageClient({
           normalized.assignedAt = item.assigned_at || null;
           if (item.requested_by) {
             const reqBy = item.requested_by;
+            // Handle both object and string formats
+            const reqById = typeof reqBy === 'string' 
+              ? reqBy 
+              : (reqBy.id || reqBy.user_id || '');
+            const reqByEmail = typeof reqBy === 'object' 
+              ? (reqBy.email || '') 
+              : '';
+            const reqByName = typeof reqBy === 'object' 
+              ? (reqBy.name || null) 
+              : null;
+            const reqByRole = typeof reqBy === 'object' 
+              ? (reqBy.role || null) 
+              : null;
+            
+            // Debug logging in dev mode
+            if (isDevEnv) {
+              console.log('[LegacyInbox] requested_by normalization:', {
+                raw: item.requested_by,
+                normalized: {
+                  id: reqById,
+                  email: reqByEmail,
+                  name: reqByName,
+                  role: reqByRole,
+                },
+                metadata: item.metadata,
+              });
+            }
+            
             normalized.requestedBy = {
-              id: reqBy.id || reqBy.user_id || '',
-              email: reqBy.email || '',
-              name: reqBy.name || null,
-              role: reqBy.role || null,
+              id: reqById,
+              email: reqByEmail || item.metadata?.user_email || '', // Fallback to metadata.user_email
+              name: reqByName,
+              role: reqByRole,
+            };
+          } else if (item.metadata?.user_email) {
+            // If no requested_by but we have metadata.user_email (widget review case)
+            normalized.requestedBy = {
+              id: '',
+              email: item.metadata.user_email,
+              name: null,
+              role: null,
             };
           }
           
@@ -819,11 +855,33 @@ export function LegacyInboxPageClient({
             normalized.assignedAt = item.assigned_at || null;
             if (item.requested_by) {
               const reqBy = item.requested_by;
+              // Handle both object and string formats
+              const reqById = typeof reqBy === 'string' 
+                ? reqBy 
+                : (reqBy.id || reqBy.user_id || '');
+              const reqByEmail = typeof reqBy === 'object' 
+                ? (reqBy.email || '') 
+                : '';
+              const reqByName = typeof reqBy === 'object' 
+                ? (reqBy.name || null) 
+                : null;
+              const reqByRole = typeof reqBy === 'object' 
+                ? (reqBy.role || null) 
+                : null;
+              
               normalized.requestedBy = {
-                id: reqBy.id || reqBy.user_id || '',
-                email: reqBy.email || '',
-                name: reqBy.name || null,
-                role: reqBy.role || null,
+                id: reqById,
+                email: reqByEmail || item.metadata?.user_email || '', // Fallback to metadata.user_email
+                name: reqByName,
+                role: reqByRole,
+              };
+            } else if (item.metadata?.user_email) {
+              // If no requested_by but we have metadata.user_email (widget review case)
+              normalized.requestedBy = {
+                id: '',
+                email: item.metadata.user_email,
+                name: null,
+                role: null,
               };
             }
             
@@ -1863,11 +1921,33 @@ export function LegacyInboxPageClient({
                 normalized.assignedAt = item.assigned_at || null;
                 if (item.requested_by) {
                   const reqBy = item.requested_by;
+                  // Handle both object and string formats
+                  const reqById = typeof reqBy === 'string' 
+                    ? reqBy 
+                    : (reqBy.id || reqBy.user_id || '');
+                  const reqByEmail = typeof reqBy === 'object' 
+                    ? (reqBy.email || '') 
+                    : '';
+                  const reqByName = typeof reqBy === 'object' 
+                    ? (reqBy.name || null) 
+                    : null;
+                  const reqByRole = typeof reqBy === 'object' 
+                    ? (reqBy.role || null) 
+                    : null;
+                  
                   normalized.requestedBy = {
-                    id: reqBy.id || reqBy.user_id || '',
-                    email: reqBy.email || '',
-                    name: reqBy.name || null,
-                    role: reqBy.role || null,
+                    id: reqById,
+                    email: reqByEmail || item.metadata?.user_email || '', // Fallback to metadata.user_email
+                    name: reqByName,
+                    role: reqByRole,
+                  };
+                } else if (item.metadata?.user_email) {
+                  // If no requested_by but we have metadata.user_email (widget review case)
+                  normalized.requestedBy = {
+                    id: '',
+                    email: item.metadata.user_email,
+                    name: null,
+                    role: null,
                   };
                 }
                 

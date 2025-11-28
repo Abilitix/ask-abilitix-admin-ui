@@ -38,8 +38,8 @@ type LegacyInboxListProps = {
   error: string | null;
   enableFaqCreation: boolean;
   allowEmptyCitations: boolean;
-  onApprove: (id: string, editedAnswer?: string, isFaq?: boolean) => void;
-  onReject: (id: string) => void;
+  onApprove: (id: string, editedAnswer?: string, isFaq?: boolean, note?: string) => void;
+  onReject: (id: string, note?: string) => void;
   onAttachCitations: (id: string, citations: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => Promise<void>;
   onRefresh: () => void;
   docTitles?: Record<string, string>;
@@ -206,6 +206,8 @@ export function LegacyInboxList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
   const [faqSelections, setFaqSelections] = useState<Record<string, boolean>>({});
+  const [approveNotes, setApproveNotes] = useState<Record<string, string>>({});
+  const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
   const [attachModalOpen, setAttachModalOpen] = useState<string | null>(null);
   const [attachCitations, setAttachCitations] = useState<EditableCitation[]>([{ docId: '', page: '', spanStart: '', spanEnd: '', spanText: '' }]);
   const [attachLoading, setAttachLoading] = useState(false);
@@ -242,7 +244,14 @@ export function LegacyInboxList({
     setActionStates((prev) => ({ ...prev, [id]: 'approving' }));
     const editedAnswer = editedAnswers[id];
     const isFaq = faqSelections[id] ?? true;
-    onApprove(id, editedAnswer, isFaq);
+    const note = approveNotes[id]?.trim() || undefined;
+    onApprove(id, editedAnswer, isFaq, note);
+    // Clear note after action
+    setApproveNotes((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     // On success, parent removes item, so state clears naturally
     // On error, clear state after a delay (parent keeps item and shows error toast)
     setTimeout(() => {
@@ -259,7 +268,14 @@ export function LegacyInboxList({
   const handleReject = (id: string) => {
     // Set visual feedback immediately
     setActionStates((prev) => ({ ...prev, [id]: 'rejecting' }));
-    onReject(id);
+    const note = rejectNotes[id]?.trim() || undefined;
+    onReject(id, note);
+    // Clear note after action
+    setRejectNotes((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     // On success, parent removes item, so state clears naturally
     // On error, clear state after a delay (parent keeps item and shows error toast)
     setTimeout(() => {
@@ -1014,80 +1030,118 @@ export function LegacyInboxList({
                         
                         {/* Regular Items: Show standard Approve/Reject buttons */}
                         {canActOnItem(item) && item.source_type !== 'chat_review' && item.source_type !== 'widget_review' && (
-                          <div className="flex flex-row gap-1.5 flex-nowrap">
-                            {/* Show Approve button only if user can act on item (assignee OR admin) */}
+                          <div className="flex flex-col gap-2">
+                            {/* Show note fields only when requester exists */}
                             {(() => {
-                              // Check if citations are required and missing
-                              // Handle undefined, null, empty array, or non-array values
-                              const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
-                              const citationsRequired = allowEmptyCitations === false; // Explicitly check for false
-                              const missingCitations = citationsRequired && !hasCitations;
+                              const hasRequester = item.requestedBy || item.metadata?.user_email;
+                              if (!hasRequester) return null;
                               
                               return (
-                                <Button
-                                  onClick={() => handleApprove(item.id)}
-                                  size="sm"
-                                  className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-[12px] px-3 py-1.5 h-7 flex-shrink-0 font-semibold shadow-sm"
-                                  disabled={
-                                    editingId === item.id ||
-                                    missingCitations ||
-                                    actionStates[item.id] === 'approving' ||
-                                    actionStates[item.id] === 'approved'
-                                  }
-                                  title={
-                                    missingCitations
-                                      ? 'Attach citations first'
-                                      : 'Approve and automatically generate embeddings'
-                                  }
-                                >
-                                  {actionStates[item.id] === 'approving' ? (
-                                    <>
-                                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                      Approving...
-                                    </>
-                                  ) : actionStates[item.id] === 'approved' ? (
-                                    <>
-                                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                                      Approved
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Check className="h-3.5 w-3.5 mr-1.5" />
-                                      Approve
-                                    </>
-                                  )}
-                                </Button>
+                                <div className="flex flex-col gap-2">
+                                  {/* Approve note field */}
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] text-slate-600 font-medium">
+                                      Message to requester when approving (optional)
+                                    </label>
+                                    <Textarea
+                                      placeholder="Add a message to the requester (e.g., 'We'll get back to you soon')"
+                                      value={approveNotes[item.id] || ''}
+                                      onChange={(e) => setApproveNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                      className="text-xs min-h-[60px] resize-none"
+                                      maxLength={500}
+                                    />
+                                  </div>
+                                  {/* Reject note field */}
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] text-slate-600 font-medium">
+                                      Message to requester when rejecting (optional)
+                                    </label>
+                                    <Textarea
+                                      placeholder="Add a message to the requester (e.g., 'We'll get back to you soon')"
+                                      value={rejectNotes[item.id] || ''}
+                                      onChange={(e) => setRejectNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                      className="text-xs min-h-[60px] resize-none"
+                                      maxLength={500}
+                                    />
+                                  </div>
+                                </div>
                               );
                             })()}
-                            {/* Show Reject button only if user can act on item (assignee OR admin) */}
-                            <Button
-                              onClick={() => handleReject(item.id)}
-                              size="sm"
-                              variant="outline"
-                              className="text-[10px] border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
-                              disabled={
-                                editingId === item.id ||
-                                actionStates[item.id] === 'rejecting' ||
-                                actionStates[item.id] === 'rejected'
-                              }
-                            >
-                            {actionStates[item.id] === 'rejecting' ? (
-                              <>
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                Rejecting...
-                              </>
-                            ) : actionStates[item.id] === 'rejected' ? (
-                              <>
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                Rejected
-                              </>
-                            ) : (
-                              <>
-                                <X className="h-3 w-3 mr-1" />
-                                Reject
-                              </>
-                            )}
-                            </Button>
+                            <div className="flex flex-row gap-1.5 flex-nowrap">
+                              {/* Show Approve button only if user can act on item (assignee OR admin) */}
+                              {(() => {
+                                // Check if citations are required and missing
+                                // Handle undefined, null, empty array, or non-array values
+                                const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
+                                const citationsRequired = allowEmptyCitations === false; // Explicitly check for false
+                                const missingCitations = citationsRequired && !hasCitations;
+                                
+                                return (
+                                  <Button
+                                    onClick={() => handleApprove(item.id)}
+                                    size="sm"
+                                    className="!bg-green-600 !hover:bg-green-700 !text-white !border-green-600 !hover:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-[12px] px-3 py-1.5 h-7 flex-shrink-0 font-semibold shadow-sm"
+                                    disabled={
+                                      editingId === item.id ||
+                                      missingCitations ||
+                                      actionStates[item.id] === 'approving' ||
+                                      actionStates[item.id] === 'approved'
+                                    }
+                                    title={
+                                      missingCitations
+                                        ? 'Attach citations first'
+                                        : 'Approve and automatically generate embeddings'
+                                    }
+                                  >
+                                    {actionStates[item.id] === 'approving' ? (
+                                      <>
+                                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                        Approving...
+                                      </>
+                                    ) : actionStates[item.id] === 'approved' ? (
+                                      <>
+                                        <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                                        Approved
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Check className="h-3.5 w-3.5 mr-1.5" />
+                                        Approve
+                                      </>
+                                    )}
+                                  </Button>
+                                );
+                              })()}
+                              {/* Show Reject button only if user can act on item (assignee OR admin) */}
+                              <Button
+                                onClick={() => handleReject(item.id)}
+                                size="sm"
+                                variant="outline"
+                                className="text-[10px] border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 disabled:opacity-50 px-2 py-1 h-6 flex-shrink-0 font-normal"
+                                disabled={
+                                  editingId === item.id ||
+                                  actionStates[item.id] === 'rejecting' ||
+                                  actionStates[item.id] === 'rejected'
+                                }
+                              >
+                              {actionStates[item.id] === 'rejecting' ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Rejecting...
+                                </>
+                              ) : actionStates[item.id] === 'rejected' ? (
+                                <>
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Rejected
+                                </>
+                              ) : (
+                                <>
+                                  <X className="h-3 w-3 mr-1" />
+                                  Reject
+                                </>
+                              )}
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>

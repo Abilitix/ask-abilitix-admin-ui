@@ -701,6 +701,35 @@ export function LegacyInboxList({
                   <TableCell className="w-[110px]">
                     <div className="flex flex-col gap-1">
                       {renderStatusBadge(item.status)}
+                      {/* Show "Requested by" for chat/widget review items */}
+                      {(item.requestedBy || item.metadata?.user_email) && (item.source_type === 'chat_review' || item.source_type === 'widget_review') && (() => {
+                        // For internal users: use requestedBy (name/email)
+                        // For external users: use metadata.user_email
+                        const requesterName = item.requestedBy 
+                          ? (item.requestedBy.name || item.requestedBy.email || 'Unknown')
+                          : (item.metadata?.user_email || 'External User');
+                        const displayName = requesterName.length > 12 ? `${requesterName.substring(0, 12)}...` : requesterName;
+                        const fullName = item.requestedBy
+                          ? (item.requestedBy.name || item.requestedBy.email || item.requestedBy.id)
+                          : (item.metadata?.user_email || 'External User');
+                        return (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 text-slate-600 border-slate-300 bg-slate-50 w-fit">
+                                  👤 {displayName}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Requested by: {fullName}</p>
+                                {item.source_type === 'widget_review' && !item.requestedBy && (
+                                  <p className="text-xs text-muted-foreground mt-1">External user (no email on file)</p>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
                       {item.has_pii && (
                         <TooltipProvider>
                           <Tooltip>

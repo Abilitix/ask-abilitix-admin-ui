@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { type UserRole, getVisibleNavItems } from "@/lib/roles";
+import { X, LayoutDashboard, MessageSquare, Inbox, Upload, FileText, Settings, Target, LogOut } from "lucide-react";
 
 type Me = {
   ok: boolean;
@@ -254,57 +255,75 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
               aria-modal="true"
               aria-label="Navigation menu"
             >
-              <div className="flex items-center justify-between border-b px-4 py-3">
-                <div className="font-medium">Menu</div>
+              <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-blue-50/50 to-white px-4 py-4">
+                <div className="font-semibold text-slate-900 text-base">Menu</div>
                 <button
                   type="button"
                   onClick={close}
                   aria-label="Close menu"
-                  className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                  className="inline-flex items-center justify-center rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors min-h-[44px] min-w-[44px]"
                 >
-                  ✕
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Mobile identity block */}
               {identity && (
-                <div className="px-4 py-3 text-xs text-slate-600 border-b bg-gradient-to-r from-blue-50 to-white">
-                  {me?.tenant?.slug && <div className="font-medium">Tenant: {me.tenant.slug}</div>}
-                  {effectiveRole && <div className="mt-1">Role: {roleBadge(effectiveRole)}</div>}
+                <div className="px-4 py-3 text-xs text-slate-600 border-b border-slate-200 bg-slate-50/50">
+                  {me?.tenant?.slug && <div className="font-medium text-slate-700">Tenant: {me.tenant.slug}</div>}
+                  {effectiveRole && <div className="mt-1.5">Role: {roleBadge(effectiveRole)}</div>}
                 </div>
               )}
 
-              <nav className="flex-1 overflow-y-auto px-2 py-2 divide-y divide-slate-200 text-slate-900">
+              <nav className="flex-1 overflow-y-auto py-2 text-slate-900">
                 {isRoleLoading && (
-                  <div className="space-y-2 px-1 py-2">
+                  <div className="space-y-1 px-2 py-2">
                     {[1, 2, 3, 4].map((idx) => (
                       <div
                         key={idx}
-                        className="h-10 animate-pulse rounded-xl border border-slate-200 bg-slate-50"
+                        className="h-12 animate-pulse rounded-lg border border-slate-200 bg-slate-50 mx-2"
                       />
                     ))}
                   </div>
                 )}
                 {!isRoleLoading &&
-                  filteredNavItems.map((it) => (
-                    <Link
-                      key={it.href}
-                      href={it.href}
-                      onClick={close}
-                      aria-current={isActive(it.href) ? "page" : undefined}
-                      className={[
-                        "block break-words px-3 py-3 text-[15px] hover:bg-slate-50 focus:bg-slate-50 focus:outline-none",
-                        isActive(it.href)
-                          ? "bg-slate-50 font-medium border-l-2 border-slate-300"
-                          : "bg-white",
-                      ].join(" ")}
-                    >
-                      {it.label}
-                    </Link>
-                  ))}
+                  filteredNavItems.map((it) => {
+                    const getIcon = (href: string) => {
+                      switch (href) {
+                        case "/": return <LayoutDashboard className="h-5 w-5" />;
+                        case "/admin/ai": return <MessageSquare className="h-5 w-5" />;
+                        case "/admin/inbox": return <Inbox className="h-5 w-5" />;
+                        case "/admin/docs": return <Upload className="h-5 w-5" />;
+                        case "/admin/faqs": return <FileText className="h-5 w-5" />;
+                        case "/admin/settings": return <Settings className="h-5 w-5" />;
+                        case "/pilot": return <Target className="h-5 w-5" />;
+                        default: return null;
+                      }
+                    };
+                    const icon = getIcon(it.href);
+                    const active = isActive(it.href);
+                    
+                    return (
+                      <Link
+                        key={it.href}
+                        href={it.href}
+                        onClick={close}
+                        aria-current={active ? "page" : undefined}
+                        className={[
+                          "flex items-center gap-3 px-4 py-3.5 text-[15px] transition-colors min-h-[48px]",
+                          active
+                            ? "bg-blue-50/80 text-blue-700 font-semibold border-l-4 border-blue-600"
+                            : "text-slate-700 hover:bg-slate-50 hover:text-slate-900",
+                        ].join(" ")}
+                      >
+                        {icon && <span className={active ? "text-blue-600" : "text-slate-500"}>{icon}</span>}
+                        <span>{it.label}</span>
+                      </Link>
+                    );
+                  })}
               </nav>
 
-              <div className="border-t px-2 py-3">
+              <div className="border-t border-slate-200 px-3 py-3 bg-slate-50/30">
                 <button
                   onClick={async () => {
                     try {
@@ -319,9 +338,10 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
                       window.location.assign("/signin");
                     }
                   }}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                  className="flex items-center gap-3 w-full rounded-lg border border-red-200 bg-white px-4 py-3 text-left text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors font-medium min-h-[48px]"
                 >
-                  Sign out
+                  <LogOut className="h-5 w-5" />
+                  <span>Sign out</span>
                 </button>
               </div>
             </aside>

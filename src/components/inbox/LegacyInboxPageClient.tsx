@@ -26,6 +26,10 @@ export type LegacyInboxItem = {
   reason?: string | null;
   assignedAt?: string | null;
   requestedBy?: AssignableMember | null;
+  metadata?: {
+    user_email?: string;
+    [key: string]: any;
+  } | null;
   suggested_citations?: Array<{
     doc_id: string;
     title?: string;
@@ -154,12 +158,53 @@ export function LegacyInboxPageClient({
           normalized.assignedAt = item.assigned_at || null;
           if (item.requested_by) {
             const reqBy = item.requested_by;
+            // Handle both object and string formats
+            const reqById = typeof reqBy === 'string' 
+              ? reqBy 
+              : (reqBy.id || reqBy.user_id || '');
+            const reqByEmail = typeof reqBy === 'object' 
+              ? (reqBy.email || '') 
+              : '';
+            const reqByName = typeof reqBy === 'object' 
+              ? (reqBy.name || null) 
+              : null;
+            const reqByRole = typeof reqBy === 'object' 
+              ? (reqBy.role || null) 
+              : null;
+            
+            // Debug logging in dev mode
+            if (isDevEnv) {
+              console.log('[LegacyInbox] requested_by normalization:', {
+                raw: item.requested_by,
+                normalized: {
+                  id: reqById,
+                  email: reqByEmail,
+                  name: reqByName,
+                  role: reqByRole,
+                },
+                metadata: item.metadata,
+              });
+            }
+            
             normalized.requestedBy = {
-              id: reqBy.id || reqBy.user_id || '',
-              email: reqBy.email || '',
-              name: reqBy.name || null,
-              role: reqBy.role || null,
+              id: reqById,
+              email: reqByEmail || item.metadata?.user_email || '', // Fallback to metadata.user_email
+              name: reqByName,
+              role: reqByRole,
             };
+          } else if (item.metadata?.user_email) {
+            // If no requested_by but we have metadata.user_email (widget review case)
+            normalized.requestedBy = {
+              id: '',
+              email: item.metadata.user_email,
+              name: null,
+              role: null,
+            };
+          }
+          
+          // Store metadata for widget review email fallback
+          if (item.metadata) {
+            normalized.metadata = item.metadata;
           }
 
           return normalized;
@@ -690,10 +735,22 @@ export function LegacyInboxPageClient({
         throw new Error(errorMessage);
       }
 
-      toast.success(isFaq 
-        ? 'Item promoted as FAQ ✓ (embeddings generated automatically)'
-        : 'Item approved ✓ (embeddings generated automatically)'
-      );
+      // Check if this item has a requester (requested_by field exists in database)
+      // Only show notification message if requested_by exists (someone explicitly requested review)
+      const hasRequester = item?.requestedBy; // requestedBy comes from requested_by field in database
+
+      // Show notification message only if requested_by exists
+      if (hasRequester) {
+        toast.success(isFaq 
+          ? 'Item promoted as FAQ ✓ (embeddings generated automatically). Requester will be notified via email.'
+          : 'Item approved ✓ (embeddings generated automatically). Requester will be notified via email.'
+        );
+      } else {
+        toast.success(isFaq 
+          ? 'Item promoted as FAQ ✓ (embeddings generated automatically)'
+          : 'Item approved ✓ (embeddings generated automatically)'
+        );
+      }
       setItems((prev) => prev.filter((item) => item.id !== id));
       setRefreshSignal((prev) => prev + 1);
     } catch (err) {
@@ -810,12 +867,39 @@ export function LegacyInboxPageClient({
             normalized.assignedAt = item.assigned_at || null;
             if (item.requested_by) {
               const reqBy = item.requested_by;
+              // Handle both object and string formats
+              const reqById = typeof reqBy === 'string' 
+                ? reqBy 
+                : (reqBy.id || reqBy.user_id || '');
+              const reqByEmail = typeof reqBy === 'object' 
+                ? (reqBy.email || '') 
+                : '';
+              const reqByName = typeof reqBy === 'object' 
+                ? (reqBy.name || null) 
+                : null;
+              const reqByRole = typeof reqBy === 'object' 
+                ? (reqBy.role || null) 
+                : null;
+              
               normalized.requestedBy = {
-                id: reqBy.id || reqBy.user_id || '',
-                email: reqBy.email || '',
-                name: reqBy.name || null,
-                role: reqBy.role || null,
+                id: reqById,
+                email: reqByEmail || item.metadata?.user_email || '', // Fallback to metadata.user_email
+                name: reqByName,
+                role: reqByRole,
               };
+            } else if (item.metadata?.user_email) {
+              // If no requested_by but we have metadata.user_email (widget review case)
+              normalized.requestedBy = {
+                id: '',
+                email: item.metadata.user_email,
+                name: null,
+                role: null,
+              };
+            }
+            
+            // Store metadata for widget review email fallback
+            if (item.metadata) {
+              normalized.metadata = item.metadata;
             }
 
             // Update only this item in state
@@ -882,6 +966,9 @@ export function LegacyInboxPageClient({
 
   const handleReject = useCallback(async (id: string) => {
     try {
+      // Get item to check if it has a requester (admin_review, chat_review, widget_review)
+      const item = items.find((i) => i.id === id);
+      
       const response = await fetch('/api/admin/inbox/reject', {
         method: 'POST',
         headers: {
@@ -904,7 +991,16 @@ export function LegacyInboxPageClient({
         throw new Error(data.details || data.error || `Failed to reject: ${response.status}`);
       }
 
-      toast.success('Item rejected ✓');
+      // Check if this item has a requester (requested_by field exists in database)
+      // Only show notification message if requested_by exists (someone explicitly requested review)
+      const hasRequester = item?.requestedBy; // requestedBy comes from requested_by field in database
+
+      // Show notification message only if requested_by exists
+      if (hasRequester) {
+        toast.success('Item rejected ✓. Requester will be notified via email.');
+      } else {
+        toast.success('Item rejected ✓');
+      }
       setItems((prev) => prev.filter((item) => item.id !== id));
       setRefreshSignal((prev) => prev + 1);
     } catch (err) {
@@ -916,6 +1012,16 @@ export function LegacyInboxPageClient({
   // Chat review action: Mark as reviewed (without converting to FAQ)
   const handleMarkReviewed = useCallback(async (id: string, note?: string) => {
     try {
+      // Get item to check if it's a chat review with requester
+      const item = items.find((i) => i.id === id);
+      const isChatReview = item?.source_type === 'chat_review';
+      const isWidgetReview = item?.source_type === 'widget_review';
+      
+      // Check for requester email availability
+      // Internal users: requestedBy has UUID → backend looks up email
+      // External users: metadata.user_email (if provided)
+      const hasRequesterEmail = item?.requestedBy || item?.metadata?.user_email;
+
       const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/mark-reviewed`, {
         method: 'POST',
         headers: {
@@ -945,14 +1051,27 @@ export function LegacyInboxPageClient({
         throw new Error(errorMessage);
       }
 
-      toast.success('Item marked as reviewed ✓');
+      // Show conditional notification message based on email availability
+      if (isChatReview && hasRequesterEmail) {
+        // Internal user - always has email (UUID lookup)
+        toast.success('Item marked as reviewed ✓. Requester will be notified via email.');
+      } else if (isWidgetReview && item?.metadata?.user_email) {
+        // External user with email provided
+        toast.success('Item marked as reviewed ✓. Requester will be notified via email.');
+      } else if (isWidgetReview && !item?.metadata?.user_email) {
+        // External user without email
+        toast.success('Item marked as reviewed ✓. No email on file — please contact requester directly.');
+      } else {
+        // Fallback for other cases
+        toast.success('Item marked as reviewed ✓');
+      }
       setItems((prev) => prev.filter((item) => item.id !== id));
       setRefreshSignal((prev) => prev + 1);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to mark as reviewed';
       console.error('[mark-reviewed] Error:', err);
     }
-  }, []);
+  }, [items]);
 
   // Chat review action: Convert to FAQ
   const handleConvertToFaq = useCallback(async (id: string, editedAnswer?: string, citations?: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => {
@@ -1006,7 +1125,25 @@ export function LegacyInboxPageClient({
         throw new Error(errorMessage);
       }
 
-      toast.success('Item converted to FAQ ✓ (embeddings generated automatically)');
+      // Check if this is a chat review or widget review with requester email
+      const isChatReview = item?.source_type === 'chat_review';
+      const isWidgetReview = item?.source_type === 'widget_review';
+      const hasRequesterEmail = item?.requestedBy || item?.metadata?.user_email;
+
+      // Show conditional notification message based on email availability
+      if (isChatReview && hasRequesterEmail) {
+        // Internal user - always has email (UUID lookup)
+        toast.success('Item converted to FAQ ✓ (embeddings generated automatically). Requester will be notified via email.');
+      } else if (isWidgetReview && item?.metadata?.user_email) {
+        // External user with email provided
+        toast.success('Item converted to FAQ ✓ (embeddings generated automatically). Requester will be notified via email.');
+      } else if (isWidgetReview && !item?.metadata?.user_email) {
+        // External user without email
+        toast.success('Item converted to FAQ ✓ (embeddings generated automatically). No email on file — please contact requester directly.');
+      } else {
+        // Fallback for other cases
+        toast.success('Item converted to FAQ ✓ (embeddings generated automatically)');
+      }
       setItems((prev) => prev.filter((item) => item.id !== id));
       setRefreshSignal((prev) => prev + 1);
     } catch (err) {
@@ -1018,6 +1155,16 @@ export function LegacyInboxPageClient({
   // Chat review action: Dismiss
   const handleDismiss = useCallback(async (id: string, reason?: string) => {
     try {
+      // Get item to check if it's a chat review or widget review with requester
+      const item = items.find((i) => i.id === id);
+      const isChatReview = item?.source_type === 'chat_review';
+      const isWidgetReview = item?.source_type === 'widget_review';
+      
+      // Check for requester email availability
+      // Internal users: requestedBy has UUID → backend looks up email
+      // External users: metadata.user_email (if provided)
+      const hasRequesterEmail = item?.requestedBy || item?.metadata?.user_email;
+
       const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/dismiss`, {
         method: 'POST',
         headers: {
@@ -1047,14 +1194,27 @@ export function LegacyInboxPageClient({
         throw new Error(errorMessage);
       }
 
-      toast.success('Item dismissed ✓');
+      // Show conditional notification message based on email availability
+      if (isChatReview && hasRequesterEmail) {
+        // Internal user - always has email (UUID lookup)
+        toast.success('Item dismissed ✓. Requester will be notified via email.');
+      } else if (isWidgetReview && item?.metadata?.user_email) {
+        // External user with email provided
+        toast.success('Item dismissed ✓. Requester will be notified via email.');
+      } else if (isWidgetReview && !item?.metadata?.user_email) {
+        // External user without email
+        toast.success('Item dismissed ✓. No email on file — please contact requester directly.');
+      } else {
+        // Fallback for other cases
+        toast.success('Item dismissed ✓');
+      }
       setItems((prev) => prev.filter((item) => item.id !== id));
       setRefreshSignal((prev) => prev + 1);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to dismiss';
       console.error('[dismiss] Error:', err);
     }
-  }, []);
+  }, [items]);
 
   // Bulk selection handlers
   const handleToggleSelect = useCallback((id: string) => {
@@ -1785,12 +1945,39 @@ export function LegacyInboxPageClient({
                 normalized.assignedAt = item.assigned_at || null;
                 if (item.requested_by) {
                   const reqBy = item.requested_by;
+                  // Handle both object and string formats
+                  const reqById = typeof reqBy === 'string' 
+                    ? reqBy 
+                    : (reqBy.id || reqBy.user_id || '');
+                  const reqByEmail = typeof reqBy === 'object' 
+                    ? (reqBy.email || '') 
+                    : '';
+                  const reqByName = typeof reqBy === 'object' 
+                    ? (reqBy.name || null) 
+                    : null;
+                  const reqByRole = typeof reqBy === 'object' 
+                    ? (reqBy.role || null) 
+                    : null;
+                  
                   normalized.requestedBy = {
-                    id: reqBy.id || reqBy.user_id || '',
-                    email: reqBy.email || '',
-                    name: reqBy.name || null,
-                    role: reqBy.role || null,
+                    id: reqById,
+                    email: reqByEmail || item.metadata?.user_email || '', // Fallback to metadata.user_email
+                    name: reqByName,
+                    role: reqByRole,
                   };
+                } else if (item.metadata?.user_email) {
+                  // If no requested_by but we have metadata.user_email (widget review case)
+                  normalized.requestedBy = {
+                    id: '',
+                    email: item.metadata.user_email,
+                    name: null,
+                    role: null,
+                  };
+                }
+                
+                // Store metadata for widget review email fallback
+                if (item.metadata) {
+                  normalized.metadata = item.metadata;
                 }
 
                 // Add the new item to the list (prepend to show at top)

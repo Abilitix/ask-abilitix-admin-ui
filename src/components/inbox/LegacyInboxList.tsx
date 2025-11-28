@@ -1166,9 +1166,9 @@ export function LegacyInboxList({
                 <CardContent className="p-4 space-y-3">
                   {/* Header: Checkbox, Status, Actions */}
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-1.5 flex-1 min-w-0">
+                    <div className="flex items-start gap-1 flex-1 min-w-0">
                       {selectedIds !== undefined && onToggleSelect && (
-                        <label className="flex items-center min-h-[44px] min-w-[44px] py-1 cursor-pointer">
+                        <label className="flex items-center min-h-[44px] min-w-[44px] py-1 -mr-0.5 cursor-pointer">
                           <input
                             type="checkbox"
                             className="form-checkbox h-4 w-4 text-blue-600"

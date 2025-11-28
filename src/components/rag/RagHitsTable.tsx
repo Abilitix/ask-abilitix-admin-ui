@@ -103,7 +103,8 @@ export function RagHitsTable({ hits, topScore, loading }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border">
+        {/* Desktop Table View */}
+        <div className="hidden lg:block rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -142,6 +143,44 @@ export function RagHitsTable({ hits, topScore, loading }: Props) {
               ))}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="lg:hidden space-y-3">
+          {hits.map((hit) => (
+            <div
+              key={hit.idx}
+              className="rounded-lg border border-slate-200 p-3 space-y-2 bg-slate-50/50"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-slate-700">#{hit.idx}</span>
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs ${getScoreColor(hit.score, topScore)}`}
+                  >
+                    Score: {hit.score.toFixed(3)}
+                  </Badge>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-slate-500">Vec Sim:</span>
+                  <span className="ml-1 text-slate-700 font-medium">{hit.vec_sim.toFixed(3)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500">Trgm Sim:</span>
+                  <span className="ml-1 text-slate-700 font-medium">{hit.trgm_sim.toFixed(3)}</span>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-slate-500 mb-1">Preview</div>
+                <div className="text-sm text-slate-700 leading-relaxed">
+                  {hit.preview}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>

@@ -79,11 +79,10 @@ function SignInForm() {
     
     try {
       // Determine endpoint and body based on method
-      // Password: Use Admin API directly (backend sets cookie)
-      // Magic Link: Use proxy route (maintains existing behavior)
+      // Both use proxy routes to handle cookie management properly (same domain)
       const endpoint = method === 'password' 
-        ? `${process.env.NEXT_PUBLIC_ADMIN_API}/auth/login`
-        : '/api/public/signin';
+        ? '/api/auth/login'  // Proxy route for password login (sets cookie on UI domain)
+        : '/api/public/signin';  // Proxy route for magic link (existing behavior)
       
       const body = method === 'password'
         ? { email: normalizedEmail, password }

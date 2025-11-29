@@ -19,7 +19,8 @@ export async function POST(req: Request) {
   if (!BASE) return NextResponse.json({ detail: "ADMIN_API_BASE not configured" }, { status: 500 });
   const { email, password } = await req.json();
 
-  const upstream = await fetch(`${BASE}/public/signin`, {
+  // Call the password login endpoint
+  const upstream = await fetch(`${BASE}/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, password }),

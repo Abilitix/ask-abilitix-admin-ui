@@ -850,12 +850,14 @@ export function FAQManagementClient() {
                             </label>
                           </td>
                         <td className="p-3">
-                          <div className="flex items-start gap-2 group">
-                            <div className="font-medium text-sm flex-1">{truncate(faq.question, 60)}</div>
+                          <div className="relative group">
+                            <div className="font-medium text-sm pr-8">
+                              {truncate(faq.question, 60)}
+                            </div>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0"
+                              className="h-6 w-6 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0 absolute bottom-1 right-1"
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 try {
@@ -971,32 +973,37 @@ export function FAQManagementClient() {
                           </label>
                           <div className="flex-1 min-w-0 -ml-1">
                             <div className="flex items-start justify-between gap-2 mb-2">
-                              <div className="flex-1 min-w-0 flex items-start gap-2 group">
-                                <h3 className="font-medium text-sm truncate leading-tight flex-1" title={faq.question}>
-                                  {faq.question}
-                                </h3>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0"
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    try {
-                                      await navigator.clipboard.writeText(faq.question);
-                                      setCopiedQuestionId(faq.id);
-                                      setTimeout(() => setCopiedQuestionId(null), 2000);
-                                    } catch (error) {
-                                      toast.error('Failed to copy question');
-                                    }
-                                  }}
-                                  title={copiedQuestionId === faq.id ? 'Copied!' : 'Copy question'}
-                                >
-                                  {copiedQuestionId === faq.id ? (
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                                  ) : (
-                                    <Copy className="h-3.5 w-3.5" />
-                                  )}
-                                </Button>
+                              <div className="flex-1 min-w-0 group">
+                                <div className="relative">
+                                  <h3
+                                    className="font-medium text-sm truncate leading-tight pr-8"
+                                    title={faq.question}
+                                  >
+                                    {faq.question}
+                                  </h3>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0 absolute bottom-0 right-0"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        await navigator.clipboard.writeText(faq.question);
+                                        setCopiedQuestionId(faq.id);
+                                        setTimeout(() => setCopiedQuestionId(null), 2000);
+                                      } catch (error) {
+                                        toast.error('Failed to copy question');
+                                      }
+                                    }}
+                                    title={copiedQuestionId === faq.id ? 'Copied!' : 'Copy question'}
+                                  >
+                                    {copiedQuestionId === faq.id ? (
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                                    ) : (
+                                      <Copy className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                                </div>
                               </div>
                               <Button
                                 variant="ghost"

@@ -116,7 +116,7 @@ export default function SignupPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className={`font-semibold text-sm sm:text-sm ${method === 'magic_link' ? 'text-gray-900' : 'text-gray-800'}`}>
-                      Use Magic Link (Recommended)
+                      Use Magic Link
                     </div>
                     <div className="text-xs text-gray-500 mt-1 leading-relaxed">
                       We'll email you a secure link to get started

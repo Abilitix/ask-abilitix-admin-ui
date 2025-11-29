@@ -146,8 +146,8 @@ function SignInForm() {
     <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Header with Logo */}
-        <div className="text-center mb-6 md:mb-8">
-          <div className="flex justify-center mb-4 md:mb-6">
+        <div className="text-center mb-5 sm:mb-6 md:mb-8">
+          <div className="flex justify-center mb-3 sm:mb-4 md:mb-6">
             <Image
               src="/abilitix-logo.png"
               alt="Abilitix"
@@ -157,8 +157,8 @@ function SignInForm() {
               className="rounded-lg"
             />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
-          <p className="text-gray-600">Sign in to your workspace</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1.5 sm:mb-2">Welcome back</h1>
+          <p className="text-sm sm:text-base text-gray-600">Sign in to your workspace</p>
         </div>
 
                {/* Sign-in Form */}
@@ -178,44 +178,52 @@ function SignInForm() {
                  ) : !sent ? (
                    <>
                      {/* Authentication Method Toggle */}
-                     <div className="space-y-3 mb-6">
-                         <label className={`flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
+                     <div className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6">
+                         <label className={`group flex items-start p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 active:scale-[0.98] ${
                            method === 'magic_link' 
-                             ? 'border-indigo-500 bg-indigo-50' 
-                             : 'border-gray-200 hover:bg-gray-50'
+                             ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' 
+                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
                          }`}>
-                           <input
-                             type="radio"
-                             name="auth_method"
-                             value="magic_link"
-                             checked={method === 'magic_link'}
-                             onChange={() => setMethod('magic_link')}
-                             className="mt-1 mr-3 text-indigo-600 focus:ring-indigo-500"
-                           />
-                           <div className="flex-1">
-                             <div className="font-medium text-gray-900">Continue with Magic Link</div>
-                             <div className="text-sm text-gray-500 mt-1">
+                           <div className="flex items-center h-5 sm:h-5 mt-0.5 mr-3 flex-shrink-0">
+                             <input
+                               type="radio"
+                               name="auth_method"
+                               value="magic_link"
+                               checked={method === 'magic_link'}
+                               onChange={() => setMethod('magic_link')}
+                               className="w-5 h-5 sm:w-4 sm:h-4 text-indigo-600 border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
+                             />
+                           </div>
+                           <div className="flex-1 min-w-0">
+                             <div className={`font-semibold text-sm sm:text-sm ${method === 'magic_link' ? 'text-gray-900' : 'text-gray-800'}`}>
+                               Continue with Magic Link
+                             </div>
+                             <div className="text-xs text-gray-500 mt-1 leading-relaxed">
                                We'll email you a secure link to access your workspace
                              </div>
                            </div>
                          </label>
                          
-                         <label className={`flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
+                         <label className={`group flex items-start p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 active:scale-[0.98] ${
                            method === 'password' 
-                             ? 'border-indigo-500 bg-indigo-50' 
-                             : 'border-gray-200 hover:bg-gray-50'
+                             ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' 
+                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
                          }`}>
-                           <input
-                             type="radio"
-                             name="auth_method"
-                             value="password"
-                             checked={method === 'password'}
-                             onChange={() => setMethod('password')}
-                             className="mt-1 mr-3 text-indigo-600 focus:ring-indigo-500"
-                           />
-                           <div className="flex-1">
-                             <div className="font-medium text-gray-900">Continue with Password</div>
-                             <div className="text-sm text-gray-500 mt-1">
+                           <div className="flex items-center h-5 sm:h-5 mt-0.5 mr-3 flex-shrink-0">
+                             <input
+                               type="radio"
+                               name="auth_method"
+                               value="password"
+                               checked={method === 'password'}
+                               onChange={() => setMethod('password')}
+                               className="w-5 h-5 sm:w-4 sm:h-4 text-indigo-600 border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
+                             />
+                           </div>
+                           <div className="flex-1 min-w-0">
+                             <div className={`font-semibold text-sm sm:text-sm ${method === 'password' ? 'text-gray-900' : 'text-gray-800'}`}>
+                               Continue with Password
+                             </div>
+                             <div className="text-xs text-gray-500 mt-1 leading-relaxed">
                                Sign in instantly with your password
                              </div>
                            </div>
@@ -223,7 +231,7 @@ function SignInForm() {
                        </div>
                      
                      {/* Sign-in Form */}
-                     <form onSubmit={submit} className="space-y-4 md:space-y-6">
+                     <form onSubmit={submit} className="space-y-4 sm:space-y-5">
                        <div>
                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                            Email Address
@@ -238,10 +246,12 @@ function SignInForm() {
                              if (err) setErr(null);
                            }}
                            placeholder="Enter your registered email address"
-                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                           className="w-full px-4 py-3 text-base sm:text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400"
                            aria-invalid={!!err}
                            aria-describedby={err ? "email-error" : undefined}
                            required
+                           autoComplete="email"
+                           inputMode="email"
                          />
                        </div>
 
@@ -261,26 +271,27 @@ function SignInForm() {
                                  if (err) setErr(null);
                                }}
                                placeholder="Enter your password"
-                               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors pr-10"
+                               className="w-full px-4 py-3 pr-12 sm:pr-11 text-base sm:text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400"
                                required={method === 'password'}
+                               autoComplete="current-password"
                              />
                              <button
                                type="button"
                                onClick={() => setShowPassword(!showPassword)}
-                               className="absolute right-3 top-9 text-gray-400 hover:text-gray-600 transition-colors"
+                               className="absolute right-3 top-[38px] sm:top-[38px] text-gray-400 hover:text-gray-600 active:text-gray-700 transition-colors p-2 -mr-2 rounded-md hover:bg-gray-100 active:bg-gray-200 touch-manipulation"
                                aria-label={showPassword ? 'Hide password' : 'Show password'}
                              >
                                {showPassword ? (
-                                 <EyeOff className="h-5 w-5" />
+                                 <EyeOff className="h-5 w-5 sm:h-5 sm:w-5" />
                                ) : (
-                                 <Eye className="h-5 w-5" />
+                                 <Eye className="h-5 w-5 sm:h-5 sm:w-5" />
                                )}
                              </button>
                            </div>
-                           <div className="flex justify-end">
+                           <div className="flex justify-end pt-1">
                              <Link
                                href="/forgot-password"
-                               className="text-sm text-indigo-600 hover:text-indigo-500"
+                               className="text-sm font-medium text-indigo-600 hover:text-indigo-700 active:text-indigo-800 transition-colors py-1 -mr-1 pr-1 touch-manipulation"
                              >
                                Forgot password?
                              </Link>
@@ -291,17 +302,24 @@ function SignInForm() {
                        <button
                          type="submit"
                          disabled={loading || !email || (method === 'password' && !password) || !isEmailValid(normalizeEmail(email))}
-                         className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                         className="w-full bg-indigo-600 text-white py-3.5 sm:py-3 px-4 rounded-lg font-semibold text-base sm:text-sm shadow-sm hover:bg-indigo-700 hover:shadow active:bg-indigo-800 active:scale-[0.98] focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation min-h-[44px]"
                        >
-                         {loading 
-                           ? (method === 'password' ? 'Signing in...' : 'Sending link...')
-                           : (method === 'password' ? 'Sign In' : 'Send Magic Link')
-                         }
+                         {loading ? (
+                           <>
+                             <svg className="animate-spin h-5 w-5 sm:h-4 sm:w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                             </svg>
+                             <span>{method === 'password' ? 'Signing in...' : 'Sending link...'}</span>
+                           </>
+                         ) : (
+                           <span>{method === 'password' ? 'Sign In' : 'Send Magic Link'}</span>
+                         )}
                        </button>
 
                        {/* Helper Text (only for magic link) */}
                        {method === 'magic_link' && (
-                         <div className="mt-4 text-sm text-gray-600 text-center">
+                         <div className="mt-3 text-xs text-gray-500 text-center">
                            <p>We'll email you a secure link to access your workspace</p>
                          </div>
                        )}

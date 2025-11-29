@@ -2,21 +2,22 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
 import { ApiErrorCode } from '@/types/errors';
-import EmailPasswordFormSimple from '@/components/auth/EmailPasswordFormSimple';
+import { Eye, EyeOff } from 'lucide-react';
 
 function SignInForm() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [method, setMethod] = useState<'magic_link' | 'password'>('magic_link');
+  const [showPassword, setShowPassword] = useState(false);
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState(false);
   const searchParams = useSearchParams();
-  
-  // Feature flag for email/password login
-  const showPasswordLogin = process.env.NEXT_PUBLIC_ALLOW_PASSWORD_LOGIN === "1";
+  const router = useRouter();
 
   // Handle magic link token exchange
   useEffect(() => {
@@ -68,44 +69,74 @@ function SignInForm() {
       setLoading(false);
       return;
     }
+
+    // Password validation (if password method)
+    if (method === 'password' && !password) {
+      setErr('Please enter your password.');
+      setLoading(false);
+      return;
+    }
     
     try {
-      const r = await fetch('/api/public/signin', {
+      // Determine endpoint and body based on method
+      // Password: Use Admin API directly (backend sets cookie)
+      // Magic Link: Use proxy route (maintains existing behavior)
+      const endpoint = method === 'password' 
+        ? `${process.env.NEXT_PUBLIC_ADMIN_API}/auth/login`
+        : '/api/public/signin';
+      
+      const body = method === 'password'
+        ? { email: normalizedEmail, password }
+        : { email: normalizedEmail };
+
+      const r = await fetch(endpoint, {
         method: 'POST', 
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email: normalizedEmail }),
+        body: JSON.stringify(body),
+        credentials: 'include',  // ← CRITICAL: Backend sets cookie
       });
       
-      if (!r.ok) { 
-        const errorData = await r.json();
-        
+      const data = await r.json().catch(() => ({}));
+
+      if (!r.ok || !data.ok) {
         // Handle specific error codes
-        if (errorData?.detail?.code === 'INVALID_EMAIL_FORMAT') {
-          setErr('Please check email format and try again.');
+        if (r.status === 404 && method === 'password') {
+          setErr('Password login is not available. Please use magic link.');
+        } else if (r.status === 401) {
+          setErr('Invalid email or password.');
+        } else if (r.status === 403 && data.detail?.code === 'EMAIL_NOT_VERIFIED') {
+          setErr('Please verify your email address first.');
+        } else if (r.status === 403 && data.detail?.code === 'NO_TENANT_ACCESS') {
+          setErr('Account has no workspace access. Please contact your administrator.');
+        } else if (r.status === 429) {
+          setErr('Too many attempts. Please try again later.');
+        } else if (data.status === 'user_not_found') {
+          setErr(data.message || 'No account found with this email address.');
         } else {
-          setErr('Please check email format and try again.');
+          setErr(data.message || data.detail?.message || 'An error occurred. Please try again.');
         }
         return; 
       }
-      
-      // Parse the response to check status
-      const responseData = await r.json();
-      
-      if (responseData.status === 'email_sent') {
-        // Store email in localStorage for recovery functionality
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('last_signin_email', normalizedEmail);
-        }
-        setSent(true);  // Show success state
-      } else if (responseData.status === 'user_not_found') {
-        setErr(responseData.message);  // Show "No account found" message
-      } else if (responseData.status === 'error') {
-        setErr(responseData.message);  // Show error message
+
+      // Success handling
+      if (method === 'password') {
+        // Password login: Backend has set aa_sess cookie automatically
+        // Just redirect - existing /api/auth/me will work automatically
+        router.push('/admin');
       } else {
-        setErr('Unexpected response from server');
+        // Magic link: Show success state
+        if (data.status === 'email_sent') {
+          // Store email in localStorage for recovery functionality
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('last_signin_email', normalizedEmail);
+          }
+          setSent(true);  // Show success state
+        } else {
+          setErr('Unexpected response from server');
+        }
       }
     } catch (error) {
-      setErr('Network error. Please try again.');
+      setErr('Unable to connect. Please check your internet connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -146,21 +177,59 @@ function SignInForm() {
                    </div>
                  ) : !sent ? (
                    <>
-                     {/* Email/Password Form - Testing simplified version */}
-                     {showPasswordLogin && (
-                       <div className="mb-6">
-                         <EmailPasswordFormSimple />
-                         <div className="text-center text-sm text-gray-500 my-4">or</div>
+                     {/* Authentication Method Toggle */}
+                     <div className="space-y-3 mb-6">
+                         <label className={`flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
+                           method === 'magic_link' 
+                             ? 'border-indigo-500 bg-indigo-50' 
+                             : 'border-gray-200 hover:bg-gray-50'
+                         }`}>
+                           <input
+                             type="radio"
+                             name="auth_method"
+                             value="magic_link"
+                             checked={method === 'magic_link'}
+                             onChange={() => setMethod('magic_link')}
+                             className="mt-1 mr-3 text-indigo-600 focus:ring-indigo-500"
+                           />
+                           <div className="flex-1">
+                             <div className="font-medium text-gray-900">Continue with Magic Link</div>
+                             <div className="text-sm text-gray-500 mt-1">
+                               We'll email you a secure link to access your workspace
+                             </div>
+                           </div>
+                         </label>
+                         
+                         <label className={`flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
+                           method === 'password' 
+                             ? 'border-indigo-500 bg-indigo-50' 
+                             : 'border-gray-200 hover:bg-gray-50'
+                         }`}>
+                           <input
+                             type="radio"
+                             name="auth_method"
+                             value="password"
+                             checked={method === 'password'}
+                             onChange={() => setMethod('password')}
+                             className="mt-1 mr-3 text-indigo-600 focus:ring-indigo-500"
+                           />
+                           <div className="flex-1">
+                             <div className="font-medium text-gray-900">Continue with Password</div>
+                             <div className="text-sm text-gray-500 mt-1">
+                               Sign in instantly with your password
+                             </div>
+                           </div>
+                         </label>
                        </div>
-                     )}
-                     {/* Magic Link Form */}
+                     
+                     {/* Sign-in Form */}
                      <form onSubmit={submit} className="space-y-4 md:space-y-6">
                        <div>
-                         <label htmlFor="email_ml" className="block text-sm font-medium text-gray-700 mb-2">
+                         <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                            Email Address
                          </label>
                          <input
-                           id="email_ml"
+                           id="email"
                            type="email"
                            value={email}
                            onChange={e => {
@@ -175,19 +244,67 @@ function SignInForm() {
                            required
                          />
                        </div>
+
+                       {/* Password Field (Conditional) */}
+                       {method === 'password' && (
+                         <div className="space-y-2">
+                           <div className="relative">
+                             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                               Password
+                             </label>
+                             <input
+                               id="password"
+                               type={showPassword ? 'text' : 'password'}
+                               value={password}
+                               onChange={(e) => {
+                                 setPassword(e.target.value);
+                                 if (err) setErr(null);
+                               }}
+                               placeholder="Enter your password"
+                               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors pr-10"
+                               required={method === 'password'}
+                             />
+                             <button
+                               type="button"
+                               onClick={() => setShowPassword(!showPassword)}
+                               className="absolute right-3 top-9 text-gray-400 hover:text-gray-600 transition-colors"
+                               aria-label={showPassword ? 'Hide password' : 'Show password'}
+                             >
+                               {showPassword ? (
+                                 <EyeOff className="h-5 w-5" />
+                               ) : (
+                                 <Eye className="h-5 w-5" />
+                               )}
+                             </button>
+                           </div>
+                           <div className="flex justify-end">
+                             <Link
+                               href="/forgot-password"
+                               className="text-sm text-indigo-600 hover:text-indigo-500"
+                             >
+                               Forgot password?
+                             </Link>
+                           </div>
+                         </div>
+                       )}
                        
                        <button
                          type="submit"
-                         disabled={loading || !isEmailValid(normalizeEmail(email))}
+                         disabled={loading || !email || (method === 'password' && !password) || !isEmailValid(normalizeEmail(email))}
                          className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                        >
-                         {loading ? 'Sending link...' : 'Send Magic Link'}
+                         {loading 
+                           ? (method === 'password' ? 'Signing in...' : 'Sending link...')
+                           : (method === 'password' ? 'Sign In' : 'Send Magic Link')
+                         }
                        </button>
 
-                       {/* Helper Text */}
-                       <div className="mt-4 text-sm text-gray-600 text-center">
-                         <p>We'll email you a secure link to access your workspace</p>
-                       </div>
+                       {/* Helper Text (only for magic link) */}
+                       {method === 'magic_link' && (
+                         <div className="mt-4 text-sm text-gray-600 text-center">
+                           <p>We'll email you a secure link to access your workspace</p>
+                         </div>
+                       )}
 
                        {/* Error Message */}
                        {err && (

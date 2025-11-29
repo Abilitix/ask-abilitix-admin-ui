@@ -22,10 +22,20 @@ export async function POST(req: NextRequest) {
     console.log('Request body:', body);
     
     // Transform the request body to match Admin API expectations
-    const adminApiBody = {
+    const adminApiBody: {
+      company_name: string;
+      email: string;
+      password?: string;
+    } = {
       company_name: body.company,
       email: body.email
     };
+    
+    // Add password if provided (optional field for password signup)
+    if (body.password) {
+      adminApiBody.password = body.password;
+    }
+    
     console.log('Admin API body:', adminApiBody);
 
     const headers: Record<string, string> = {

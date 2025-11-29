@@ -602,8 +602,8 @@ export function LegacyInboxList({
                     </TableCell>
                   )}
                   <TableCell className="w-[180px]">
-                    <div className="flex items-start gap-2 group">
-                      <div className="flex-1 min-w-0">
+                    <div className="relative group">
+                      <div className="flex flex-col gap-1 pr-7 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           {/* Debug: Always show source_type for debugging */}
                           {process.env.NODE_ENV === 'development' && item.source_type && (
@@ -647,7 +647,7 @@ export function LegacyInboxList({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                        className="h-6 w-6 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0 absolute bottom-1 right-0"
                         onClick={async (e) => {
                           e.stopPropagation();
                           try {
@@ -1204,9 +1204,33 @@ export function LegacyInboxList({
                             </Badge>
                           )}
                         </div>
-                        <h3 className="font-medium text-sm text-slate-900 mb-1 line-clamp-2">
-                          {item.question}
-                        </h3>
+                        <div className="flex items-start gap-2 group">
+                          <h3 className="font-medium text-sm text-slate-900 mb-1 line-clamp-2 flex-1">
+                            {item.question}
+                          </h3>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 flex-shrink-0"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await navigator.clipboard.writeText(item.question);
+                                setCopiedQuestionId(item.id);
+                                setTimeout(() => setCopiedQuestionId(null), 2000);
+                              } catch (error) {
+                                toast.error('Failed to copy question');
+                              }
+                            }}
+                            title={copiedQuestionId === item.id ? 'Copied!' : 'Copy question'}
+                          >
+                            {copiedQuestionId === item.id ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        </div>
                         <p className="text-xs text-slate-500">
                           {new Date(item.created_at).toLocaleDateString()}
                         </p>

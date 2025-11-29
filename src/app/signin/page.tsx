@@ -15,6 +15,7 @@ function SignInForm() {
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [tokenLoading, setTokenLoading] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -77,6 +78,8 @@ function SignInForm() {
       return;
     }
     
+    let passwordLoginSuccess = false;
+    
     try {
       // Determine endpoint and body based on method
       // Both use proxy routes to handle cookie management properly (same domain)
@@ -120,8 +123,16 @@ function SignInForm() {
       // Success handling
       if (method === 'password') {
         // Password login: Backend has set aa_sess cookie automatically
-        // Just redirect - existing /api/auth/me will work automatically
-        router.push('/admin');
+        // Show "Redirecting..." message and keep loading state active (no gap)
+        passwordLoginSuccess = true;
+        setRedirecting(true);
+        // Use window.location.replace() for faster redirect (matches Stripe/Notion pattern)
+        // Small delay to show "Redirecting..." message
+        setTimeout(() => {
+          window.location.replace('/admin');
+        }, 100);
+        // Don't set loading = false - page will unload anyway
+        return;
       } else {
         // Magic link: Show success state
         if (data.status === 'email_sent') {
@@ -137,7 +148,11 @@ function SignInForm() {
     } catch (error) {
       setErr('Unable to connect. Please check your internet connection and try again.');
     } finally {
-      setLoading(false);
+      // Only set loading = false if not redirecting (password login keeps loading until redirect)
+      if (!passwordLoginSuccess) {
+        setLoading(false);
+      }
+      // For password login success, loading stays true until redirect (page unloads)
     }
   }
 
@@ -232,7 +247,7 @@ function SignInForm() {
                        </div>
                      
                      {/* Sign-in Form */}
-                     <form onSubmit={submit} className={`space-y-4 sm:space-y-5 transition-opacity duration-200 ${loading ? 'opacity-90' : 'opacity-100'}`}>
+                     <form onSubmit={submit} className={`space-y-4 sm:space-y-5 transition-opacity duration-200 ${(loading || redirecting) ? 'opacity-90' : 'opacity-100'}`}>
                        <div>
                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                            Email Address
@@ -305,16 +320,21 @@ function SignInForm() {
                        
                        <button
                          type="submit"
-                         disabled={loading || !email || (method === 'password' && !password) || !isEmailValid(normalizeEmail(email))}
-                         className={`w-full bg-indigo-600 text-white py-3.5 sm:py-3 px-4 rounded-lg font-semibold text-base sm:text-sm shadow-sm hover:bg-indigo-700 hover:shadow active:bg-indigo-800 active:scale-[0.98] focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation min-h-[44px] ${loading ? 'animate-pulse' : ''}`}
+                         disabled={loading || redirecting || !email || (method === 'password' && !password) || !isEmailValid(normalizeEmail(email))}
+                         className={`w-full bg-indigo-600 text-white py-3.5 sm:py-3 px-4 rounded-lg font-semibold text-base sm:text-sm shadow-sm hover:bg-indigo-700 hover:shadow active:bg-indigo-800 active:scale-[0.98] focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation min-h-[44px] ${(loading || redirecting) ? 'animate-pulse' : ''}`}
                        >
-                         {loading ? (
+                         {loading || redirecting ? (
                            <>
                              <svg className="animate-spin h-5 w-5 sm:h-4 sm:w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                              </svg>
-                             <span>{method === 'password' ? 'Signing in...' : 'Sending link...'}</span>
+                             <span>
+                               {redirecting 
+                                 ? 'Redirecting...' 
+                                 : (method === 'password' ? 'Signing in...' : 'Sending link...')
+                               }
+                             </span>
                            </>
                          ) : (
                            <span>{method === 'password' ? 'Sign In' : 'Send Magic Link'}</span>

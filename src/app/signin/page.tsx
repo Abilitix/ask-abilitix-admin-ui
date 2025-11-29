@@ -177,7 +177,7 @@ function SignInForm() {
                  ) : !sent ? (
                    <>
                      {/* Authentication Method Toggle */}
-                     <div className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6">
+                     <div className={`space-y-2.5 sm:space-y-3 mb-5 sm:mb-6 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
                          <label className={`group flex items-start p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 active:scale-[0.98] ${
                            method === 'magic_link' 
                              ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' 
@@ -191,6 +191,7 @@ function SignInForm() {
                                checked={method === 'magic_link'}
                                onChange={() => setMethod('magic_link')}
                                className="w-5 h-5 sm:w-4 sm:h-4 text-indigo-600 border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
+                               disabled={loading}
                              />
                            </div>
                            <div className="flex-1 min-w-0">
@@ -216,6 +217,7 @@ function SignInForm() {
                                checked={method === 'password'}
                                onChange={() => setMethod('password')}
                                className="w-5 h-5 sm:w-4 sm:h-4 text-indigo-600 border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
+                               disabled={loading}
                              />
                            </div>
                            <div className="flex-1 min-w-0">
@@ -230,7 +232,7 @@ function SignInForm() {
                        </div>
                      
                      {/* Sign-in Form */}
-                     <form onSubmit={submit} className="space-y-4 sm:space-y-5">
+                     <form onSubmit={submit} className={`space-y-4 sm:space-y-5 transition-opacity duration-200 ${loading ? 'opacity-90' : 'opacity-100'}`}>
                        <div>
                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                            Email Address
@@ -245,12 +247,13 @@ function SignInForm() {
                              if (err) setErr(null);
                            }}
                            placeholder="Enter your registered email address"
-                           className="w-full px-4 py-3 text-base sm:text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400"
+                           className="w-full px-4 py-3 text-base sm:text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                            aria-invalid={!!err}
                            aria-describedby={err ? "email-error" : undefined}
                            required
                            autoComplete="email"
                            inputMode="email"
+                           disabled={loading}
                          />
                        </div>
 
@@ -270,15 +273,17 @@ function SignInForm() {
                                  if (err) setErr(null);
                                }}
                                placeholder="Enter your password"
-                               className="w-full px-4 py-3 pr-12 sm:pr-11 text-base sm:text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400"
+                               className="w-full px-4 py-3 pr-12 sm:pr-11 text-base sm:text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                                required={method === 'password'}
                                autoComplete="current-password"
+                               disabled={loading}
                              />
                              <button
                                type="button"
                                onClick={() => setShowPassword(!showPassword)}
-                               className="absolute right-3 top-[38px] sm:top-[38px] text-gray-400 hover:text-gray-600 active:text-gray-700 transition-colors p-2 -mr-2 rounded-md hover:bg-gray-100 active:bg-gray-200 touch-manipulation"
+                               className="absolute right-3 top-[38px] sm:top-[38px] text-gray-400 hover:text-gray-600 active:text-gray-700 transition-colors p-2 -mr-2 rounded-md hover:bg-gray-100 active:bg-gray-200 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                               disabled={loading}
                              >
                                {showPassword ? (
                                  <EyeOff className="h-5 w-5 sm:h-5 sm:w-5" />
@@ -301,7 +306,7 @@ function SignInForm() {
                        <button
                          type="submit"
                          disabled={loading || !email || (method === 'password' && !password) || !isEmailValid(normalizeEmail(email))}
-                         className="w-full bg-indigo-600 text-white py-3.5 sm:py-3 px-4 rounded-lg font-semibold text-base sm:text-sm shadow-sm hover:bg-indigo-700 hover:shadow active:bg-indigo-800 active:scale-[0.98] focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation min-h-[44px]"
+                         className={`w-full bg-indigo-600 text-white py-3.5 sm:py-3 px-4 rounded-lg font-semibold text-base sm:text-sm shadow-sm hover:bg-indigo-700 hover:shadow active:bg-indigo-800 active:scale-[0.98] focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation min-h-[44px] ${loading ? 'animate-pulse' : ''}`}
                        >
                          {loading ? (
                            <>

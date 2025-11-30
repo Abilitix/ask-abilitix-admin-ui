@@ -153,7 +153,7 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
               <QuickActionCard
                 icon={MessageSquare}
                 title="Generate FAQs"
-                href="/admin/faqs"
+                href="/admin/docs/generate-faqs"
                 count={faqCount > 0 ? faqCount : undefined}
                 color="text-indigo-600"
                 bgColor="bg-indigo-50"
@@ -189,13 +189,13 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
               <p className="text-base sm:text-lg text-indigo-100 mb-6 sm:mb-8 max-w-2xl mx-auto">
                 Explore our Getting Started Hub for tutorials, best practices, and tips to maximize your Abilitix experience.
               </p>
-              <Link
-                href="/admin/docs"
-                className="inline-flex items-center gap-2 px-6 py-3 sm:px-8 sm:py-4 bg-white text-indigo-600 rounded-xl font-semibold text-base sm:text-lg shadow-[0_4px_10px_rgba(0,0,0,0.2)] hover:bg-gray-50 hover:shadow-[0_4px_12px_rgba(0,0,0,0.25)] transition-all duration-200 active:scale-[0.98] min-h-[48px]"
-              >
-                <span>Check out the Getting Started Hub</span>
-                <ArrowRight className="h-5 w-5" />
-              </Link>
+              <div className="inline-flex items-center gap-2 px-6 py-3 sm:px-8 sm:py-4 bg-white/90 text-indigo-600 rounded-xl font-semibold text-base sm:text-lg shadow-[0_4px_10px_rgba(0,0,0,0.2)] cursor-not-allowed opacity-90 min-h-[48px]">
+                <span>Getting Started Hub</span>
+                <span className="text-xs font-normal text-indigo-500 ml-1">(Coming Soon)</span>
+              </div>
+              <p className="text-sm text-indigo-200 mt-4">
+                For now, start by uploading documents above to get the most out of Abilitix
+              </p>
             </div>
           </div>
         )}
@@ -231,9 +231,9 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
                 title="Generate & Review FAQs"
                 description="Turn your documents into draft FAQs with one click using our FAQ Machine"
                 icon={MessageSquare}
-                href="/admin/faqs"
+                href="/admin/docs/generate-faqs"
                 completed={step2Complete}
-                buttonText="Go to FAQs"
+                buttonText="Generate FAQs"
               />
 
               {/* Step 3 */}

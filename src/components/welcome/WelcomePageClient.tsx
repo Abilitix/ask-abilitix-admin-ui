@@ -304,6 +304,7 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
             </div>
           </div>
         </div>
+        </div>
       </main>
     </div>
   );

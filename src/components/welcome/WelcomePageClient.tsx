@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useDashboardSummary } from '@/hooks/useDashboardSummary';
 import { WelcomeSidebar } from './WelcomeSidebar';
-import { Upload, MessageSquare, CheckCircle2, Sparkles, FileText, Users, ArrowRight, X, Bell, BookOpen, Video, Rocket, Brain, Shield, Zap, TrendingUp } from 'lucide-react';
+import { Upload, MessageSquare, CheckCircle2, Sparkles, FileText, Users, ArrowRight, X, Bell, BookOpen, Video, Rocket, Brain, Shield, Zap, TrendingUp, Settings } from 'lucide-react';
 import type { User } from '@/lib/auth';
 
 type WelcomePageClientProps = {
@@ -141,7 +141,7 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
               Quick Actions
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 items-stretch">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 items-stretch">
               <QuickActionCard
                 icon={Upload}
                 title="Upload Docs"
@@ -166,12 +166,26 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
                 color="text-purple-600"
                 bgColor="bg-purple-50"
               />
+            <QuickActionCard
+              icon={Sparkles}
+              title="AI Assistant"
+              href="/admin/ai"
+              color="text-green-600"
+              bgColor="bg-green-50"
+            />
               <QuickActionCard
-                icon={Sparkles}
-                title="AI Assistant"
-                href="/admin/ai"
-                color="text-green-600"
-                bgColor="bg-green-50"
+                icon={Settings}
+                title="Configure Context"
+                href="/admin/settings/context"
+                color="text-purple-600"
+                bgColor="bg-purple-50"
+              />
+              <QuickActionCard
+                icon={Settings}
+                title="Configure Context"
+                href="/admin/settings/context"
+                color="text-purple-600"
+                bgColor="bg-purple-50"
               />
             </div>
           </div>
@@ -286,10 +300,11 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
             <FeatureCard
               icon={TrendingUp}
               title="Context-Aware"
-              description="Tenant-aware responses with your brand, tone, and profile. Every answer feels like your team wrote it."
+              description="Configure your company profile, glossary terms, and answer policies so Abilitix responds in your brand voice. Every answer feels like your team wrote it."
               color="text-purple-600"
               bgColor="bg-purple-50"
               highlight="Personalized"
+              href="/admin/settings/context"
             />
           </div>
         </div>
@@ -402,11 +417,12 @@ type FeatureCardProps = {
   color: string;
   bgColor: string;
   highlight?: string;
+  href?: string;
 };
 
-function FeatureCard({ icon: Icon, title, description, color, bgColor, highlight }: FeatureCardProps) {
-  return (
-    <div className="relative bg-white rounded-xl border border-gray-200 p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 hover:-translate-y-0.5">
+function FeatureCard({ icon: Icon, title, description, color, bgColor, highlight, href }: FeatureCardProps) {
+  const cardContent = (
+    <div className="relative bg-white rounded-xl border border-gray-200 p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 hover:-translate-y-0.5 group">
       <div className="flex items-start justify-between mb-4">
         <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg ${bgColor} ${color}`}>
           <Icon className="h-6 w-6" />
@@ -419,10 +435,22 @@ function FeatureCard({ icon: Icon, title, description, color, bgColor, highlight
       </div>
       <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">{title}</h3>
       <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{description}</p>
+      {href && (
+        <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-purple-600 group-hover:text-purple-700">
+          <span>Configure now</span>
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+        </div>
+      )}
       {/* Subtle hover indicator */}
-      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 hover:opacity-100 transition-opacity duration-200" />
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
     </div>
   );
+
+  if (href) {
+    return <Link href={href}>{cardContent}</Link>;
+  }
+
+  return cardContent;
 }
 
 type AnnouncementCardProps = {

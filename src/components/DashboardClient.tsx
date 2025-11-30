@@ -1,11 +1,15 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import NoPrefetchLink from "@/components/NoPrefetchLink";
 import type { User } from "@/lib/auth"; // Adjust path if needed
 import { hasPermission } from "@/lib/roles";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { DashboardGreeting } from "@/components/dashboard/DashboardGreeting";
 import { DashboardMetricsStrip } from "@/components/dashboard/DashboardMetricsStrip";
+import { Rocket } from "lucide-react";
 
 type DashboardClientProps = {
   user: User;
@@ -60,8 +64,20 @@ const AI_CARD: Card = {
 
 export default function DashboardClient({ user }: DashboardClientProps) {
   const { summary, isLoading, isError } = useDashboardSummary();
+  const router = useRouter();
   const hideOld = process.env.NEXT_PUBLIC_HIDE_OLD_RAG === "1";
   const showPilot = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";
+
+  // Redirect to welcome page if user hasn't started (no docs and no FAQs)
+  // Note: Welcome page is also accessible via "Take Tour" button for all users
+  useEffect(() => {
+    if (!isLoading && summary && !isError) {
+      const hasStarted = summary.metrics.docs_active > 0 || summary.metrics.faq_count > 0;
+      if (!hasStarted) {
+        router.replace('/welcome');
+      }
+    }
+  }, [summary, isLoading, isError, router]);
 
   let cards: Card[] = [AI_CARD, ...BASE_CARDS];
   
@@ -101,6 +117,20 @@ export default function DashboardClient({ user }: DashboardClientProps) {
         tenantName={summary?.tenant.name}
         industry={summary?.tenant.industry}
       />
+
+      {/* Take Tour Button - Prominent placement after greeting */}
+      <div className="flex items-center justify-center -mt-4 mb-2">
+        <Link
+          href="/welcome"
+          prefetch={true}
+          className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>Take Tour</span>
+        </Link>
+      </div>
 
       {/* Metrics Strip */}
       {!isError && (

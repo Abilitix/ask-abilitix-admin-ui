@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
 import { ApiErrorCode } from '@/types/errors';
-import { Eye, EyeOff, Lock } from 'lucide-react';
+import { Eye, EyeOff, Lock, ArrowRight } from 'lucide-react';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 
 function SignInForm() {
@@ -224,7 +224,7 @@ function SignInForm() {
                              if (err) setErr(null);
                            }}
                            placeholder="Enter your registered email address"
-                           className="w-full px-4 py-3 text-base sm:text-sm bg-[#F8F9FC] border border-[#E3E8EF] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                           className="w-full px-4 py-3 text-base sm:text-sm bg-[#F8F9FC] border border-[#D0D5DD] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                            aria-invalid={!!err}
                            aria-describedby={err ? "email-error" : undefined}
                            required
@@ -250,7 +250,7 @@ function SignInForm() {
                                  if (err) setErr(null);
                                }}
                                placeholder="Enter your password"
-                               className="w-full px-4 py-3 pr-12 sm:pr-11 text-base sm:text-sm bg-[#F8F9FC] border border-[#E3E8EF] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                               className="w-full px-4 py-3 pr-12 sm:pr-11 text-base sm:text-sm bg-[#F8F9FC] border border-[#D0D5DD] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                                required={method === 'password'}
                                autoComplete="current-password"
                                disabled={loading}
@@ -283,7 +283,7 @@ function SignInForm() {
                        <button
                          type="submit"
                          disabled={loading || redirecting || !email || (method === 'password' && !password) || !isEmailValid(normalizeEmail(email))}
-                         className={`w-full bg-indigo-600 text-white py-3.5 sm:py-3 px-4 rounded-lg font-semibold text-base sm:text-sm shadow-sm hover:bg-indigo-700 hover:shadow active:bg-indigo-800 active:scale-[0.98] focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation min-h-[44px] ${(loading || redirecting) ? 'animate-pulse' : ''}`}
+                         className={`w-full bg-indigo-600 text-white py-3.5 sm:py-3 px-4 rounded-xl font-semibold text-base sm:text-sm shadow-[0_4px_10px_rgba(62,44,195,0.25)] hover:bg-indigo-700 hover:shadow-[0_4px_12px_rgba(62,44,195,0.3)] active:bg-indigo-800 active:scale-[0.98] focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation min-h-[48px] ${(loading || redirecting) ? 'animate-pulse' : ''}`}
                        >
                          {loading || redirecting ? (
                            <>
@@ -401,12 +401,16 @@ function SignInForm() {
 
         {/* Link to Signup */}
         <div className="mt-8 sm:mt-10 md:mt-12 text-center">
-          <p className="text-sm text-gray-600">
-            <span className="font-bold">New to AbilitiX?</span>{' '}
-            <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium">
-              Create your workspace
-            </Link>
+          <p className="text-sm text-gray-600 mb-2">
+            <span className="font-bold">New to AbilitiX?</span>
           </p>
+          <Link 
+            href="/signup" 
+            className="inline-flex items-center gap-1.5 text-[#6941C6] hover:text-indigo-700 font-semibold text-sm transition-colors group"
+          >
+            Create your workspace
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
         </div>
 
       </div>

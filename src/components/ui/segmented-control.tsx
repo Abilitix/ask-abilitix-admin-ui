@@ -35,7 +35,7 @@ export function SegmentedControl({
     >
       {/* Sliding indicator */}
       <div
-        className="absolute inset-y-1 bg-white rounded-md shadow-sm transition-all duration-200 ease-out"
+        className="absolute inset-y-1 bg-white rounded-md border border-[#D0D5DD] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-200 ease-out"
         style={{
           left: `${activeIndex * activeWidth}%`,
           width: `${activeWidth}%`,
@@ -55,7 +55,7 @@ export function SegmentedControl({
             'focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2',
             'touch-manipulation min-h-[44px]',
             value === option.value
-              ? 'text-gray-900'
+              ? 'text-[#344054]'
               : 'text-gray-600 hover:text-gray-900'
           )}
           disabled={disabled}

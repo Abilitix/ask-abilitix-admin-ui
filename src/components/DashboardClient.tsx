@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import NoPrefetchLink from "@/components/NoPrefetchLink";
 import type { User } from "@/lib/auth"; // Adjust path if needed
@@ -64,20 +62,11 @@ const AI_CARD: Card = {
 
 export default function DashboardClient({ user }: DashboardClientProps) {
   const { summary, isLoading, isError } = useDashboardSummary();
-  const router = useRouter();
   const hideOld = process.env.NEXT_PUBLIC_HIDE_OLD_RAG === "1";
   const showPilot = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";
 
-  // Redirect to welcome page if user hasn't started (no docs and no FAQs)
-  // Note: Welcome page is also accessible via "Take Tour" button for all users
-  useEffect(() => {
-    if (!isLoading && summary && !isError) {
-      const hasStarted = summary.metrics.docs_active > 0 || summary.metrics.faq_count > 0;
-      if (!hasStarted) {
-        router.replace('/welcome');
-      }
-    }
-  }, [summary, isLoading, isError, router]);
+  // Best-in-class SaaS principle: Users control their navigation
+  // Welcome page is accessible via "Take Tour" button - no forced redirects
 
   let cards: Card[] = [AI_CARD, ...BASE_CARDS];
   

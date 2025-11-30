@@ -10,7 +10,7 @@ export default function SignupPage() {
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [method, setMethod] = useState<'magic_link' | 'password'>('magic_link');
+  const [method, setMethod] = useState<'magic_link' | 'password'>('password');
   const [showPassword, setShowPassword] = useState(false);
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState<string|null>(null);
@@ -104,8 +104,8 @@ export default function SignupPage() {
               <div className={`mb-4 sm:mb-5 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
                 <SegmentedControl
                   options={[
-                    { value: 'magic_link', label: 'Magic Link' },
                     { value: 'password', label: 'Password' },
+                    { value: 'magic_link', label: 'Magic Link' },
                   ]}
                   value={method}
                   onChange={(value) => setMethod(value as 'magic_link' | 'password')}

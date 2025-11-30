@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Lock, ArrowRight } from 'lucide-react';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 
 export default function SignupPage() {
   const [company, setCompany] = useState('');
@@ -74,84 +75,45 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="h-screen h-[100dvh] overflow-y-auto sm:overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Header with Logo */}
-        <div className="text-center mb-5 sm:mb-6 md:mb-8">
-          <div className="flex justify-center mb-3 sm:mb-4 md:mb-6">
+        <div className="text-center mb-4 sm:mb-5 md:mb-6">
+          <div className="flex justify-center mb-6 sm:mb-7 md:mb-8">
             <Image
               src="/abilitix-logo.png"
               alt="Abilitix"
-              width={64}
-              height={64}
+              width={88}
+              height={88}
               priority
               className="rounded-lg"
             />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1.5 sm:mb-2">Welcome to Abilitix</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-1.5">Welcome to Abilitix</h1>
           <p className="text-sm sm:text-base text-gray-600">Create your AI-powered workspace</p>
         </div>
 
-        {/* Signup Form */}
-        <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
+        {/* Signup Form - Enhanced shadow with glass effect */}
+        <div className="relative bg-white rounded-[20px] shadow-xl p-5 sm:p-6 md:p-8 overflow-hidden">
+          {/* Glass reflection overlay */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+          <div className="relative">
           {!sent ? (
-            <>
-              {/* Authentication Method Toggle */}
-              <div className={`space-y-2.5 sm:space-y-3 mb-5 sm:mb-6 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
-                <label className={`group flex items-start p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 active:scale-[0.98] ${
-                  method === 'magic_link' 
-                    ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' 
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
-                }`}>
-                  <div className="flex items-center h-5 sm:h-5 mt-0.5 mr-3 flex-shrink-0">
-                    <input
-                      type="radio"
-                      name="auth_method"
-                      value="magic_link"
-                      checked={method === 'magic_link'}
-                      onChange={() => setMethod('magic_link')}
-                      className="w-5 h-5 sm:w-4 sm:h-4 text-indigo-600 border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className={`font-semibold text-sm sm:text-sm ${method === 'magic_link' ? 'text-gray-900' : 'text-gray-800'}`}>
-                      Use Magic Link
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      We'll email you a secure link to get started
-                    </div>
-                  </div>
-                </label>
-                
-                <label className={`group flex items-start p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 active:scale-[0.98] ${
-                  method === 'password' 
-                    ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' 
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
-                }`}>
-                  <div className="flex items-center h-5 sm:h-5 mt-0.5 mr-3 flex-shrink-0">
-                    <input
-                      type="radio"
-                      name="auth_method"
-                      value="password"
-                      checked={method === 'password'}
-                      onChange={() => setMethod('password')}
-                      className="w-5 h-5 sm:w-4 sm:h-4 text-indigo-600 border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className={`font-semibold text-sm sm:text-sm ${method === 'password' ? 'text-gray-900' : 'text-gray-800'}`}>
-                      Set Up Password Now
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      Create a password for instant access
-                    </div>
-                  </div>
-                </label>
+            <div className="relative z-10">
+              {/* Authentication Method Toggle - Segmented Control */}
+              <div className={`mb-4 sm:mb-5 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
+                <SegmentedControl
+                  options={[
+                    { value: 'magic_link', label: 'Magic Link' },
+                    { value: 'password', label: 'Password' },
+                  ]}
+                  value={method}
+                  onChange={(value) => setMethod(value as 'magic_link' | 'password')}
+                  disabled={loading}
+                />
               </div>
 
-              <form onSubmit={submit} className={`space-y-4 sm:space-y-5 transition-opacity duration-200 ${loading ? 'opacity-90' : 'opacity-100'}`}>
+              <form onSubmit={submit} className={`space-y-3.5 sm:space-y-4 md:space-y-5 transition-opacity duration-200 ${loading ? 'opacity-90' : 'opacity-100'}`}>
                 <div>
                   <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
                     Company Name
@@ -165,7 +127,7 @@ export default function SignupPage() {
                       if (err) setErr(null);
                     }}
                     placeholder="Enter your company name"
-                    className="w-full px-4 py-3 text-base sm:text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full px-4 py-3 text-base sm:text-sm bg-[#F8F9FC] border border-[#D0D5DD] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                     required
                     disabled={loading}
                   />
@@ -184,7 +146,7 @@ export default function SignupPage() {
                       if (err) setErr(null);
                     }}
                     placeholder="Enter your email address"
-                    className="w-full px-4 py-3 text-base sm:text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full px-4 py-3 text-base sm:text-sm bg-[#F8F9FC] border border-[#D0D5DD] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                     required
                     autoComplete="email"
                     inputMode="email"
@@ -208,7 +170,7 @@ export default function SignupPage() {
                           if (err) setErr(null);
                         }}
                         placeholder="Create a strong password"
-                        className="w-full px-4 py-3 pr-12 sm:pr-11 text-base sm:text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full px-4 py-3 pr-12 sm:pr-11 text-base sm:text-sm bg-[#F8F9FC] border border-[#D0D5DD] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                         required={method === 'password'}
                         autoComplete="new-password"
                         disabled={loading}
@@ -216,14 +178,14 @@ export default function SignupPage() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-[38px] sm:top-[38px] text-gray-400 hover:text-gray-600 active:text-gray-700 transition-colors p-2 -mr-2 rounded-md hover:bg-gray-100 active:bg-gray-200 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="absolute right-3 top-[38px] sm:top-[38px] text-[#98A2B3] hover:text-gray-600 active:text-gray-700 transition-colors p-2 -mr-2 rounded-md hover:bg-gray-100 active:bg-gray-200 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                         disabled={loading}
                       >
                         {showPassword ? (
-                          <EyeOff className="h-5 w-5 sm:h-5 sm:w-5" />
+                          <EyeOff className="h-4 w-4" />
                         ) : (
-                          <Eye className="h-5 w-5 sm:h-5 sm:w-5" />
+                          <Eye className="h-4 w-4" />
                         )}
                       </button>
                     </div>
@@ -233,7 +195,7 @@ export default function SignupPage() {
                 <button
                   type="submit"
                   disabled={loading || !company || !email || (method === 'password' && !password) || !isEmailValid(normalizeEmail(email))}
-                  className={`w-full bg-indigo-600 text-white py-3.5 sm:py-3 px-4 rounded-lg font-semibold text-base sm:text-sm shadow-sm hover:bg-indigo-700 hover:shadow active:bg-indigo-800 active:scale-[0.98] focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation min-h-[44px] ${loading ? 'animate-pulse' : ''}`}
+                  className={`w-full bg-indigo-600 text-white py-3.5 sm:py-3 px-4 rounded-xl font-semibold text-base sm:text-sm shadow-[0_4px_10px_rgba(62,44,195,0.25)] hover:bg-indigo-700 hover:shadow-[0_4px_12px_rgba(62,44,195,0.3)] active:bg-indigo-800 active:scale-[0.98] focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation min-h-[48px] ${loading ? 'animate-pulse' : ''}`}
                 >
                   {loading ? (
                     <>
@@ -244,7 +206,10 @@ export default function SignupPage() {
                       <span>Creating Workspace...</span>
                     </>
                   ) : (
-                    <span>Create Workspace</span>
+                    <>
+                      <Lock className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                      <span>Create Workspace</span>
+                    </>
                   )}
                 </button>
 
@@ -260,10 +225,10 @@ export default function SignupPage() {
                 </div>
               )}
             </form>
-            </>
+            </div>
           ) : (
             /* Success State */
-            <div className="text-center py-4">
+            <div className="text-center py-4 relative z-10">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-6">
                 <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -303,7 +268,7 @@ export default function SignupPage() {
           )}
 
           {/* Terms and Privacy */}
-          <div className="mt-4 md:mt-6 text-center text-xs text-gray-500">
+          <div className="mt-3 sm:mt-4 md:mt-6 text-center text-xs text-gray-500 relative z-10">
             <p>
               By continuing, you confirm that you have read and agree to our{' '}
               <a 
@@ -326,16 +291,21 @@ export default function SignupPage() {
               .
             </p>
           </div>
+          </div>
         </div>
 
         {/* Link to Signin */}
-        <div className="mt-4 md:mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Already have a workspace?{' '}
-            <Link href="/signin" className="text-indigo-600 hover:text-indigo-500 font-medium">
-              Sign in
-            </Link>
+        <div className="mt-8 sm:mt-10 md:mt-12 text-center">
+          <p className="text-sm text-gray-600 mb-2">
+            Already have a workspace?
           </p>
+          <Link 
+            href="/signin" 
+            className="inline-flex items-center gap-1.5 text-[#6941C6] hover:text-indigo-700 font-semibold text-sm transition-colors group"
+          >
+            Sign in
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
         </div>
 
       </div>

@@ -141,7 +141,7 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
               Quick Actions
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 items-stretch">
               <QuickActionCard
                 icon={Upload}
                 title="Upload Docs"
@@ -470,16 +470,18 @@ function QuickActionCard({ icon: Icon, title, href, count, color, bgColor }: Qui
   return (
     <Link
       href={href}
-      className="relative bg-white rounded-xl border border-gray-200 p-5 sm:p-6 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 hover:-translate-y-0.5 group"
+      className="relative bg-white rounded-xl border border-gray-200 p-5 sm:p-6 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 hover:-translate-y-0.5 group flex flex-col h-full"
     >
       <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg mb-3 ${bgColor} ${color}`}>
         <Icon className="h-5 w-5" />
       </div>
-      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">{title}</h3>
+      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1 flex-grow">{title}</h3>
       {count !== undefined && count > 0 && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-          {count} {count === 1 ? 'item' : 'items'}
-        </span>
+        <div className="mt-auto pt-2">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+            {count} {count === 1 ? 'item' : 'items'}
+          </span>
+        </div>
       )}
       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
     </Link>

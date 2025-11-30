@@ -127,6 +127,18 @@ export default function DashboardClient({ user }: DashboardClientProps) {
         />
       )}
 
+      {/* Take Tour Button - Link to Welcome Page */}
+      <div className="flex items-center justify-center">
+        <Link
+          href="/welcome"
+          className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>Take Tour</span>
+        </Link>
+      </div>
 
       {/* Coming Soon Note */}
       <div className="flex items-center justify-center py-2">

@@ -158,11 +158,11 @@ function SignInForm() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="h-screen h-[100dvh] overflow-y-auto sm:overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Header with Logo - Fade-in animation */}
-        <div className="text-center mb-5 sm:mb-6 md:mb-8">
-          <div className="flex justify-center mb-3 sm:mb-4 md:mb-6">
+        <div className="text-center mb-4 sm:mb-5 md:mb-6">
+          <div className="flex justify-center mb-2 sm:mb-3 md:mb-4">
             <Image
               src="/abilitix-logo.png"
               alt="Abilitix"
@@ -172,12 +172,12 @@ function SignInForm() {
               className="rounded-lg"
             />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1.5 sm:mb-2">Welcome back</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-1.5">Welcome back</h1>
           <p className="text-sm sm:text-base text-gray-600">Sign in to your workspace</p>
         </div>
 
                {/* Sign-in Form - Enhanced shadow */}
-               <div className="bg-white rounded-xl shadow-xl p-6 md:p-8">
+               <div className="bg-white rounded-xl shadow-xl p-5 sm:p-6 md:p-8">
                  {tokenLoading ? (
                    /* Token Exchange Loading State */
                    <div className="text-center py-8">
@@ -193,7 +193,7 @@ function SignInForm() {
                  ) : !sent ? (
                    <>
                      {/* Authentication Method Toggle - Segmented Control */}
-                     <div className={`mb-5 sm:mb-6 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
+                     <div className={`mb-4 sm:mb-5 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
                        <SegmentedControl
                          options={[
                            { value: 'magic_link', label: 'Magic Link' },
@@ -206,7 +206,7 @@ function SignInForm() {
                      </div>
                      
                      {/* Sign-in Form */}
-                     <form onSubmit={submit} className={`space-y-4 sm:space-y-5 transition-opacity duration-200 ${(loading || redirecting) ? 'opacity-90' : 'opacity-100'}`}>
+                     <form onSubmit={submit} className={`space-y-3.5 sm:space-y-4 md:space-y-5 transition-opacity duration-200 ${(loading || redirecting) ? 'opacity-90' : 'opacity-100'}`}>
                        <div>
                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                            Email Address
@@ -370,7 +370,7 @@ function SignInForm() {
           )}
 
           {/* Terms and Privacy */}
-          <div className="mt-4 md:mt-6 text-center text-xs text-gray-500">
+          <div className="mt-3 sm:mt-4 md:mt-6 text-center text-xs text-gray-500">
             <p>
               By continuing, you confirm that you have read and agree to our{' '}
               <a 
@@ -396,7 +396,7 @@ function SignInForm() {
         </div>
 
         {/* Link to Signup */}
-        <div className="mt-4 md:mt-6 text-center">
+        <div className="mt-3 sm:mt-4 md:mt-6 text-center">
           <p className="text-sm text-gray-600">
             <span className="font-bold">New to AbilitiX?</span>{' '}
             <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium">
@@ -413,7 +413,7 @@ function SignInForm() {
 export default function SignInPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="h-screen h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6">
             <svg className="animate-spin w-8 h-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

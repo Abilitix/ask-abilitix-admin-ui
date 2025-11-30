@@ -657,9 +657,12 @@ export default function SettingsPage() {
       <div className="mb-4 sm:mb-6">
         <div className="flex items-center gap-2 sm:gap-3 mb-2">
           <Settings className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">AI Assistant Settings</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Settings</h1>
         </div>
         <p className="text-sm text-gray-600">
+          Manage team members, tenant defaults, website widget, and context management.
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
           Tenant: <Badge variant="outline">{data?.tenant_slug || data?.tenant_name || 'Loading...'}</Badge>
         </p>
       </div>

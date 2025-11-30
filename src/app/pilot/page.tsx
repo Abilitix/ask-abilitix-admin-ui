@@ -19,7 +19,8 @@ import {
   Users,
   TrendingUp,
   Shield,
-  Brain
+  Brain,
+  Rocket
 } from 'lucide-react';
 import { useDashboardSummary } from '@/hooks/useDashboardSummary';
 

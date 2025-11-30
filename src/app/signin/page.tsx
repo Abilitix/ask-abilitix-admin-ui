@@ -5,7 +5,8 @@ import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
 import { ApiErrorCode } from '@/types/errors';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Lock } from 'lucide-react';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 
 function SignInForm() {
   const [email, setEmail] = useState('');
@@ -159,7 +160,7 @@ function SignInForm() {
   return (
     <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
-        {/* Header with Logo */}
+        {/* Header with Logo - Fade-in animation */}
         <div className="text-center mb-5 sm:mb-6 md:mb-8">
           <div className="flex justify-center mb-3 sm:mb-4 md:mb-6">
             <Image
@@ -175,8 +176,8 @@ function SignInForm() {
           <p className="text-sm sm:text-base text-gray-600">Sign in to your workspace</p>
         </div>
 
-               {/* Sign-in Form */}
-               <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
+               {/* Sign-in Form - Enhanced shadow */}
+               <div className="bg-white rounded-xl shadow-xl p-6 md:p-8">
                  {tokenLoading ? (
                    /* Token Exchange Loading State */
                    <div className="text-center py-8">
@@ -191,60 +192,18 @@ function SignInForm() {
                    </div>
                  ) : !sent ? (
                    <>
-                     {/* Authentication Method Toggle */}
-                     <div className={`space-y-2.5 sm:space-y-3 mb-5 sm:mb-6 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
-                         <label className={`group flex items-start p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 active:scale-[0.98] ${
-                           method === 'magic_link' 
-                             ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' 
-                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
-                         }`}>
-                           <div className="flex items-center h-5 sm:h-5 mt-0.5 mr-3 flex-shrink-0">
-                             <input
-                               type="radio"
-                               name="auth_method"
-                               value="magic_link"
-                               checked={method === 'magic_link'}
-                               onChange={() => setMethod('magic_link')}
-                               className="w-5 h-5 sm:w-4 sm:h-4 text-indigo-600 border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
-                               disabled={loading}
-                             />
-                           </div>
-                           <div className="flex-1 min-w-0">
-                             <div className={`font-semibold text-sm sm:text-sm ${method === 'magic_link' ? 'text-gray-900' : 'text-gray-800'}`}>
-                               Continue with Magic Link
-                             </div>
-                             <div className="text-xs text-gray-500 mt-1 leading-relaxed">
-                               We'll email you a secure link to access your workspace
-                             </div>
-                           </div>
-                         </label>
-                         
-                         <label className={`group flex items-start p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 active:scale-[0.98] ${
-                           method === 'password' 
-                             ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' 
-                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
-                         }`}>
-                           <div className="flex items-center h-5 sm:h-5 mt-0.5 mr-3 flex-shrink-0">
-                             <input
-                               type="radio"
-                               name="auth_method"
-                               value="password"
-                               checked={method === 'password'}
-                               onChange={() => setMethod('password')}
-                               className="w-5 h-5 sm:w-4 sm:h-4 text-indigo-600 border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
-                               disabled={loading}
-                             />
-                           </div>
-                           <div className="flex-1 min-w-0">
-                             <div className={`font-semibold text-sm sm:text-sm ${method === 'password' ? 'text-gray-900' : 'text-gray-800'}`}>
-                               Continue with Password
-                             </div>
-                             <div className="text-xs text-gray-500 mt-1 leading-relaxed">
-                               Sign in instantly with your password
-                             </div>
-                           </div>
-                         </label>
-                       </div>
+                     {/* Authentication Method Toggle - Segmented Control */}
+                     <div className={`mb-5 sm:mb-6 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
+                       <SegmentedControl
+                         options={[
+                           { value: 'magic_link', label: 'Magic Link' },
+                           { value: 'password', label: 'Password' },
+                         ]}
+                         value={method}
+                         onChange={(value) => setMethod(value as 'magic_link' | 'password')}
+                         disabled={loading}
+                       />
+                     </div>
                      
                      {/* Sign-in Form */}
                      <form onSubmit={submit} className={`space-y-4 sm:space-y-5 transition-opacity duration-200 ${(loading || redirecting) ? 'opacity-90' : 'opacity-100'}`}>
@@ -337,14 +296,18 @@ function SignInForm() {
                              </span>
                            </>
                          ) : (
-                           <span>{method === 'password' ? 'Sign In' : 'Send Magic Link'}</span>
+                           <>
+                             <Lock className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                             <span>{method === 'password' ? 'Sign In' : 'Continue'}</span>
+                           </>
                          )}
                        </button>
 
-                       {/* Helper Text (only for magic link) */}
+                       {/* Trust Microcopy */}
                        {method === 'magic_link' && (
-                         <div className="mt-3 text-xs text-gray-500 text-center">
-                           <p>We'll email you a secure link to access your workspace</p>
+                         <div className="mt-3 text-xs text-gray-500 text-center leading-relaxed">
+                           <p className="opacity-60">You will receive a secure sign-in link.</p>
+                           <p className="opacity-60">No password required.</p>
                          </div>
                        )}
 

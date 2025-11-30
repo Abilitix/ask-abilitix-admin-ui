@@ -127,16 +127,6 @@ export default function DashboardClient({ user }: DashboardClientProps) {
         />
       )}
 
-      {/* Take Tour Button - Always visible for all users */}
-      <div className="flex items-center justify-center">
-        <Link
-          href="/welcome"
-          className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
-        >
-          <Rocket className="h-4 w-4" />
-          <span>Take Tour</span>
-        </Link>
-      </div>
 
       {/* Coming Soon Note */}
       <div className="flex items-center justify-center py-2">

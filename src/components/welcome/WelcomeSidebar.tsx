@@ -44,7 +44,8 @@ export function WelcomeSidebar({ pendingReviews = 0, docsCount = 0, faqCount = 0
   };
 
   const mainNav = [
-    { href: '/welcome', label: 'Home', icon: Home },
+    { href: '/', label: 'Dashboard', icon: Home },
+    { href: '/welcome', label: 'Welcome', icon: Rocket },
     { href: '#announcements', label: 'Announcements', icon: Bell },
     { href: '#getting-started', label: 'Getting Started', icon: Rocket },
     { href: '#resources', label: 'Resources', icon: BookOpen },
@@ -58,7 +59,7 @@ export function WelcomeSidebar({ pendingReviews = 0, docsCount = 0, faqCount = 0
   ];
 
   const support = [
-    { href: '/admin/docs', label: 'Help Center', icon: HelpCircle },
+    { href: '#help-center', label: 'Help Center', icon: HelpCircle, comingSoon: true },
     { href: '#tutorials', label: 'Video Tutorials', icon: Video, comingSoon: true },
   ];
 
@@ -73,19 +74,31 @@ export function WelcomeSidebar({ pendingReviews = 0, docsCount = 0, faqCount = 0
     const active = isActive(href);
     const isAnchor = href.startsWith('#');
     
+    const handleClick = (e: React.MouseEvent) => {
+      if (comingSoon) {
+        e.preventDefault();
+        return;
+      }
+      if (isAnchor) {
+        e.preventDefault();
+        const element = document.querySelector(href);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setMobileOpen(false);
+        }
+        return;
+      }
+      onClick?.();
+    };
+    
     const content = (
       <div
         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
           active
             ? 'bg-indigo-50 text-indigo-700 border-l-2 border-indigo-600'
             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-        } ${comingSoon ? 'opacity-60 cursor-not-allowed' : ''} ${isAnchor ? 'cursor-pointer' : ''}`}
-        onClick={(e) => {
-          if (isAnchor) {
-            handleAnchorClick(e as any, href);
-          }
-          onClick?.();
-        }}
+        } ${comingSoon ? 'opacity-60 cursor-not-allowed' : isAnchor ? 'cursor-pointer' : ''}`}
+        onClick={handleClick}
       >
         <Icon className={`h-5 w-5 ${active ? 'text-indigo-600' : 'text-gray-500'}`} />
         <span className="flex-1">{label}</span>
@@ -100,11 +113,7 @@ export function WelcomeSidebar({ pendingReviews = 0, docsCount = 0, faqCount = 0
       </div>
     );
 
-    if (comingSoon) {
-      return <div className="cursor-not-allowed">{content}</div>;
-    }
-
-    if (isAnchor) {
+    if (comingSoon || isAnchor) {
       return <div>{content}</div>;
     }
 

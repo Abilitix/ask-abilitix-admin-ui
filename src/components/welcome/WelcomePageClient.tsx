@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useDashboardSummary } from '@/hooks/useDashboardSummary';
@@ -13,6 +14,15 @@ type WelcomePageClientProps = {
 
 export default function WelcomePageClient({ user }: WelcomePageClientProps) {
   const { summary, isLoading } = useDashboardSummary();
+  
+  // Prefetch dashboard data to reduce latency when navigating
+  React.useEffect(() => {
+    // Prefetch dashboard route
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.href = '/';
+    document.head.appendChild(link);
+  }, []);
 
   if (isLoading) {
     return (
@@ -53,16 +63,21 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-60 min-h-screen">
-        {/* Skip to Dashboard */}
-        <div className="absolute top-4 right-4 z-10">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 bg-white/80 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
-          >
-            <X className="h-4 w-4" />
-            <span className="hidden sm:inline">Skip to Dashboard</span>
-            <span className="sm:hidden">Dashboard</span>
-          </Link>
+        {/* Top Navigation Bar */}
+        <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Welcome</h2>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                >
+                  <span>Dashboard</span>
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-12">
@@ -112,6 +127,10 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
                 }
                 unread={isNewUser}
               />
+              {/* Note: Admin announcements will be loaded from backend API in future */}
+              <div className="text-xs text-gray-500 italic pt-2 border-t border-gray-100 mt-4">
+                Admins can add announcements from Settings → Announcements (coming soon)
+              </div>
             </div>
           </div>
         </div>
@@ -282,15 +301,17 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
             Helpful Resources
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-            <ResourceCard
-              title="Abilitix Help Center"
-              description="Browse our comprehensive documentation, guides, and FAQs to learn how to use Abilitix effectively."
-              icon={BookOpen}
-              href="/admin/docs"
-              color="text-indigo-600"
-              bgColor="bg-indigo-50"
-              comingSoon={false}
-            />
+            <div id="help-center" className="scroll-mt-4">
+              <ResourceCard
+                title="Abilitix Help Center"
+                description="Browse our comprehensive documentation, guides, and FAQs to learn how to use Abilitix effectively."
+                icon={BookOpen}
+                href="#help-center"
+                color="text-indigo-600"
+                bgColor="bg-indigo-50"
+                comingSoon={true}
+              />
+            </div>
             <div id="tutorials" className="scroll-mt-4">
               <ResourceCard
                 title="Video Tutorials & Demos"

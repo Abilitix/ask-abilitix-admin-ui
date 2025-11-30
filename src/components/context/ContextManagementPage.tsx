@@ -151,7 +151,7 @@ export function ContextManagementPage() {
           Context Management
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Control how Abilitix talks about your business and interprets your terminology. 
+          Control how Ask Abilitix talks about your business and interprets your terminology. 
           General questions are unaffected.
         </p>
       </div>
@@ -175,7 +175,7 @@ export function ContextManagementPage() {
                 Enable Context Bundle
               </h3>
               <p className="text-sm text-gray-600">
-                When enabled, Abilitix will use your Profile, Glossary and Policy below to answer 
+                When enabled, Ask Abilitix will use your Profile, Glossary and Policy below to answer 
                 brand and terminology questions in your voice.
               </p>
             </div>

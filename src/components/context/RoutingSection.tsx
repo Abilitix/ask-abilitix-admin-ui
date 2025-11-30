@@ -25,7 +25,7 @@ export function RoutingSection({ ctx, setCtx }: RoutingSectionProps) {
               Boost Profile for "About Us" Questions
             </Label>
             <p className="text-sm text-gray-600">
-              When users ask who you are or what you do, Abilitix will prioritize your profile.
+              When users ask who you are or what you do, Ask Abilitix will prioritize your profile.
             </p>
           </div>
           <label className="flex items-center gap-3 cursor-pointer min-h-[44px]">

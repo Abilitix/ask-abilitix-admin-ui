@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { 
-  title: "Sign In - AbilitiX Admin" 
+  title: "Sign In - Ask AbilitiX Admin" 
 };
 
 export default function SignInLayout({ children }: { children: React.ReactNode }) {

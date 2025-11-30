@@ -130,7 +130,7 @@ export default function PilotPageClient() {
             Pilot Objectives
           </h1>
           <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
-            Your comprehensive guide to getting the most out of Abilitix. Follow this checklist to ensure a successful pilot.
+            Your comprehensive guide to getting the most out of Ask Abilitix. Follow this checklist to ensure a successful pilot.
           </p>
         </div>
 

@@ -136,7 +136,7 @@ export function WelcomeSidebar({ pendingReviews = 0, docsCount = 0, faqCount = 0
           className="rounded-lg"
           priority
         />
-        <span className="font-semibold text-gray-900">Abilitix</span>
+        <span className="font-semibold text-gray-900">Ask Abilitix</span>
       </div>
 
       {/* Main Navigation */}
@@ -246,7 +246,7 @@ export function WelcomeSidebar({ pendingReviews = 0, docsCount = 0, faqCount = 0
               height={32}
               className="rounded-lg"
             />
-            <span className="font-semibold text-gray-900">Abilitix</span>
+            <span className="font-semibold text-gray-900">Ask Abilitix</span>
           </div>
           <button
             type="button"

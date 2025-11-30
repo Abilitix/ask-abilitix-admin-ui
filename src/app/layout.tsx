@@ -7,7 +7,7 @@ import { getAuthUser } from "@/lib/auth";
 import SiteFooter from "@/components/SiteFooter";
 import { Toaster } from "@/components/ui/sonner";
 
-export const metadata: Metadata = { title: "AbilitiX Admin" };
+export const metadata: Metadata = { title: "Ask AbilitiX Admin" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const useCdn = process.env.NEXT_PUBLIC_TW_CDN === "1";

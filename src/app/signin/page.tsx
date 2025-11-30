@@ -200,7 +200,7 @@ function SignInForm() {
                                {err}
                                {err.includes('No account found') && (
                                  <div className="mt-2">
-                                   <span className="text-gray-600">New to AbilitiX? </span>
+                                   <span className="text-gray-600">New to Ask AbilitiX? </span>
                                    <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium underline">
                                      Create your workspace below
                                    </Link>
@@ -276,7 +276,7 @@ function SignInForm() {
         {/* Link to Signup */}
         <div className="mt-4 md:mt-6 text-center">
           <p className="text-sm text-gray-600">
-            <span className="font-bold">New to AbilitiX?</span>{' '}
+            <span className="font-bold">New to Ask AbilitiX?</span>{' '}
             <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium">
               Create your workspace
             </Link>

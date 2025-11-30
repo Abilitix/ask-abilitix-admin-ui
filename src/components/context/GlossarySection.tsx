@@ -95,7 +95,7 @@ export function GlossarySection({ ctx, setCtx }: GlossarySectionProps) {
           <div>
             <CardTitle>Glossary</CardTitle>
             <CardDescription>
-              How Abilitix should interpret your acronyms and domain terms.
+              How Ask Abilitix should interpret your acronyms and domain terms.
             </CardDescription>
           </div>
           <Button
@@ -185,7 +185,7 @@ export function GlossarySection({ ctx, setCtx }: GlossarySectionProps) {
           </div>
           {ctx.glossary.length === 0 ? (
             <div className="text-center py-8 text-gray-500 text-sm">
-              No glossary entries yet. Add terms to help Abilitix understand your terminology.
+              No glossary entries yet. Add terms to help Ask Abilitix understand your terminology.
             </div>
           ) : (
             <div className="space-y-2">

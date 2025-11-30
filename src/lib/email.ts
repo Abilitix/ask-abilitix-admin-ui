@@ -22,11 +22,11 @@ export async function sendWelcomeEmail(
   const payload = {
     from: { name: FROM_NAME, email: FROM_EMAIL },
     to: [{ email }],
-    subject: `Welcome to Abilitix, ${companyName}!`,
+    subject: `Welcome to Ask Abilitix, ${companyName}!`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; color: white;">
-          <h1 style="margin: 0; font-size: 28px;">Welcome to Abilitix!</h1>
+          <h1 style="margin: 0; font-size: 28px;">Welcome to Ask Abilitix!</h1>
           <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your AI-powered knowledge management platform</p>
         </div>
         
@@ -34,7 +34,7 @@ export async function sendWelcomeEmail(
           <h2 style="color: #333; margin-top: 0;">Hello ${companyName}!</h2>
           
           <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-            Thank you for signing up for Abilitix! Your workspace has been created successfully.
+            Thank you for signing up for Ask Abilitix! Your workspace has been created successfully.
           </p>
           
           <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 20px 0;">
@@ -65,7 +65,7 @@ export async function sendWelcomeEmail(
         </div>
         
         <div style="background: #333; padding: 20px; text-align: center; color: #999; font-size: 12px;">
-          <p style="margin: 0;">© 2024 Abilitix. All rights reserved.</p>
+          <p style="margin: 0;">© 2025 Abilitix. All rights reserved.</p>
         </div>
       </div>
     `,

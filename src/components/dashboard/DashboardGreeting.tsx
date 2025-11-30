@@ -3,13 +3,12 @@
 interface DashboardGreetingProps {
   name?: string | null;
   tenantName?: string | null;
-  industry?: string | null;
+  industry?: string | null; // Kept for backward compatibility but not used
 }
 
 export function DashboardGreeting({
   name,
   tenantName,
-  industry,
 }: DashboardGreetingProps) {
   const now = new Date();
   const hour = now.getHours();
@@ -24,9 +23,7 @@ export function DashboardGreeting({
       </h1>
       <p className="text-base sm:text-lg text-slate-600 mt-2 sm:mt-3 font-medium">
         {tenantName
-          ? `Helping ${tenantName} deliver cited answers${
-              industry ? ` for ${industry}` : ''
-            }.`
+          ? `Helping ${tenantName} deliver cited answers.`
           : 'Helping you deliver cited answers with Abilitix.'}
       </p>
     </div>

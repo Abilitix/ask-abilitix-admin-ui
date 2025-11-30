@@ -21,11 +21,11 @@ export function DashboardGreeting({
         Good {timeOfDay}
         {name ? `, ${name}` : ''}! 👋
       </h1>
-      <p className="text-base sm:text-lg text-slate-600 mt-2 sm:mt-3 font-medium">
-        {tenantName
-          ? `Helping ${tenantName} deliver cited answers.`
-          : 'Helping you deliver cited answers with Abilitix.'}
-      </p>
+      {tenantName && (
+        <p className="text-base sm:text-lg text-slate-600 mt-2 sm:mt-3">
+          Welcome to {tenantName}
+        </p>
+      )}
     </div>
   );
 }

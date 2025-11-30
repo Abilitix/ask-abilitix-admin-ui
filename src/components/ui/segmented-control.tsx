@@ -53,6 +53,7 @@ export function SegmentedControl({
           className={cn(
             'relative z-10 flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-colors duration-200',
             'focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2',
+            'touch-manipulation min-h-[44px]',
             value === option.value
               ? 'text-gray-900'
               : 'text-gray-600 hover:text-gray-900'

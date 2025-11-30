@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useDashboardSummary } from '@/hooks/useDashboardSummary';
+import { WelcomeSidebar } from './WelcomeSidebar';
 import { Upload, MessageSquare, CheckCircle2, Sparkles, FileText, Users, ArrowRight, X, Bell, BookOpen, Video, Rocket, Brain, Shield, Zap, TrendingUp } from 'lucide-react';
 import type { User } from '@/lib/auth';
 
@@ -42,19 +43,29 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
   const step3Complete = (summary?.metrics.pending_reviews || 0) === 0 && step2Complete;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Skip to Dashboard */}
-      <div className="absolute top-4 right-4 z-10">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 bg-white/80 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
-        >
-          <X className="h-4 w-4" />
-          <span>Skip to Dashboard</span>
-        </Link>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex">
+      {/* Left Sidebar */}
+      <WelcomeSidebar
+        pendingReviews={pendingReviews}
+        docsCount={docsCount}
+        faqCount={faqCount}
+      />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      {/* Main Content */}
+      <main className="flex-1 lg:ml-60 min-h-screen">
+        {/* Skip to Dashboard */}
+        <div className="absolute top-4 right-4 z-10">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 bg-white/80 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+          >
+            <X className="h-4 w-4" />
+            <span className="hidden sm:inline">Skip to Dashboard</span>
+            <span className="sm:hidden">Dashboard</span>
+          </Link>
+        </div>
+
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-12">
         {/* Hero Section */}
         <div className="text-center mb-10 sm:mb-14">
           <div className="flex justify-center mb-4 sm:mb-6">
@@ -79,7 +90,7 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
         </div>
 
         {/* Announcements Section - Always visible */}
-        <div className="relative bg-white rounded-[20px] shadow-xl p-6 sm:p-8 mb-8 sm:mb-12 overflow-hidden">
+        <div id="announcements" className="relative bg-white rounded-[20px] shadow-xl p-6 sm:p-8 mb-8 sm:mb-12 overflow-hidden scroll-mt-4">
           <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -149,7 +160,7 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
 
         {/* Getting Started Hub - Prominent CTA */}
         {isNewUser && (
-          <div className="relative bg-gradient-to-br from-indigo-600 to-blue-600 rounded-[20px] shadow-xl p-8 sm:p-10 md:p-12 mb-8 sm:mb-12 overflow-hidden">
+          <div id="getting-started" className="relative bg-gradient-to-br from-indigo-600 to-blue-600 rounded-[20px] shadow-xl p-8 sm:p-10 md:p-12 mb-8 sm:mb-12 overflow-hidden scroll-mt-4">
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/90 to-blue-600/90" />
             <div className="relative z-10 text-center text-white">
               <Rocket className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 sm:mb-6 text-white" />
@@ -265,7 +276,7 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
         </div>
 
         {/* Helpful Resources */}
-        <div className="mb-8 sm:mb-12">
+        <div id="resources" className="mb-8 sm:mb-12 scroll-mt-4">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 sm:mb-8 flex items-center gap-2">
             <Brain className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" />
             Helpful Resources
@@ -278,18 +289,22 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
               href="/admin/docs"
               color="text-indigo-600"
               bgColor="bg-indigo-50"
+              comingSoon={false}
             />
-            <ResourceCard
-              title="Video Tutorials & Demos"
-              description="Watch step-by-step tutorials and product walkthroughs. See how other teams use Abilitix to deliver cited answers."
-              icon={Video}
-              href="#"
-              color="text-blue-600"
-              bgColor="bg-blue-50"
-            />
+            <div id="tutorials" className="scroll-mt-4">
+              <ResourceCard
+                title="Video Tutorials & Demos"
+                description="Watch step-by-step tutorials and product walkthroughs. See how other teams use Abilitix to deliver cited answers."
+                icon={Video}
+                href="#tutorials"
+                color="text-blue-600"
+                bgColor="bg-blue-50"
+                comingSoon={true}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
@@ -306,7 +321,7 @@ type StepCardProps = {
 
 function StepCard({ step, title, description, icon: Icon, href, completed, buttonText }: StepCardProps) {
   return (
-    <div className={`relative rounded-xl border-2 p-6 sm:p-7 transition-all duration-200 ${
+    <div className={`relative rounded-xl border-2 p-6 sm:p-7 transition-all duration-200 flex flex-col ${
       completed
         ? 'border-green-500 bg-green-50/50 shadow-md'
         : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-lg'
@@ -327,14 +342,16 @@ function StepCard({ step, title, description, icon: Icon, href, completed, butto
         <Icon className="h-6 w-6" />
       </div>
 
-      {/* Content */}
-      <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">{title}</h3>
-      <p className="text-sm sm:text-base text-gray-600 mb-6 leading-relaxed">{description}</p>
+      {/* Content - flex-grow to push button down */}
+      <div className="flex-grow">
+        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">{title}</h3>
+        <p className="text-sm sm:text-base text-gray-600 mb-6 leading-relaxed">{description}</p>
+      </div>
 
-      {/* Button */}
+      {/* Button - always at bottom */}
       <Link
         href={href}
-        className={`inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+        className={`inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 mt-auto ${
           completed
             ? 'bg-green-600 text-white hover:bg-green-700 shadow-[0_4px_10px_rgba(34,197,94,0.25)]'
             : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_10px_rgba(62,44,195,0.25)]'
@@ -454,25 +471,35 @@ type ResourceCardProps = {
   href: string;
   color: string;
   bgColor: string;
+  comingSoon?: boolean;
 };
 
-function ResourceCard({ title, description, icon: Icon, href, color, bgColor }: ResourceCardProps) {
-  return (
-    <Link
-      href={href}
-      className="relative bg-white rounded-xl border border-gray-200 p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 hover:-translate-y-0.5 group"
-    >
+function ResourceCard({ title, description, icon: Icon, href, color, bgColor, comingSoon = false }: ResourceCardProps) {
+  const CardContent = (
+    <div className="relative bg-white rounded-xl border border-gray-200 p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 hover:-translate-y-0.5 group">
       <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4 ${bgColor} ${color}`}>
         <Icon className="h-6 w-6" />
       </div>
       <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">{title}</h3>
       <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-4">{description}</p>
-      <div className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 group-hover:text-indigo-700">
-        <span>Learn more</span>
-        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-      </div>
+      {comingSoon ? (
+        <div className="inline-flex items-center gap-2 text-sm font-medium text-gray-400">
+          <span>Coming soon</span>
+        </div>
+      ) : (
+        <div className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 group-hover:text-indigo-700">
+          <span>Learn more</span>
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+        </div>
+      )}
       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-    </Link>
+    </div>
   );
+
+  if (comingSoon) {
+    return <div className="opacity-75 cursor-not-allowed">{CardContent}</div>;
+  }
+
+  return <Link href={href}>{CardContent}</Link>;
 }
 

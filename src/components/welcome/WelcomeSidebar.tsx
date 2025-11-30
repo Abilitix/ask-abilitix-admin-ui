@@ -53,7 +53,7 @@ export function WelcomeSidebar({ pendingReviews = 0, docsCount = 0, faqCount = 0
 
   const quickActions = [
     { href: '/admin/docs', label: 'Upload Docs', icon: Upload, count: docsCount > 0 ? docsCount : undefined },
-    { href: '/admin/faqs', label: 'Generate FAQs', icon: MessageSquare, count: faqCount > 0 ? faqCount : undefined },
+    { href: '/admin/docs/generate-faqs', label: 'Generate FAQs', icon: MessageSquare, count: faqCount > 0 ? faqCount : undefined },
     { href: '/admin/inbox', label: 'Review Inbox', icon: CheckCircle2, count: pendingReviews > 0 ? pendingReviews : undefined },
     { href: '/admin/ai', label: 'AI Assistant', icon: Sparkles },
   ];

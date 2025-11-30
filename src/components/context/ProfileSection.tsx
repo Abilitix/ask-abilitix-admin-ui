@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { ContextSettings } from './types';
+import { CSVImportModal } from './CSVImportModal';
+import { generateOfferingsTemplate, validateOfferingRow, CSVRow } from './csvUtils';
 
 interface ProfileSectionProps {
   ctx: ContextSettings;
@@ -17,6 +19,7 @@ interface ProfileSectionProps {
 
 export function ProfileSection({ ctx, setCtx }: ProfileSectionProps) {
   const [newOffering, setNewOffering] = useState('');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const addOffering = () => {
     if (!newOffering.trim()) return;
@@ -46,6 +49,47 @@ export function ProfileSection({ ctx, setCtx }: ProfileSectionProps) {
         offerings: ctx.profile.offerings.filter((_, i) => i !== index),
       },
     });
+  };
+
+  const handleCSVImport = (data: string[]) => {
+    const newOfferings = data.filter(offering => {
+      // Check for duplicates
+      return !ctx.profile.offerings.some(existing => 
+        existing.toLowerCase() === offering.toLowerCase()
+      );
+    });
+
+    if (newOfferings.length === 0) {
+      toast.info('No new offerings to add (all offerings already exist)');
+      return;
+    }
+
+    const totalAfterImport = ctx.profile.offerings.length + newOfferings.length;
+    if (totalAfterImport > 10) {
+      const canAdd = 10 - ctx.profile.offerings.length;
+      if (canAdd > 0) {
+        setCtx({
+          ...ctx,
+          profile: {
+            ...ctx.profile,
+            offerings: [...ctx.profile.offerings, ...newOfferings.slice(0, canAdd)],
+          },
+        });
+        toast.warning(`Added ${canAdd} offerings (maximum 10 reached)`);
+      } else {
+        toast.error('Maximum 10 offerings already reached');
+      }
+      return;
+    }
+
+    setCtx({
+      ...ctx,
+      profile: {
+        ...ctx.profile,
+        offerings: [...ctx.profile.offerings, ...newOfferings],
+      },
+    });
+    toast.success(`Imported ${newOfferings.length} offerings`);
   };
 
   return (
@@ -87,12 +131,23 @@ export function ProfileSection({ ctx, setCtx }: ProfileSectionProps) {
 
         {/* Offerings */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium">
-            Offerings
-            <span className="text-xs text-gray-500 ml-2">
-              ({ctx.profile.offerings.length}/10)
-            </span>
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">
+              Offerings
+              <span className="text-xs text-gray-500 ml-2">
+                ({ctx.profile.offerings.length}/10)
+              </span>
+            </Label>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsImportModalOpen(true)}
+              className="min-h-[36px]"
+            >
+              <Upload className="h-3 w-3 mr-1" />
+              Import CSV
+            </Button>
+          </div>
           <div className="flex gap-2">
             <Input
               value={newOffering}
@@ -199,6 +254,18 @@ export function ProfileSection({ ctx, setCtx }: ProfileSectionProps) {
           </p>
         </div>
       </CardContent>
+
+      {/* CSV Import Modal */}
+      <CSVImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleCSVImport}
+        type="offerings"
+        templateGenerator={generateOfferingsTemplate}
+        validator={validateOfferingRow}
+        maxItems={10}
+        currentCount={ctx.profile.offerings.length}
+      />
     </Card>
   );
 }

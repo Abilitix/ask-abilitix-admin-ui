@@ -5,9 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { ContextSettings } from './types';
+import { CSVImportModal } from './CSVImportModal';
+import { generatePolicyTemplate, validatePolicyRow, CSVRow } from './csvUtils';
 
 interface PolicySectionProps {
   ctx: ContextSettings;
@@ -17,6 +19,7 @@ interface PolicySectionProps {
 export function PolicySection({ ctx, setCtx }: PolicySectionProps) {
   const [newMust, setNewMust] = useState('');
   const [newNever, setNewNever] = useState('');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const addMust = () => {
     if (!newMust.trim()) return;
@@ -78,13 +81,74 @@ export function PolicySection({ ctx, setCtx }: PolicySectionProps) {
     });
   };
 
+  const handleCSVImport = (data: { must: string[]; never: string[] }) => {
+    // Filter out duplicates
+    const newMust = data.must.filter(rule => 
+      !ctx.policy.must.some(existing => existing.toLowerCase() === rule.toLowerCase())
+    );
+    const newNever = data.never.filter(rule => 
+      !ctx.policy.never.some(existing => existing.toLowerCase() === rule.toLowerCase())
+    );
+
+    if (newMust.length === 0 && newNever.length === 0) {
+      toast.info('No new rules to add (all rules already exist)');
+      return;
+    }
+
+    // Check limits
+    const totalMustAfterImport = ctx.policy.must.length + newMust.length;
+    const totalNeverAfterImport = ctx.policy.never.length + newNever.length;
+
+    let finalMust = newMust;
+    let finalNever = newNever;
+
+    if (totalMustAfterImport > 10) {
+      const canAdd = 10 - ctx.policy.must.length;
+      finalMust = newMust.slice(0, canAdd);
+      if (canAdd < newMust.length) {
+        toast.warning(`Added ${canAdd} "must" rules (maximum 10 reached)`);
+      }
+    }
+
+    if (totalNeverAfterImport > 10) {
+      const canAdd = 10 - ctx.policy.never.length;
+      finalNever = newNever.slice(0, canAdd);
+      if (canAdd < newNever.length) {
+        toast.warning(`Added ${canAdd} "never" rules (maximum 10 reached)`);
+      }
+    }
+
+    setCtx({
+      ...ctx,
+      policy: {
+        must: [...ctx.policy.must, ...finalMust],
+        never: [...ctx.policy.never, ...finalNever],
+      },
+    });
+
+    const totalAdded = finalMust.length + finalNever.length;
+    toast.success(`Imported ${totalAdded} policy rules (${finalMust.length} must, ${finalNever.length} never)`);
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader>
-        <CardTitle>Answer Rules</CardTitle>
-        <CardDescription>
-          Define what Abilitix must include or respect, and what it should never do.
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Answer Rules</CardTitle>
+            <CardDescription>
+              Define what Abilitix must include or respect, and what it should never do.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setIsImportModalOpen(true)}
+            className="min-h-[44px]"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Import CSV
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Must Include */}
@@ -193,6 +257,18 @@ export function PolicySection({ ctx, setCtx }: PolicySectionProps) {
           )}
         </div>
       </CardContent>
+
+      {/* CSV Import Modal */}
+      <CSVImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleCSVImport}
+        type="policy"
+        templateGenerator={generatePolicyTemplate}
+        validator={validatePolicyRow}
+        maxItems={20} // 10 must + 10 never
+        currentCount={ctx.policy.must.length + ctx.policy.never.length}
+      />
     </Card>
   );
 }

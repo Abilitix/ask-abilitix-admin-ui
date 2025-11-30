@@ -5,9 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { ContextSettings } from './types';
+import { CSVImportModal } from './CSVImportModal';
+import { generateGlossaryTemplate, validateGlossaryRow, CSVRow } from './csvUtils';
 
 interface GlossarySectionProps {
   ctx: ContextSettings;
@@ -17,6 +19,7 @@ interface GlossarySectionProps {
 export function GlossarySection({ ctx, setCtx }: GlossarySectionProps) {
   const [newTerm, setNewTerm] = useState('');
   const [newMeaning, setNewMeaning] = useState('');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const addGlossaryEntry = () => {
     if (!newTerm.trim() || !newMeaning.trim()) {
@@ -50,13 +53,60 @@ export function GlossarySection({ ctx, setCtx }: GlossarySectionProps) {
     });
   };
 
+  const handleCSVImport = (data: Array<{ term: string; meaning: string }>) => {
+    const newEntries = data.filter(entry => {
+      // Check for duplicates
+      return !ctx.glossary.some(existing => 
+        existing.term.toLowerCase() === entry.term.toLowerCase()
+      );
+    });
+
+    if (newEntries.length === 0) {
+      toast.info('No new entries to add (all entries already exist)');
+      return;
+    }
+
+    const totalAfterImport = ctx.glossary.length + newEntries.length;
+    if (totalAfterImport > 50) {
+      const canAdd = 50 - ctx.glossary.length;
+      if (canAdd > 0) {
+        setCtx({
+          ...ctx,
+          glossary: [...ctx.glossary, ...newEntries.slice(0, canAdd)],
+        });
+        toast.warning(`Added ${canAdd} entries (maximum 50 reached)`);
+      } else {
+        toast.error('Maximum 50 glossary entries already reached');
+      }
+      return;
+    }
+
+    setCtx({
+      ...ctx,
+      glossary: [...ctx.glossary, ...newEntries],
+    });
+    toast.success(`Imported ${newEntries.length} glossary entries`);
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader>
-        <CardTitle>Glossary</CardTitle>
-        <CardDescription>
-          How Abilitix should interpret your acronyms and domain terms.
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Glossary</CardTitle>
+            <CardDescription>
+              How Abilitix should interpret your acronyms and domain terms.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setIsImportModalOpen(true)}
+            className="min-h-[44px]"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Import CSV
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Add New Entry */}
@@ -169,6 +219,18 @@ export function GlossarySection({ ctx, setCtx }: GlossarySectionProps) {
           )}
         </div>
       </CardContent>
+
+      {/* CSV Import Modal */}
+      <CSVImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleCSVImport}
+        type="glossary"
+        templateGenerator={generateGlossaryTemplate}
+        validator={validateGlossaryRow}
+        maxItems={50}
+        currentCount={ctx.glossary.length}
+      />
     </Card>
   );
 }

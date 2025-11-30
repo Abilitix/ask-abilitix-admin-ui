@@ -12,6 +12,7 @@ import { GlossarySection } from './GlossarySection';
 import { PolicySection } from './PolicySection';
 import { RoutingSection } from './RoutingSection';
 import { PreviewSection } from './PreviewSection';
+import { ContextHelpCard } from './ContextHelpCard';
 
 export function ContextManagementPage() {
   const [ctx, setCtx] = useState<ContextSettings>(DEFAULT_CTX);
@@ -161,6 +162,9 @@ export function ContextManagementPage() {
           <strong>Error:</strong> {error}
         </div>
       )}
+
+      {/* Help Card */}
+      <ContextHelpCard />
 
       {/* Enable Toggle */}
       <Card className="mb-6">

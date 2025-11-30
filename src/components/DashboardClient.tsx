@@ -49,7 +49,7 @@ const BASE_CARDS: Card[] = [
     key: "settings",
     href: "/admin/settings",
     title: "Settings",
-    desc: "Manage team members, tenant defaults, and website widget",
+    desc: "Manage team members, tenant defaults, website widget, and context management",
   },
 ];
 

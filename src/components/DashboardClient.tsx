@@ -2,12 +2,14 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import NoPrefetchLink from "@/components/NoPrefetchLink";
 import type { User } from "@/lib/auth"; // Adjust path if needed
 import { hasPermission } from "@/lib/roles";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { DashboardGreeting } from "@/components/dashboard/DashboardGreeting";
 import { DashboardMetricsStrip } from "@/components/dashboard/DashboardMetricsStrip";
+import { Rocket } from "lucide-react";
 
 type DashboardClientProps = {
   user: User;
@@ -67,6 +69,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
   const showPilot = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";
 
   // Redirect to welcome page if user hasn't started (no docs and no FAQs)
+  // Note: Welcome page is also accessible via "Take Tour" button for all users
   useEffect(() => {
     if (!isLoading && summary && !isError) {
       const hasStarted = summary.metrics.docs_active > 0 || summary.metrics.faq_count > 0;
@@ -123,6 +126,17 @@ export default function DashboardClient({ user }: DashboardClientProps) {
           userRole={user.role}
         />
       )}
+
+      {/* Take Tour Button - Always visible for all users */}
+      <div className="flex items-center justify-center">
+        <Link
+          href="/welcome"
+          className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+        >
+          <Rocket className="h-4 w-4" />
+          <span>Take Tour</span>
+        </Link>
+      </div>
 
       {/* Coming Soon Note */}
       <div className="flex items-center justify-center py-2">

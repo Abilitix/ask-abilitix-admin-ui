@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useDashboardSummary } from '@/hooks/useDashboardSummary';
-import { Upload, MessageSquare, CheckCircle2, Sparkles, FileText, Users, ArrowRight, X } from 'lucide-react';
+import { Upload, MessageSquare, CheckCircle2, Sparkles, FileText, Users, ArrowRight, X, Bell, BookOpen, Video, Rocket, Brain, Shield, Zap, TrendingUp } from 'lucide-react';
 import type { User } from '@/lib/auth';
 
 type WelcomePageClientProps = {
@@ -14,17 +12,6 @@ type WelcomePageClientProps = {
 
 export default function WelcomePageClient({ user }: WelcomePageClientProps) {
   const { summary, isLoading } = useDashboardSummary();
-  const router = useRouter();
-
-  // Redirect to dashboard if user has already started (has docs or FAQs)
-  useEffect(() => {
-    if (!isLoading && summary) {
-      const hasStarted = summary.metrics.docs_active > 0 || summary.metrics.faq_count > 0;
-      if (hasStarted) {
-        router.replace('/');
-      }
-    }
-  }, [summary, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -42,13 +29,12 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
     );
   }
 
-  // If user has started, don't render (will redirect)
-  if (summary && (summary.metrics.docs_active > 0 || summary.metrics.faq_count > 0)) {
-    return null;
-  }
-
   const tenantName = summary?.tenant.name || 'your workspace';
   const userName = summary?.user.name || 'there';
+  const isNewUser = !summary || (summary.metrics.docs_active === 0 && summary.metrics.faq_count === 0);
+  const pendingReviews = summary?.metrics.pending_reviews || 0;
+  const docsCount = summary?.metrics.docs_active || 0;
+  const faqCount = summary?.metrics.faq_count || 0;
 
   // Step completion status
   const step1Complete = (summary?.metrics.docs_active || 0) > 0;
@@ -68,10 +54,10 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
         </Link>
       </div>
 
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Hero Section */}
-        <div className="text-center mb-12 sm:mb-16">
-          <div className="flex justify-center mb-6 sm:mb-8">
+        <div className="text-center mb-10 sm:mb-14">
+          <div className="flex justify-center mb-4 sm:mb-6">
             <Image
               src="/abilitix-logo.png"
               alt="Abilitix"
@@ -81,13 +67,108 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
               className="rounded-lg"
             />
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4 sm:mb-6">
-            Welcome to Abilitix, {userName}! 👋
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-3 sm:mb-4">
+            Welcome{isNewUser ? ' to Abilitix' : ' back'}, {userName}! 👋
           </h1>
-          <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto mb-6 sm:mb-8">
-            Your AI-powered knowledge management platform. Get started in 3 simple steps.
+          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
+            {isNewUser 
+              ? 'Your AI-powered knowledge management platform. Every answer is cited, every response is reviewed, and every FAQ is fast.'
+              : `Welcome back to ${tenantName}. Here's what's happening and how to get the most out of Abilitix.`
+            }
           </p>
         </div>
+
+        {/* Announcements Section - Always visible */}
+        <div className="relative bg-white rounded-[20px] shadow-xl p-6 sm:p-8 mb-8 sm:mb-12 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Bell className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" />
+                Announcements
+              </h2>
+              <Link href="#" className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+                View all
+              </Link>
+            </div>
+            <div className="space-y-4">
+              <AnnouncementCard
+                title={isNewUser ? "Welcome to your Abilitix workspace!" : "New: Enhanced FAQ Machine"}
+                date={isNewUser ? "Today" : "2 days ago"}
+                description={isNewUser 
+                  ? "Congratulations on setting up your workspace. Abilitix delivers cited answers, inbox-gated trust, and lightning-fast FAQ responses. Start by uploading documents, then generate FAQs, and approve answers in your inbox."
+                  : "We've improved the FAQ generation engine for faster, more accurate results. Try generating FAQs from your documents to see the improvements."
+                }
+                unread={isNewUser}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions - Always visible */}
+        <div className="relative bg-gradient-to-br from-indigo-50 to-blue-50 rounded-[20px] shadow-xl p-6 sm:p-8 md:p-10 mb-8 sm:mb-12 overflow-hidden border border-indigo-100">
+          <div className="relative z-10">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
+              Quick Actions
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <QuickActionCard
+                icon={Upload}
+                title="Upload Docs"
+                href="/admin/docs"
+                count={docsCount > 0 ? docsCount : undefined}
+                color="text-blue-600"
+                bgColor="bg-blue-50"
+              />
+              <QuickActionCard
+                icon={MessageSquare}
+                title="Generate FAQs"
+                href="/admin/faqs"
+                count={faqCount > 0 ? faqCount : undefined}
+                color="text-indigo-600"
+                bgColor="bg-indigo-50"
+              />
+              <QuickActionCard
+                icon={CheckCircle2}
+                title="Review Inbox"
+                href="/admin/inbox"
+                count={pendingReviews > 0 ? pendingReviews : undefined}
+                color="text-purple-600"
+                bgColor="bg-purple-50"
+              />
+              <QuickActionCard
+                icon={Sparkles}
+                title="AI Assistant"
+                href="/admin/ai"
+                color="text-green-600"
+                bgColor="bg-green-50"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Getting Started Hub - Prominent CTA */}
+        {isNewUser && (
+          <div className="relative bg-gradient-to-br from-indigo-600 to-blue-600 rounded-[20px] shadow-xl p-8 sm:p-10 md:p-12 mb-8 sm:mb-12 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/90 to-blue-600/90" />
+            <div className="relative z-10 text-center text-white">
+              <Rocket className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 sm:mb-6 text-white" />
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4">
+                Looking to dive deeper?
+              </h2>
+              <p className="text-base sm:text-lg text-indigo-100 mb-6 sm:mb-8 max-w-2xl mx-auto">
+                Explore our Getting Started Hub for tutorials, best practices, and tips to maximize your Abilitix experience.
+              </p>
+              <Link
+                href="/admin/docs"
+                className="inline-flex items-center gap-2 px-6 py-3 sm:px-8 sm:py-4 bg-white text-indigo-600 rounded-xl font-semibold text-base sm:text-lg shadow-[0_4px_10px_rgba(0,0,0,0.2)] hover:bg-gray-50 hover:shadow-[0_4px_12px_rgba(0,0,0,0.25)] transition-all duration-200 active:scale-[0.98] min-h-[48px]"
+              >
+                <span>Check out the Getting Started Hub</span>
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Quick Start Guide */}
         <div className="relative bg-white rounded-[20px] shadow-xl p-6 sm:p-8 md:p-10 mb-8 sm:mb-12 overflow-hidden">
@@ -139,70 +220,73 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
           </div>
         </div>
 
-        {/* Key Features */}
+        {/* Competitive Advantages - Abilitix Differentiators */}
         <div className="mb-8 sm:mb-12">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 sm:mb-8 text-center">
-            Why Choose Abilitix?
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3 text-center">
+            What Makes Abilitix Different
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+          <p className="text-sm sm:text-base text-gray-600 text-center mb-6 sm:mb-8 max-w-2xl mx-auto">
+            We deliver receipts, not vibes. Every answer is cited, every response is reviewed, and every FAQ is fast.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             <FeatureCard
-              icon={Sparkles}
-              title="AI-Powered Responses"
-              description="Get instant, intelligent answers with citations. Every response is backed by your documents."
+              icon={Shield}
+              title="Cited Answers Only"
+              description="Every response includes citations. No hallucinations, no guessing—just receipts from your documents."
               color="text-indigo-600"
               bgColor="bg-indigo-50"
+              highlight="100% cited"
             />
             <FeatureCard
-              icon={FileText}
-              title="Knowledge Base Management"
-              description="Upload, organize, and manage your documents. Generate FAQs automatically from your content."
+              icon={CheckCircle2}
+              title="Inbox-Gated Trust"
+              description="Everything new passes through review. Approve, edit, or reject—you control what goes live."
+              color="text-green-600"
+              bgColor="bg-green-50"
+              highlight="Governed"
+            />
+            <FeatureCard
+              icon={Zap}
+              title="FAQ Machine"
+              description="Lightning-fast responses from Redis. Turn documents into FAQs in one click, serve answers instantly."
               color="text-blue-600"
               bgColor="bg-blue-50"
+              highlight="Instant"
             />
             <FeatureCard
-              icon={Users}
-              title="Team Collaboration"
-              description="Review and approve answers together. Everything passes through your inbox for quality control."
+              icon={TrendingUp}
+              title="Context-Aware"
+              description="Tenant-aware responses with your brand, tone, and profile. Every answer feels like your team wrote it."
               color="text-purple-600"
               bgColor="bg-purple-50"
+              highlight="Personalized"
             />
           </div>
         </div>
 
-        {/* Resources Section */}
-        <div className="relative bg-white rounded-[20px] shadow-xl p-6 sm:p-8 md:p-10 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-          
-          <div className="relative z-10 text-center">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
-              Need Help?
-            </h2>
-            <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 max-w-2xl mx-auto">
-              Check out our resources to get the most out of Abilitix
-            </p>
-            <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-              <Link
-                href="/admin/docs"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
-              >
-                <FileText className="h-4 w-4" />
-                <span>Documentation</span>
-              </Link>
-              <Link
-                href="/admin/ai"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
-              >
-                <Sparkles className="h-4 w-4" />
-                <span>Try AI Assistant</span>
-              </Link>
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
-              >
-                <ArrowRight className="h-4 w-4" />
-                <span>Go to Dashboard</span>
-              </Link>
-            </div>
+        {/* Helpful Resources */}
+        <div className="mb-8 sm:mb-12">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 sm:mb-8 flex items-center gap-2">
+            <Brain className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" />
+            Helpful Resources
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+            <ResourceCard
+              title="Abilitix Help Center"
+              description="Browse our comprehensive documentation, guides, and FAQs to learn how to use Abilitix effectively."
+              icon={BookOpen}
+              href="/admin/docs"
+              color="text-indigo-600"
+              bgColor="bg-indigo-50"
+            />
+            <ResourceCard
+              title="Video Tutorials & Demos"
+              description="Watch step-by-step tutorials and product walkthroughs. See how other teams use Abilitix to deliver cited answers."
+              icon={Video}
+              href="#"
+              color="text-blue-600"
+              bgColor="bg-blue-50"
+            />
           </div>
         </div>
       </div>
@@ -278,19 +362,117 @@ type FeatureCardProps = {
   description: string;
   color: string;
   bgColor: string;
+  highlight?: string;
 };
 
-function FeatureCard({ icon: Icon, title, description, color, bgColor }: FeatureCardProps) {
+function FeatureCard({ icon: Icon, title, description, color, bgColor, highlight }: FeatureCardProps) {
   return (
     <div className="relative bg-white rounded-xl border border-gray-200 p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 hover:-translate-y-0.5">
-      <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4 ${bgColor} ${color}`}>
-        <Icon className="h-6 w-6" />
+      <div className="flex items-start justify-between mb-4">
+        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg ${bgColor} ${color}`}>
+          <Icon className="h-6 w-6" />
+        </div>
+        {highlight && (
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${bgColor} ${color}`}>
+            {highlight}
+          </span>
+        )}
       </div>
       <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">{title}</h3>
       <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{description}</p>
       {/* Subtle hover indicator */}
       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 hover:opacity-100 transition-opacity duration-200" />
     </div>
+  );
+}
+
+type AnnouncementCardProps = {
+  title: string;
+  date: string;
+  description: string;
+  unread?: boolean;
+};
+
+function AnnouncementCard({ title, date, description, unread = false }: AnnouncementCardProps) {
+  return (
+    <div className={`relative rounded-xl border-2 p-5 sm:p-6 transition-all duration-200 ${
+      unread 
+        ? 'border-indigo-200 bg-indigo-50/50 shadow-sm' 
+        : 'border-gray-200 bg-white hover:border-gray-300'
+    }`}>
+      {unread && (
+        <div className="absolute top-4 right-4">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+            Unread
+          </span>
+        </div>
+      )}
+      <div className="pr-20">
+        <div className="flex items-center gap-2 mb-2">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{title}</h3>
+        </div>
+        <p className="text-xs sm:text-sm text-gray-500 mb-2">{date}</p>
+        <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+type QuickActionCardProps = {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  href: string;
+  count?: number;
+  color: string;
+  bgColor: string;
+};
+
+function QuickActionCard({ icon: Icon, title, href, count, color, bgColor }: QuickActionCardProps) {
+  return (
+    <Link
+      href={href}
+      className="relative bg-white rounded-xl border border-gray-200 p-5 sm:p-6 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 hover:-translate-y-0.5 group"
+    >
+      <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg mb-3 ${bgColor} ${color}`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">{title}</h3>
+      {count !== undefined && count > 0 && (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+          {count} {count === 1 ? 'item' : 'items'}
+        </span>
+      )}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+    </Link>
+  );
+}
+
+type ResourceCardProps = {
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  href: string;
+  color: string;
+  bgColor: string;
+};
+
+function ResourceCard({ title, description, icon: Icon, href, color, bgColor }: ResourceCardProps) {
+  return (
+    <Link
+      href={href}
+      className="relative bg-white rounded-xl border border-gray-200 p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 hover:-translate-y-0.5 group"
+    >
+      <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4 ${bgColor} ${color}`}>
+        <Icon className="h-6 w-6" />
+      </div>
+      <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">{title}</h3>
+      <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-4">{description}</p>
+      <div className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 group-hover:text-indigo-700">
+        <span>Learn more</span>
+        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+      </div>
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+    </Link>
   );
 }
 

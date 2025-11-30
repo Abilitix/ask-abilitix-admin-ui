@@ -167,8 +167,8 @@ export function CSVImportModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <Card className="w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm p-4">
+      <Card className="w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col bg-white shadow-2xl">
         <CardHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -205,15 +205,38 @@ export function CSVImportModal({
           </div>
 
           {/* Template Download */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
-            <div>
-              <p className="font-medium text-gray-900">Download Template</p>
-              <p className="text-sm text-gray-600">Get a pre-formatted CSV file with example data</p>
+          <div className="p-4 bg-gray-50 rounded-lg border space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">Download Template</p>
+                <p className="text-sm text-gray-600">Get a pre-formatted CSV file with example data</p>
+              </div>
+              <Button onClick={handleDownloadTemplate} variant="outline" className="min-h-[44px]">
+                <Download className="h-4 w-4 mr-2" />
+                Download Template
+              </Button>
             </div>
-            <Button onClick={handleDownloadTemplate} variant="outline" className="min-h-[44px]">
-              <Download className="h-4 w-4 mr-2" />
-              Download Template
-            </Button>
+            <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
+              <p className="font-medium text-blue-900 mb-1">Template Format:</p>
+              {type === 'glossary' && (
+                <p className="text-blue-800">
+                  The CSV has 2 columns: <strong>term</strong> (max 40 characters) and <strong>meaning</strong> (max 160 characters). 
+                  The first row contains column headers. Replace the example rows with your data, or add new rows below.
+                </p>
+              )}
+              {type === 'offerings' && (
+                <p className="text-blue-800">
+                  The CSV has 1 column: <strong>offering</strong> (max 80 characters per offering). 
+                  The first row contains the column header. Replace the example rows with your offerings, or add new rows below.
+                </p>
+              )}
+              {type === 'policy' && (
+                <p className="text-blue-800">
+                  The CSV has 2 columns: <strong>type</strong> (must be "must" or "never") and <strong>rule</strong> (max 160 characters). 
+                  The first row contains column headers. Replace the example rows with your rules, or add new rows below.
+                </p>
+              )}
+            </div>
           </div>
 
           {/* File Upload */}

@@ -103,7 +103,8 @@ export function generateGlossaryTemplate(): string {
 RAG,Retrieval-Augmented Generation - a technology that enhances AI responses with document-based knowledge
 FAQ,Frequently Asked Questions - common questions and their approved answers
 SME,Subject Matter Expert - a person with deep knowledge in a specific domain
-API,Application Programming Interface - a set of protocols for building software applications`;
+API,Application Programming Interface - a set of protocols for building software applications
+,`;
 }
 
 /**
@@ -115,7 +116,8 @@ Document-Based Chatbot Creation
 RAG Technology for Business Knowledge
 FAQ Management System
 Widget Integration for Websites
-Custom AI Assistant Solutions`;
+Custom AI Assistant Solutions
+`;
 }
 
 /**
@@ -128,7 +130,8 @@ must,Use company-specific terminology when available
 must,Prefer tenant documents over general web knowledge
 never,Don't speculate on pricing or costs
 never,Don't provide code examples unless found in documents
-never,Don't give legal or financial advice`;
+never,Don't give legal or financial advice
+,`;
 }
 
 /**

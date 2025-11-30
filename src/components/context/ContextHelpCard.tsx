@@ -23,7 +23,7 @@ export function ContextHelpCard() {
                 How Context Management Works
               </CardTitle>
               <p className="text-sm text-gray-600 mt-1">
-                Learn how to configure Abilitix to answer questions in your company's voice
+                Learn how to configure Ask Abilitix to answer questions in your company's voice
               </p>
             </div>
           </div>
@@ -58,8 +58,8 @@ export function ContextHelpCard() {
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-2">What It Does</h3>
                 <p className="text-sm text-gray-700 leading-relaxed">
-                  Context Management lets you control how Abilitix answers questions about your business. 
-                  When enabled, Abilitix uses your Profile, Glossary, and Policy rules to provide answers 
+                  Context Management lets you control how Ask Abilitix answers questions about your business. 
+                  When enabled, Ask Abilitix uses your Profile, Glossary, and Policy rules to provide answers 
                   that match your company's voice, terminology, and guidelines. General knowledge questions 
                   are unaffected—this only applies to questions about your business.
                 </p>
@@ -76,7 +76,7 @@ export function ContextHelpCard() {
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-2">When to Use It</h3>
                 <ul className="text-sm text-gray-700 space-y-2 list-disc list-inside">
-                  <li>You want Abilitix to answer "What is your company?" or "What services do you offer?" using your brand voice</li>
+                  <li>You want Ask Abilitix to answer "What is your company?" or "What services do you offer?" using your brand voice</li>
                   <li>You have company-specific acronyms or terminology that need explanation (e.g., "RAG", "SME", "FAQ")</li>
                   <li>You need to enforce answer rules (e.g., "Always cite sources", "Never speculate on pricing")</li>
                   <li>You want to boost your company profile when users ask "about us" questions</li>

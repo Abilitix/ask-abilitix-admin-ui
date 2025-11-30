@@ -89,7 +89,7 @@ export default function SignupPage() {
               className="rounded-lg"
             />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-1.5">Welcome to Abilitix</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-1.5">Welcome to Ask Abilitix</h1>
           <p className="text-sm sm:text-base text-gray-600">Create your AI-powered workspace</p>
         </div>
 

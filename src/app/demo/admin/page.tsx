@@ -13,7 +13,7 @@ export default function DemoAdminPage() {
           
           <h1 className="text-3xl font-bold text-blue-900 mb-4">Welcome to Demo Workspace</h1>
           <p className="text-blue-700 mb-6">
-            You're now in the Abilitix demo environment. This is a safe space to explore our features.
+            You're now in the Ask Abilitix demo environment. This is a safe space to explore our features.
           </p>
           
           <div className="space-y-4">

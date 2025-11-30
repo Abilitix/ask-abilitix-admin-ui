@@ -137,7 +137,7 @@ export function PolicySection({ ctx, setCtx }: PolicySectionProps) {
           <div>
             <CardTitle>Answer Rules</CardTitle>
             <CardDescription>
-              Define what Abilitix must include or respect, and what it should never do.
+              Define what Ask Abilitix must include or respect, and what it should never do.
             </CardDescription>
           </div>
           <Button

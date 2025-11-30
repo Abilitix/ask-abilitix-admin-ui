@@ -46,7 +46,7 @@ export default function DemoSignupPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Demo Workspace</h1>
-          <p className="text-gray-600">Try Abilitix with our demo environment</p>
+          <p className="text-gray-600">Try Ask Abilitix with our demo environment</p>
         </div>
 
         {/* Demo Signup Form */}

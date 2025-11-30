@@ -18,7 +18,7 @@ export function ContextNavigationCard() {
               Context Management
             </CardTitle>
             <CardDescription className="text-sm text-gray-600 mt-1">
-              Control how Abilitix talks about your business and interprets your terminology. 
+              Control how Ask Abilitix talks about your business and interprets your terminology. 
               Configure your profile, glossary, and answer policies.
             </CardDescription>
           </div>

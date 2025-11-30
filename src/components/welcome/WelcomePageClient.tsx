@@ -94,12 +94,12 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
             />
           </div>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-3 sm:mb-4">
-            Welcome{isNewUser ? ' to Abilitix' : ' back'}, {userName}! 👋
+            Welcome{isNewUser ? ' to Ask Abilitix' : ' back'}, {userName}! 👋
           </h1>
           <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
             {isNewUser 
               ? 'Your AI-powered knowledge management platform. Every answer is cited, every response is reviewed, and every FAQ is fast.'
-              : `Welcome back to ${tenantName}. Here's what's happening and how to get the most out of Abilitix.`
+              : `Welcome back to ${tenantName}. Here's what's happening and how to get the most out of Ask Abilitix.`
             }
           </p>
         </div>
@@ -119,10 +119,10 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
             </div>
             <div className="space-y-4">
               <AnnouncementCard
-                title={isNewUser ? "Welcome to your Abilitix workspace!" : "New: Enhanced FAQ Machine"}
+                title={isNewUser ? "Welcome to your Ask Abilitix workspace!" : "New: Enhanced FAQ Machine"}
                 date={isNewUser ? "Today" : "2 days ago"}
                 description={isNewUser 
-                  ? "Congratulations on setting up your workspace. Abilitix delivers cited answers, inbox-gated trust, and lightning-fast FAQ responses. Start by uploading documents, then generate FAQs, and approve answers in your inbox."
+                  ? "Congratulations on setting up your workspace. Ask Abilitix delivers cited answers, inbox-gated trust, and lightning-fast FAQ responses. Start by uploading documents, then generate FAQs, and approve answers in your inbox."
                   : "We've improved the FAQ generation engine for faster, more accurate results. Try generating FAQs from your documents to see the improvements."
                 }
                 unread={isNewUser}
@@ -194,14 +194,14 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
                 Looking to dive deeper?
               </h2>
               <p className="text-base sm:text-lg text-indigo-100 mb-6 sm:mb-8 max-w-2xl mx-auto">
-                Explore our Getting Started Hub for tutorials, best practices, and tips to maximize your Abilitix experience.
+                Explore our Getting Started Hub for tutorials, best practices, and tips to maximize your Ask Abilitix experience.
               </p>
               <div className="inline-flex items-center gap-2 px-6 py-3 sm:px-8 sm:py-4 bg-white/90 text-indigo-600 rounded-xl font-semibold text-base sm:text-lg shadow-[0_4px_10px_rgba(0,0,0,0.2)] cursor-not-allowed opacity-90 min-h-[48px]">
                 <span>Getting Started Hub</span>
                 <span className="text-xs font-normal text-indigo-500 ml-1">(Coming Soon)</span>
               </div>
               <p className="text-sm text-indigo-200 mt-4">
-                For now, start by uploading documents above to get the most out of Abilitix
+                For now, start by uploading documents above to get the most out of Ask Abilitix
               </p>
             </div>
           </div>
@@ -257,10 +257,10 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
           </div>
         </div>
 
-        {/* Competitive Advantages - Abilitix Differentiators */}
+        {/* Competitive Advantages - Ask Abilitix Differentiators */}
         <div className="mb-8 sm:mb-12">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3 text-center">
-            What Makes Abilitix Different
+            What Makes Ask Abilitix Different
           </h2>
           <p className="text-sm sm:text-base text-gray-600 text-center mb-6 sm:mb-8 max-w-2xl mx-auto">
             We deliver receipts, not vibes. Every answer is cited, every response is reviewed, and every FAQ is fast.
@@ -293,7 +293,7 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
             <FeatureCard
               icon={TrendingUp}
               title="Context-Aware"
-              description="Configure your company profile, glossary terms, and answer policies so Abilitix responds in your brand voice. Every answer feels like your team wrote it."
+              description="Configure your company profile, glossary terms, and answer policies so Ask Abilitix responds in your brand voice. Every answer feels like your team wrote it."
               color="text-purple-600"
               bgColor="bg-purple-50"
               highlight="Personalized"
@@ -311,8 +311,8 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             <div id="help-center" className="scroll-mt-4">
               <ResourceCard
-                title="Abilitix Help Center"
-                description="Browse our comprehensive documentation, guides, and FAQs to learn how to use Abilitix effectively."
+                title="Ask Abilitix Help Center"
+                description="Browse our comprehensive documentation, guides, and FAQs to learn how to use Ask Abilitix effectively."
                 icon={BookOpen}
                 href="#help-center"
                 color="text-indigo-600"
@@ -323,7 +323,7 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
             <div id="tutorials" className="scroll-mt-4">
               <ResourceCard
                 title="Video Tutorials & Demos"
-                description="Watch step-by-step tutorials and product walkthroughs. See how other teams use Abilitix to deliver cited answers."
+                description="Watch step-by-step tutorials and product walkthroughs. See how other teams use Ask Abilitix to deliver cited answers."
                 icon={Video}
                 href="#tutorials"
                 color="text-blue-600"

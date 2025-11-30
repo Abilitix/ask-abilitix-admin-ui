@@ -118,19 +118,11 @@ export default function DashboardClient({ user }: DashboardClientProps) {
         industry={summary?.tenant.industry}
       />
 
-      {/* Metrics Strip */}
-      {!isError && (
-        <DashboardMetricsStrip
-          metrics={summary?.metrics}
-          isLoading={isLoading}
-          userRole={user.role}
-        />
-      )}
-
-      {/* Take Tour Button - Link to Welcome Page */}
-      <div className="flex items-center justify-center">
+      {/* Take Tour Button - Prominent placement after greeting */}
+      <div className="flex items-center justify-center -mt-4 mb-2">
         <Link
           href="/welcome"
+          prefetch={true}
           className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,6 +131,15 @@ export default function DashboardClient({ user }: DashboardClientProps) {
           <span>Take Tour</span>
         </Link>
       </div>
+
+      {/* Metrics Strip */}
+      {!isError && (
+        <DashboardMetricsStrip
+          metrics={summary?.metrics}
+          isLoading={isLoading}
+          userRole={user.role}
+        />
+      )}
 
       {/* Coming Soon Note */}
       <div className="flex items-center justify-center py-2">

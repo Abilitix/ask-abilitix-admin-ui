@@ -180,13 +180,6 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
                 color="text-purple-600"
                 bgColor="bg-purple-50"
               />
-              <QuickActionCard
-                icon={Settings}
-                title="Configure Context"
-                href="/admin/settings/context"
-                color="text-purple-600"
-                bgColor="bg-purple-50"
-              />
             </div>
           </div>
         </div>

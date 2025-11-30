@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, BookOpen, Lightbulb, Target, HelpCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, BookOpen, Lightbulb, Target, HelpCircle, FileText, Download } from 'lucide-react';
+import { downloadSampleContext, SAMPLE_TRAVEL_CONTEXT } from './sampleContext';
 
 export function ContextHelpCard() {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showSample, setShowSample] = useState(false);
 
   return (
     <Card className="mb-6 border-indigo-200 bg-indigo-50/50">
@@ -136,6 +138,133 @@ export function ContextHelpCard() {
                 <strong>4. Save:</strong> Click "Save Changes" when ready. Changes take effect within 60 seconds.
               </p>
             </div>
+          </div>
+
+          {/* Sample Configuration */}
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-200">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex items-start gap-3 flex-1">
+                <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
+                  <FileText className="h-5 w-5 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 mb-1">Sample Configuration</h3>
+                  <p className="text-sm text-gray-700">
+                    View a complete example for a Travel & Tourism company. This shows how to structure your Profile, 
+                    Glossary, and Policy sections with real-world examples.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => downloadSampleContext()}
+                className="min-h-[36px] border-purple-300 text-purple-700 hover:bg-purple-100"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download JSON
+              </Button>
+            </div>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSample(!showSample)}
+              className="w-full text-sm text-purple-700 hover:text-purple-900 hover:bg-purple-100"
+            >
+              {showSample ? (
+                <>
+                  <ChevronUp className="h-4 w-4 mr-2" />
+                  Hide Sample
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-4 w-4 mr-2" />
+                  View Sample Configuration
+                </>
+              )}
+            </Button>
+
+            {showSample && (
+              <div className="mt-4 bg-white rounded-lg p-4 border border-purple-200 max-h-96 overflow-y-auto">
+                <div className="space-y-4 text-sm">
+                  {/* Profile Sample */}
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Profile</h4>
+                    <div className="space-y-2 text-gray-700">
+                      <div>
+                        <span className="font-medium">Value Proposition:</span>
+                        <p className="text-xs mt-1 bg-gray-50 p-2 rounded">{SAMPLE_TRAVEL_CONTEXT.profile.value_prop}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">Offerings:</span>
+                        <ul className="text-xs mt-1 bg-gray-50 p-2 rounded list-disc list-inside">
+                          {SAMPLE_TRAVEL_CONTEXT.profile.offerings.map((offering, i) => (
+                            <li key={i}>{offering}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <span className="font-medium">Industry:</span>
+                        <p className="text-xs mt-1 bg-gray-50 p-2 rounded">{SAMPLE_TRAVEL_CONTEXT.profile.industry}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">Tone:</span>
+                        <p className="text-xs mt-1 bg-gray-50 p-2 rounded">{SAMPLE_TRAVEL_CONTEXT.profile.tone}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Glossary Sample */}
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Glossary ({SAMPLE_TRAVEL_CONTEXT.glossary.length} entries)</h4>
+                    <div className="space-y-1 text-xs bg-gray-50 p-2 rounded max-h-32 overflow-y-auto">
+                      {SAMPLE_TRAVEL_CONTEXT.glossary.slice(0, 5).map((entry, i) => (
+                        <div key={i} className="border-b border-gray-200 pb-1 last:border-0">
+                          <span className="font-medium">{entry.term}:</span> {entry.meaning}
+                        </div>
+                      ))}
+                      {SAMPLE_TRAVEL_CONTEXT.glossary.length > 5 && (
+                        <p className="text-gray-500 italic">... and {SAMPLE_TRAVEL_CONTEXT.glossary.length - 5} more entries</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Policy Sample */}
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Policy Rules</h4>
+                    <div className="space-y-2">
+                      <div>
+                        <span className="font-medium text-green-700">Must ({SAMPLE_TRAVEL_CONTEXT.policy.must.length} rules):</span>
+                        <ul className="text-xs mt-1 bg-green-50 p-2 rounded list-disc list-inside max-h-24 overflow-y-auto">
+                          {SAMPLE_TRAVEL_CONTEXT.policy.must.slice(0, 3).map((rule, i) => (
+                            <li key={i}>{rule}</li>
+                          ))}
+                          {SAMPLE_TRAVEL_CONTEXT.policy.must.length > 3 && (
+                            <li className="text-gray-500 italic">... and {SAMPLE_TRAVEL_CONTEXT.policy.must.length - 3} more</li>
+                          )}
+                        </ul>
+                      </div>
+                      <div>
+                        <span className="font-medium text-red-700">Never ({SAMPLE_TRAVEL_CONTEXT.policy.never.length} rules):</span>
+                        <ul className="text-xs mt-1 bg-red-50 p-2 rounded list-disc list-inside max-h-24 overflow-y-auto">
+                          {SAMPLE_TRAVEL_CONTEXT.policy.never.slice(0, 3).map((rule, i) => (
+                            <li key={i}>{rule}</li>
+                          ))}
+                          {SAMPLE_TRAVEL_CONTEXT.policy.never.length > 3 && (
+                            <li className="text-gray-500 italic">... and {SAMPLE_TRAVEL_CONTEXT.policy.never.length - 3} more</li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-600 italic pt-2 border-t border-gray-200">
+                    This is a complete example for a Travel & Tourism company. Download the JSON file to see the full structure.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       )}

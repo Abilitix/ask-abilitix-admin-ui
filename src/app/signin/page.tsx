@@ -162,12 +162,12 @@ function SignInForm() {
       <div className="max-w-md w-full">
         {/* Header with Logo - Fade-in animation */}
         <div className="text-center mb-4 sm:mb-5 md:mb-6">
-          <div className="flex justify-center mb-2 sm:mb-3 md:mb-4">
+          <div className="flex justify-center mb-6 sm:mb-7 md:mb-8">
             <Image
               src="/abilitix-logo.png"
               alt="Abilitix"
-              width={64}
-              height={64}
+              width={88}
+              height={88}
               priority
               className="rounded-lg"
             />
@@ -176,11 +176,14 @@ function SignInForm() {
           <p className="text-sm sm:text-base text-gray-600">Sign in to your workspace</p>
         </div>
 
-               {/* Sign-in Form - Enhanced shadow */}
-               <div className="bg-white rounded-xl shadow-xl p-5 sm:p-6 md:p-8">
+               {/* Sign-in Form - Enhanced shadow with glass effect */}
+               <div className="relative bg-white rounded-[20px] shadow-xl p-5 sm:p-6 md:p-8 overflow-hidden">
+                 {/* Glass reflection overlay */}
+                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+                 <div className="relative">
                  {tokenLoading ? (
                    /* Token Exchange Loading State */
-                   <div className="text-center py-8">
+                   <div className="text-center py-8 relative z-10">
                      <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6">
                        <svg className="animate-spin w-8 h-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -191,7 +194,7 @@ function SignInForm() {
                      <p className="text-gray-600">Please wait while we sign you in...</p>
                    </div>
                  ) : !sent ? (
-                   <>
+                   <div className="relative z-10">
                      {/* Authentication Method Toggle - Segmented Control */}
                      <div className={`mb-4 sm:mb-5 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
                        <SegmentedControl
@@ -221,7 +224,7 @@ function SignInForm() {
                              if (err) setErr(null);
                            }}
                            placeholder="Enter your registered email address"
-                           className="w-full px-4 py-3 text-base sm:text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                           className="w-full px-4 py-3 text-base sm:text-sm bg-[#F8F9FC] border border-[#E3E8EF] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                            aria-invalid={!!err}
                            aria-describedby={err ? "email-error" : undefined}
                            required
@@ -247,7 +250,7 @@ function SignInForm() {
                                  if (err) setErr(null);
                                }}
                                placeholder="Enter your password"
-                               className="w-full px-4 py-3 pr-12 sm:pr-11 text-base sm:text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                               className="w-full px-4 py-3 pr-12 sm:pr-11 text-base sm:text-sm bg-[#F8F9FC] border border-[#E3E8EF] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                                required={method === 'password'}
                                autoComplete="current-password"
                                disabled={loading}
@@ -255,18 +258,18 @@ function SignInForm() {
                              <button
                                type="button"
                                onClick={() => setShowPassword(!showPassword)}
-                               className="absolute right-3 top-[38px] sm:top-[38px] text-gray-400 hover:text-gray-600 active:text-gray-700 transition-colors p-2 -mr-2 rounded-md hover:bg-gray-100 active:bg-gray-200 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                               className="absolute right-3 top-[38px] sm:top-[38px] text-[#98A2B3] hover:text-gray-600 active:text-gray-700 transition-colors p-2 -mr-2 rounded-md hover:bg-gray-100 active:bg-gray-200 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                                aria-label={showPassword ? 'Hide password' : 'Show password'}
                                disabled={loading}
                              >
                                {showPassword ? (
-                                 <EyeOff className="h-5 w-5 sm:h-5 sm:w-5" />
+                                 <EyeOff className="h-4 w-4" />
                                ) : (
-                                 <Eye className="h-5 w-5 sm:h-5 sm:w-5" />
+                                 <Eye className="h-4 w-4" />
                                )}
                              </button>
                            </div>
-                           <div className="flex justify-end pt-1">
+                           <div className="flex items-center justify-end pt-1">
                              <Link
                                href="/forgot-password"
                                className="text-sm font-medium text-indigo-600 hover:text-indigo-700 active:text-indigo-800 transition-colors py-1 -mr-1 pr-1 touch-manipulation"
@@ -333,10 +336,10 @@ function SignInForm() {
                          </div>
                        )}
                      </form>
-                   </>
+                   </div>
           ) : (
             /* Success State */
-            <div className="text-center py-4">
+            <div className="text-center py-4 relative z-10">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-6">
                 <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -370,7 +373,7 @@ function SignInForm() {
           )}
 
           {/* Terms and Privacy */}
-          <div className="mt-3 sm:mt-4 md:mt-6 text-center text-xs text-gray-500">
+          <div className="mt-3 sm:mt-4 md:mt-6 text-center text-xs text-gray-500 relative z-10">
             <p>
               By continuing, you confirm that you have read and agree to our{' '}
               <a 
@@ -393,10 +396,11 @@ function SignInForm() {
               .
             </p>
           </div>
-        </div>
+                 </div>
+               </div>
 
         {/* Link to Signup */}
-        <div className="mt-3 sm:mt-4 md:mt-6 text-center">
+        <div className="mt-8 sm:mt-10 md:mt-12 text-center">
           <p className="text-sm text-gray-600">
             <span className="font-bold">New to AbilitiX?</span>{' '}
             <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium">

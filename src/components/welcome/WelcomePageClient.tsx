@@ -179,7 +179,7 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
 
         {/* Getting Started Hub - Prominent CTA */}
         {isNewUser && (
-          <div id="getting-started" className="relative bg-gradient-to-br from-indigo-600 to-blue-600 rounded-[20px] shadow-xl p-8 sm:p-10 md:p-12 mb-8 sm:mb-12 overflow-hidden scroll-mt-4">
+          <div id="getting-started-hub" className="relative bg-gradient-to-br from-indigo-600 to-blue-600 rounded-[20px] shadow-xl p-8 sm:p-10 md:p-12 mb-8 sm:mb-12 overflow-hidden scroll-mt-4">
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/90 to-blue-600/90" />
             <div className="relative z-10 text-center text-white">
               <Rocket className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 sm:mb-6 text-white" />
@@ -201,7 +201,7 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
         )}
 
         {/* Quick Start Guide */}
-        <div className="relative bg-white rounded-[20px] shadow-xl p-6 sm:p-8 md:p-10 mb-8 sm:mb-12 overflow-hidden">
+        <div id="getting-started" className="relative bg-white rounded-[20px] shadow-xl p-6 sm:p-8 md:p-10 mb-8 sm:mb-12 overflow-hidden scroll-mt-4">
           {/* Glass reflection overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
           

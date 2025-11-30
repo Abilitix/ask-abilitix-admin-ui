@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import NoPrefetchLink from "@/components/NoPrefetchLink";
 import type { User } from "@/lib/auth"; // Adjust path if needed
 import { hasPermission } from "@/lib/roles";
@@ -60,8 +62,19 @@ const AI_CARD: Card = {
 
 export default function DashboardClient({ user }: DashboardClientProps) {
   const { summary, isLoading, isError } = useDashboardSummary();
+  const router = useRouter();
   const hideOld = process.env.NEXT_PUBLIC_HIDE_OLD_RAG === "1";
   const showPilot = process.env.NEXT_PUBLIC_SHOW_PILOT_LINK === "1";
+
+  // Redirect to welcome page if user hasn't started (no docs and no FAQs)
+  useEffect(() => {
+    if (!isLoading && summary && !isError) {
+      const hasStarted = summary.metrics.docs_active > 0 || summary.metrics.faq_count > 0;
+      if (!hasStarted) {
+        router.replace('/welcome');
+      }
+    }
+  }, [summary, isLoading, isError, router]);
 
   let cards: Card[] = [AI_CARD, ...BASE_CARDS];
   

@@ -106,8 +106,14 @@ export function InboxPageClient({
           const parsed = JSON.parse(stored);
           // Validate it's a valid flags object
           if (parsed && typeof parsed === 'object' && Object.keys(initialFlags).every(key => key in parsed)) {
-            setFlags(parsed);
-            flagsRef.current = parsed;
+            // Always use server value for enableFaqCreation (respects new default of true)
+            // This prevents old localStorage false values from overriding the new default
+            const mergedFlags = {
+              ...parsed,
+              enableFaqCreation: initialFlags.enableFaqCreation,
+            };
+            setFlags(mergedFlags);
+            flagsRef.current = mergedFlags;
             return;
           }
         }

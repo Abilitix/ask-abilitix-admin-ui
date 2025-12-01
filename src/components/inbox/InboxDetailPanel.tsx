@@ -458,7 +458,19 @@ export function InboxDetailPanel({
       payload.answer = detail.answerDraft;
     }
     // Only set isFaq to true if both enableFaqCreation flag is enabled AND createAsFaq is true
-    payload.isFaq = enableFaqCreation && createAsFaq;
+    // Double-check enableFaqCreation to prevent stale closures
+    const shouldCreateAsFaq = Boolean(enableFaqCreation) && Boolean(createAsFaq);
+    payload.isFaq = shouldCreateAsFaq;
+    
+    // Debug logging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[InboxDetailPanel] Promote payload:', {
+        enableFaqCreation,
+        createAsFaq,
+        shouldCreateAsFaq,
+        payload: { ...payload, citations: payload.citations?.length },
+      });
+    }
 
     const success = await onPromote(payload);
     if (success) {

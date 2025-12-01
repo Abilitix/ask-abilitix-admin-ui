@@ -527,7 +527,7 @@ export function ModernInboxClient({
   const [bulkActionLoading, setBulkActionLoading] = useState<boolean>(false);
   const docHydrationRef = useRef<Set<string>>(new Set());
   // Create as FAQ state (shared between single and bulk approve)
-  const [createAsFaq, setCreateAsFaq] = useState<boolean>(true);
+  const [createAsFaq, setCreateAsFaq] = useState<boolean>(enableFaqCreation);
   // Manual FAQ creation modal state
   const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
   const [smeModalOpen, setSmeModalOpen] = useState<boolean>(false);
@@ -1176,10 +1176,10 @@ export function ModernInboxClient({
     };
   }, []);
 
-  // Reset createAsFaq to true when selectedId changes
+  // Reset createAsFaq based on enableFaqCreation flag when selectedId changes
   useEffect(() => {
-    setCreateAsFaq(true);
-  }, [selectedId]);
+    setCreateAsFaq(enableFaqCreation);
+  }, [selectedId, enableFaqCreation]);
 
   const hydrateDocMatches = useCallback(
     async (ids: string[]) => {

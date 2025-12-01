@@ -754,12 +754,12 @@ export function LegacyInboxPageClient({
 
       // Show notification message only if requested_by exists
       if (hasRequester) {
-        toast.success(isFaq 
+        toast.success(useFaqEndpoint 
           ? 'Item promoted as FAQ ✓ (embeddings generated automatically). Requester will be notified via email.'
           : 'Item approved ✓ (embeddings generated automatically). Requester will be notified via email.'
         );
       } else {
-        toast.success(isFaq 
+        toast.success(useFaqEndpoint 
           ? 'Item promoted as FAQ ✓ (embeddings generated automatically)'
           : 'Item approved ✓ (embeddings generated automatically)'
         );
@@ -770,7 +770,7 @@ export function LegacyInboxPageClient({
       const errorMessage = err instanceof Error ? err.message : `Failed to ${useFaqEndpoint ? 'promote' : 'approve'} item`;
       toast.error(`${useFaqEndpoint ? 'Promotion' : 'Approval'} failed: ${errorMessage}`);
     }
-  }, [items, allowEmptyCitations]);
+  }, [items, allowEmptyCitations, enableFaqCreation]);
 
   const handleAttachCitations = useCallback(async (id: string, citations: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => {
     try {

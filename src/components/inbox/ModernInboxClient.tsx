@@ -912,7 +912,8 @@ export function ModernInboxClient({
       }
 
       // Determine endpoint and payload based on isFaq flag
-      const useFaqEndpoint = isFaq === true;
+      // Only use FAQ endpoint if both enableFaqCreation is enabled AND isFaq is true
+      const useFaqEndpoint = enableFaqCreation && isFaq === true;
       const endpoint = useFaqEndpoint
         ? `/api/admin/inbox/${encodeURIComponent(selectedId)}/promote`
         : `/api/admin/inbox/approve`;
@@ -1117,6 +1118,7 @@ export function ModernInboxClient({
       sendTelemetry,
       onPromoteSuccess,
       onPromoteConflict,
+      enableFaqCreation,
     ]
   );
 
@@ -1326,7 +1328,7 @@ export function ModernInboxClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           ids,
-          as_faq: createAsFaq,
+          as_faq: enableFaqCreation && createAsFaq,
         }),
         cache: 'no-store',
       });
@@ -1356,7 +1358,7 @@ export function ModernInboxClient({
     } finally {
       setBulkActionLoading(false);
     }
-  }, [selectedIds, clearSelection, loadList, createAsFaq]);
+  }, [selectedIds, clearSelection, loadList, createAsFaq, enableFaqCreation]);
 
   // Bulk reject handler
   const handleBulkReject = useCallback(async () => {

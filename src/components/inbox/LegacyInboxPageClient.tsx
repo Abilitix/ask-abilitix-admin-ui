@@ -997,16 +997,21 @@ export function LegacyInboxPageClient({
 
       const data = await response.json();
 
-      if (!response.ok || data.error) {
+      if (!response.ok) {
         // Handle 403 Forbidden (ownership check failed)
         if (response.status === 403) {
-          const forbiddenMessage = data.detail?.error?.message || data.error?.message || data.details || 
+          const forbiddenMessage = data?.detail?.error?.message || data?.error?.message || data?.details || 
             'Only assignees or admins can modify assigned items';
           toast.error(`Permission denied: ${forbiddenMessage}`);
           throw new Error(forbiddenMessage);
         }
         
-        throw new Error(data.details || data.error || `Failed to reject: ${response.status}`);
+        throw new Error(data?.details || data?.error || `Failed to reject: ${response.status}`);
+      }
+      
+      // Check for error in response data even if status is OK
+      if (data?.error) {
+        throw new Error(data.details || data.error || 'Rejection failed');
       }
 
       // Check if this item has a requester (requested_by field exists in database)

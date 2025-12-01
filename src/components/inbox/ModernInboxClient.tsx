@@ -912,7 +912,8 @@ export function ModernInboxClient({
       }
 
       // Determine endpoint and payload based on isFaq flag
-      const useFaqEndpoint = isFaq === true;
+      // Only use FAQ endpoint if enableFaqCreation flag is enabled AND isFaq is true
+      const useFaqEndpoint = enableFaqCreation && isFaq === true;
       const endpoint = useFaqEndpoint
         ? `/api/admin/inbox/${encodeURIComponent(selectedId)}/promote`
         : `/api/admin/inbox/approve`;
@@ -1117,6 +1118,7 @@ export function ModernInboxClient({
       sendTelemetry,
       onPromoteSuccess,
       onPromoteConflict,
+      enableFaqCreation,
     ]
   );
 

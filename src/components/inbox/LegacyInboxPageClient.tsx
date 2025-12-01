@@ -626,13 +626,15 @@ export function LegacyInboxPageClient({
       
       // Use /promote endpoint for FAQ creation (requires ENABLE_REVIEW_PROMOTE=1)
       // For regular QA pairs without FAQ, use /approve endpoint (legacy)
-      const endpoint = isFaq 
+      // Only use /promote if enableFaqCreation flag is enabled AND isFaq is true
+      const useFaqEndpoint = enableFaqCreation && isFaq;
+      const endpoint = useFaqEndpoint
         ? `/api/admin/inbox/${encodeURIComponent(id)}/promote`
         : '/api/admin/inbox/approve';
       
       const body: Record<string, unknown> = {};
       
-      if (isFaq) {
+      if (useFaqEndpoint) {
         // /promote endpoint: supports citations, answer, title, is_faq, note
         // If item has suggested_citations, omit citations (backend will use suggested_citations)
         // If no citations and allowEmptyCitations is true, send empty array
@@ -717,7 +719,7 @@ export function LegacyInboxPageClient({
         }
         
         // Parse detailed validation errors from backend
-        let errorMessage = data.details || data.error || data.message || `Failed to ${isFaq ? 'promote' : 'approve'}: ${response.status} ${response.statusText}`;
+        let errorMessage = data.details || data.error || data.message || `Failed to ${useFaqEndpoint ? 'promote' : 'approve'}: ${response.status} ${response.statusText}`;
         
         // Check for detailed field errors (Admin API format)
         if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
@@ -765,8 +767,8 @@ export function LegacyInboxPageClient({
       setItems((prev) => prev.filter((item) => item.id !== id));
       setRefreshSignal((prev) => prev + 1);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : `Failed to ${isFaq ? 'promote' : 'approve'} item`;
-      toast.error(`${isFaq ? 'Promotion' : 'Approval'} failed: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : `Failed to ${useFaqEndpoint ? 'promote' : 'approve'} item`;
+      toast.error(`${useFaqEndpoint ? 'Promotion' : 'Approval'} failed: ${errorMessage}`);
     }
   }, [items, allowEmptyCitations]);
 

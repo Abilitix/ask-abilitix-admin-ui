@@ -90,7 +90,7 @@ export function mapSettingsToFlags(
 ): { flags: InitialInboxFlags; tenantId?: string } {
   const defaults: InitialInboxFlags = {
     adminInboxApiEnabled: false,
-    enableReviewPromote: false,
+    enableReviewPromote: true, // Always enabled - attach & promote is core workflow
     allowEmptyCitations: false,
     enableFaqCreation: true, // Always enabled - FAQ creation is core workflow
   };
@@ -117,7 +117,7 @@ export function mapSettingsToFlags(
   return {
     flags: {
       adminInboxApiEnabled: parseFlag(raw.ADMIN_INBOX_API),
-      enableReviewPromote: parseFlag(raw.ENABLE_REVIEW_PROMOTE),
+      enableReviewPromote: true, // Always enabled - attach & promote is core workflow (ignore backend value)
       allowEmptyCitations: parseFlag(raw.ALLOW_EMPTY_CITATIONS),
       enableFaqCreation: true, // Always enabled - FAQ creation is core workflow (ignore backend value)
     },

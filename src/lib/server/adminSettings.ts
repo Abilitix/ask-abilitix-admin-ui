@@ -92,7 +92,7 @@ export function mapSettingsToFlags(
     adminInboxApiEnabled: false,
     enableReviewPromote: false,
     allowEmptyCitations: false,
-    enableFaqCreation: false,
+    enableFaqCreation: true, // Default to ON - FAQ creation is the primary workflow
   };
 
   if (!settings) {

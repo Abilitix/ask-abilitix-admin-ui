@@ -478,6 +478,7 @@ export function InboxDetailPanel({
     onClearAlerts,
     onClearFieldErrors,
     createAsFaq,
+    enableFaqCreation, // Required: callback must update when flag changes
   ]);
 
   if (!selectedId) {

@@ -92,7 +92,7 @@ export function mapSettingsToFlags(
     adminInboxApiEnabled: false,
     enableReviewPromote: false,
     allowEmptyCitations: false,
-    enableFaqCreation: false,
+    enableFaqCreation: true, // Always enabled - FAQ creation is core workflow
   };
 
   if (!settings) {
@@ -119,7 +119,7 @@ export function mapSettingsToFlags(
       adminInboxApiEnabled: parseFlag(raw.ADMIN_INBOX_API),
       enableReviewPromote: parseFlag(raw.ENABLE_REVIEW_PROMOTE),
       allowEmptyCitations: parseFlag(raw.ALLOW_EMPTY_CITATIONS),
-      enableFaqCreation: parseFlag(raw['INBOX.ENABLE_REVIEW_PROMOTE']), // Maps to namespaced backend flag
+      enableFaqCreation: true, // Always enabled - FAQ creation is core workflow (ignore backend value)
     },
     tenantId: settings.tenant_id,
   };

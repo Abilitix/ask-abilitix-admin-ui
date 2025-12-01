@@ -228,6 +228,10 @@ export function InboxPageClient({
       toast.info(CITATIONS_LOCK_MESSAGE);
       return;
     }
+    if (key === 'enableFaqCreation') {
+      toast.info('FAQ creation is always enabled. This control is managed centrally.');
+      return;
+    }
     if (pendingTimerRef.current) {
       clearTimeout(pendingTimerRef.current);
       pendingTimerRef.current = null;

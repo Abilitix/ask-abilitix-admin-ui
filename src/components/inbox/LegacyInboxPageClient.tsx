@@ -620,22 +620,19 @@ export function LegacyInboxPageClient({
   );
 
   const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true, note?: string) => {
-    // Use /promote endpoint for FAQ creation (requires ENABLE_REVIEW_PROMOTE=1)
-    // For regular QA pairs without FAQ, use /approve endpoint (legacy)
-    // Only use /promote if enableFaqCreation flag is enabled AND isFaq is true
-    // Declare outside try block so it's accessible in catch block
-    const useFaqEndpoint = enableFaqCreation && isFaq;
-    
     try {
       // Find the item to check for suggested_citations
       const item = items.find((i) => i.id === id);
-      const endpoint = useFaqEndpoint
+      
+      // Use /promote endpoint for FAQ creation (requires ENABLE_REVIEW_PROMOTE=1)
+      // For regular QA pairs without FAQ, use /approve endpoint (legacy)
+      const endpoint = isFaq 
         ? `/api/admin/inbox/${encodeURIComponent(id)}/promote`
         : '/api/admin/inbox/approve';
       
       const body: Record<string, unknown> = {};
       
-      if (useFaqEndpoint) {
+      if (isFaq) {
         // /promote endpoint: supports citations, answer, title, is_faq, note
         // If item has suggested_citations, omit citations (backend will use suggested_citations)
         // If no citations and allowEmptyCitations is true, send empty array
@@ -720,7 +717,7 @@ export function LegacyInboxPageClient({
         }
         
         // Parse detailed validation errors from backend
-        let errorMessage = data.details || data.error || data.message || `Failed to ${useFaqEndpoint ? 'promote' : 'approve'}: ${response.status} ${response.statusText}`;
+        let errorMessage = data.details || data.error || data.message || `Failed to ${isFaq ? 'promote' : 'approve'}: ${response.status} ${response.statusText}`;
         
         // Check for detailed field errors (Admin API format)
         if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
@@ -755,12 +752,12 @@ export function LegacyInboxPageClient({
 
       // Show notification message only if requested_by exists
       if (hasRequester) {
-        toast.success(useFaqEndpoint 
+        toast.success(isFaq 
           ? 'Item promoted as FAQ ✓ (embeddings generated automatically). Requester will be notified via email.'
           : 'Item approved ✓ (embeddings generated automatically). Requester will be notified via email.'
         );
       } else {
-        toast.success(useFaqEndpoint 
+        toast.success(isFaq 
           ? 'Item promoted as FAQ ✓ (embeddings generated automatically)'
           : 'Item approved ✓ (embeddings generated automatically)'
         );
@@ -768,18 +765,12 @@ export function LegacyInboxPageClient({
       setItems((prev) => prev.filter((item) => item.id !== id));
       setRefreshSignal((prev) => prev + 1);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : `Failed to ${useFaqEndpoint ? 'promote' : 'approve'} item`;
-      toast.error(`${useFaqEndpoint ? 'Promotion' : 'Approval'} failed: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : `Failed to ${isFaq ? 'promote' : 'approve'} item`;
+      toast.error(`${isFaq ? 'Promotion' : 'Approval'} failed: ${errorMessage}`);
     }
-  }, [items, allowEmptyCitations, enableFaqCreation]);
+  }, [items, allowEmptyCitations]);
 
   const handleAttachCitations = useCallback(async (id: string, citations: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => {
-    // Check if attach is allowed (requires ENABLE_REVIEW_PROMOTE flag)
-    if (!enableFaqCreation) {
-      toast.error('Attach source is disabled. Please enable the "Enable FAQ creation" flag in settings.');
-      return;
-    }
-    
     try {
       const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/attach_source`, {
         method: 'POST',
@@ -982,7 +973,7 @@ export function LegacyInboxPageClient({
       toast.error(`Attachment failed: ${errorMessage}`);
       throw err; // Re-throw so caller can handle
     }
-  }, [fetchItems, enableFaqCreation]);
+  }, [fetchItems]);
 
   const handleReject = useCallback(async (id: string, note?: string) => {
     try {

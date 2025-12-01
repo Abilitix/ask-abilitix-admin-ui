@@ -207,7 +207,7 @@ export function LegacyInboxList({
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
-  const [faqSelections, setFaqSelections] = useState<Record<string, boolean>>({});
+  // FAQ creation is always enabled - no state needed
   const [approveNotes, setApproveNotes] = useState<Record<string, string>>({});
   const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
   const [markReviewedNotes, setMarkReviewedNotes] = useState<Record<string, string>>({});
@@ -249,7 +249,7 @@ export function LegacyInboxList({
     // Set visual feedback immediately
     setActionStates((prev) => ({ ...prev, [id]: 'approving' }));
     const editedAnswer = editedAnswers[id];
-    const isFaq = faqSelections[id] ?? true;
+    const isFaq = true; // Always create as FAQ
     const note = approveNotes[id]?.trim() || undefined;
     onApprove(id, editedAnswer, isFaq, note);
     // Clear note after action
@@ -777,25 +777,8 @@ export function LegacyInboxList({
                   </TableCell>
                   <TableCell className="w-[180px] align-top">
                     <div className="flex flex-col gap-2 justify-between min-h-[100px]">
-                      {/* Top section: FAQ creation checkbox and Request Review */}
+                      {/* Top section: Request Review (FAQ creation is always enabled) */}
                       <div className="flex flex-col gap-1.5">
-                        {enableFaqCreation && (
-                          <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
-                            <input
-                              type="checkbox"
-                              className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                              checked={faqSelections[item.id] ?? true}
-                              disabled={editingId === item.id}
-                              onChange={(event) =>
-                                setFaqSelections((prev) => ({
-                                  ...prev,
-                                  [item.id]: event.target.checked,
-                                }))
-                              }
-                            />
-                            <span>Create as FAQ</span>
-                          </label>
-                        )}
                         {/* Request SME Review button - compact, secondary style */}
                         {onRequestReview &&
                           item.status === 'pending' &&
@@ -918,7 +901,7 @@ export function LegacyInboxList({
                             {/* Convert to FAQ button */}
                             {onConvertToFaq && (() => {
                               const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
-                              const citationsRequired = allowEmptyCitations === false;
+                              const citationsRequired = true; // Citations always required
                               const missingCitations = citationsRequired && !hasCitations;
                               const isConverting = actionStates[item.id] === 'converting';
                               const isAnyAction = actionStates[item.id] !== undefined;
@@ -1068,7 +1051,7 @@ export function LegacyInboxList({
                                 // Check if citations are required and missing
                                 // Handle undefined, null, empty array, or non-array values
                                 const hasCitations = Array.isArray(item.suggested_citations) && item.suggested_citations.length > 0;
-                                const citationsRequired = allowEmptyCitations === false; // Explicitly check for false
+                                const citationsRequired = true; // Citations always required // Explicitly check for false
                                 const missingCitations = citationsRequired && !hasCitations;
                                 
                                 return (

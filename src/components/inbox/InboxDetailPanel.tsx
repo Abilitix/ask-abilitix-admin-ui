@@ -457,7 +457,7 @@ export function InboxDetailPanel({
     if (detail.answerDraft) {
       payload.answer = detail.answerDraft;
     }
-    payload.isFaq = createAsFaq;
+    payload.isFaq = true; // Always create as FAQ
 
     const success = await onPromote(payload);
     if (success) {
@@ -748,8 +748,8 @@ export function InboxDetailPanel({
             <div className="text-xs font-semibold uppercase text-muted-foreground">
               Citations
             </div>
-            <Badge variant={allowEmptyCitations ? 'outline' : 'secondary'} className="text-[11px]">
-              {allowEmptyCitations ? 'Optional' : 'Required'}
+            <Badge variant="secondary" className="text-[11px]">
+              Required
             </Badge>
           </div>
 
@@ -804,18 +804,7 @@ export function InboxDetailPanel({
             </div>
           )}
 
-          {enableFaqCreation && (
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                checked={createAsFaq}
-                onChange={(event) => setCreateAsFaq(event.target.checked)}
-                disabled={baseActionsDisabled}
-              />
-              <span>Create as FAQ (default)</span>
-            </label>
-          )}
+          {/* FAQ creation is always enabled - no checkbox needed */}
 
           <div className="flex flex-wrap gap-2">
             <Button

@@ -92,7 +92,7 @@ export function mapSettingsToFlags(
     adminInboxApiEnabled: false,
     enableReviewPromote: false,
     allowEmptyCitations: false,
-    enableFaqCreation: true, // Default to ON - FAQ creation is the primary workflow
+    enableFaqCreation: false,
   };
 
   if (!settings) {
@@ -114,18 +114,12 @@ export function mapSettingsToFlags(
     return false;
   };
 
-  // For enableFaqCreation, if backend value is missing/undefined, default to true
-  const faqCreationValue = raw['INBOX.ENABLE_REVIEW_PROMOTE'];
-  const enableFaqCreation = faqCreationValue === undefined || faqCreationValue === null
-    ? true // Default to ON if not set in backend
-    : parseFlag(faqCreationValue);
-
   return {
     flags: {
       adminInboxApiEnabled: parseFlag(raw.ADMIN_INBOX_API),
       enableReviewPromote: parseFlag(raw.ENABLE_REVIEW_PROMOTE),
       allowEmptyCitations: parseFlag(raw.ALLOW_EMPTY_CITATIONS),
-      enableFaqCreation, // Defaults to true if not set in backend
+      enableFaqCreation: parseFlag(raw['INBOX.ENABLE_REVIEW_PROMOTE']), // Maps to namespaced backend flag
     },
     tenantId: settings.tenant_id,
   };

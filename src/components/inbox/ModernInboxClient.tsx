@@ -527,7 +527,7 @@ export function ModernInboxClient({
   const [bulkActionLoading, setBulkActionLoading] = useState<boolean>(false);
   const docHydrationRef = useRef<Set<string>>(new Set());
   // Create as FAQ state (shared between single and bulk approve)
-  const [createAsFaq, setCreateAsFaq] = useState<boolean>(enableFaqCreation);
+  const [createAsFaq, setCreateAsFaq] = useState<boolean>(true);
   // Manual FAQ creation modal state
   const [manualFaqModalOpen, setManualFaqModalOpen] = useState<boolean>(false);
   const [smeModalOpen, setSmeModalOpen] = useState<boolean>(false);
@@ -912,8 +912,7 @@ export function ModernInboxClient({
       }
 
       // Determine endpoint and payload based on isFaq flag
-      // Only use FAQ endpoint if both enableFaqCreation is enabled AND isFaq is true
-      const useFaqEndpoint = enableFaqCreation && isFaq === true;
+      const useFaqEndpoint = isFaq === true;
       const endpoint = useFaqEndpoint
         ? `/api/admin/inbox/${encodeURIComponent(selectedId)}/promote`
         : `/api/admin/inbox/approve`;
@@ -1118,7 +1117,6 @@ export function ModernInboxClient({
       sendTelemetry,
       onPromoteSuccess,
       onPromoteConflict,
-      enableFaqCreation,
     ]
   );
 
@@ -1178,10 +1176,10 @@ export function ModernInboxClient({
     };
   }, []);
 
-  // Reset createAsFaq based on enableFaqCreation flag when selectedId changes
+  // Reset createAsFaq to true when selectedId changes
   useEffect(() => {
-    setCreateAsFaq(enableFaqCreation);
-  }, [selectedId, enableFaqCreation]);
+    setCreateAsFaq(true);
+  }, [selectedId]);
 
   const hydrateDocMatches = useCallback(
     async (ids: string[]) => {
@@ -1328,7 +1326,7 @@ export function ModernInboxClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           ids,
-          as_faq: enableFaqCreation && createAsFaq,
+          as_faq: createAsFaq,
         }),
         cache: 'no-store',
       });
@@ -1358,7 +1356,7 @@ export function ModernInboxClient({
     } finally {
       setBulkActionLoading(false);
     }
-  }, [selectedIds, clearSelection, loadList, createAsFaq, enableFaqCreation]);
+  }, [selectedIds, clearSelection, loadList, createAsFaq]);
 
   // Bulk reject handler
   const handleBulkReject = useCallback(async () => {

@@ -353,9 +353,9 @@ export function InboxDetailPanel({
     setClientErrors(next.map(() => ({})));
     setShowErrors(false);
     setGeneralError(null);
-    setCreateAsFaq(enableFaqCreation); // Respect the FAQ flag when detail changes
+    setCreateAsFaq(true); // Reset to true when detail changes
     onClearFieldErrors();
-  }, [detail, onClearFieldErrors, setCreateAsFaq, enableFaqCreation]);
+  }, [detail, onClearFieldErrors, setCreateAsFaq]);
 
   useEffect(() => {
     setClientErrors((prev) => {
@@ -457,20 +457,7 @@ export function InboxDetailPanel({
     if (detail.answerDraft) {
       payload.answer = detail.answerDraft;
     }
-    // Only set isFaq to true if both enableFaqCreation flag is enabled AND createAsFaq is true
-    // Double-check enableFaqCreation to prevent stale closures
-    const shouldCreateAsFaq = Boolean(enableFaqCreation) && Boolean(createAsFaq);
-    payload.isFaq = shouldCreateAsFaq;
-    
-    // Debug logging in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[InboxDetailPanel] Promote payload:', {
-        enableFaqCreation,
-        createAsFaq,
-        shouldCreateAsFaq,
-        payload: { ...payload, citations: payload.citations?.length },
-      });
-    }
+    payload.isFaq = createAsFaq;
 
     const success = await onPromote(payload);
     if (success) {
@@ -490,7 +477,6 @@ export function InboxDetailPanel({
     onClearAlerts,
     onClearFieldErrors,
     createAsFaq,
-    enableFaqCreation, // Required: callback must update when flag changes
   ]);
 
   if (!selectedId) {

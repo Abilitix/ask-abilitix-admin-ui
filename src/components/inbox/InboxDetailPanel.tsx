@@ -457,7 +457,7 @@ export function InboxDetailPanel({
     if (detail.answerDraft) {
       payload.answer = detail.answerDraft;
     }
-    payload.isFaq = true; // Always create as FAQ
+    payload.isFaq = createAsFaq;
 
     const success = await onPromote(payload);
     if (success) {
@@ -694,41 +694,41 @@ export function InboxDetailPanel({
         </dl>
 
         <div className="space-y-1">
-          <div className="text-xs font-semibold uppercase text-muted-foreground">Question</div>
-          <div className="rounded-md border border-slate-200 bg-white p-3 text-sm relative">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">Question</div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-7 px-2 text-xs transition-colors ${
+                questionCopied 
+                  ? 'text-green-600 hover:text-green-700' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(detail.question ?? '');
+                  setQuestionCopied(true);
+                  setTimeout(() => setQuestionCopied(false), 2000);
+                } catch (error) {
+                  toast.error('Failed to copy question');
+                }
+              }}
+            >
+              {questionCopied ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 mr-1.5" />
+                  Copy
+                </>
+              )}
+            </Button>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-white p-3 text-sm">
             {detail.question ?? '—'}
-            <div className="absolute bottom-2 right-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-7 px-2 text-xs transition-colors ${
-                  questionCopied 
-                    ? 'text-green-600 hover:text-green-700' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(detail.question ?? '');
-                    setQuestionCopied(true);
-                    setTimeout(() => setQuestionCopied(false), 2000);
-                  } catch (error) {
-                    toast.error('Failed to copy question');
-                  }
-                }}
-              >
-                {questionCopied ? (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5 mr-1.5" />
-                    Copy
-                  </>
-                )}
-              </Button>
-            </div>
           </div>
         </div>
 
@@ -748,8 +748,8 @@ export function InboxDetailPanel({
             <div className="text-xs font-semibold uppercase text-muted-foreground">
               Citations
             </div>
-            <Badge variant="secondary" className="text-[11px]">
-              Required
+            <Badge variant={allowEmptyCitations ? 'outline' : 'secondary'} className="text-[11px]">
+              {allowEmptyCitations ? 'Optional' : 'Required'}
             </Badge>
           </div>
 
@@ -804,7 +804,18 @@ export function InboxDetailPanel({
             </div>
           )}
 
-          {/* FAQ creation is always enabled - no checkbox needed */}
+          {enableFaqCreation && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                checked={createAsFaq}
+                onChange={(event) => setCreateAsFaq(event.target.checked)}
+                disabled={baseActionsDisabled}
+              />
+              <span>Create as FAQ (default)</span>
+            </label>
+          )}
 
           <div className="flex flex-wrap gap-2">
             <Button

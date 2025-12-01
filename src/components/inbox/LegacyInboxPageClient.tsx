@@ -624,28 +624,49 @@ export function LegacyInboxPageClient({
       // Find the item to check for suggested_citations
       const item = items.find((i) => i.id === id);
       
-      // Always use /promote endpoint with is_faq: true (FAQ creation is always enabled)
-      const endpoint = `/api/admin/inbox/${encodeURIComponent(id)}/promote`;
+      // Use /promote endpoint for FAQ creation (requires ENABLE_REVIEW_PROMOTE=1)
+      // For regular QA pairs without FAQ, use /approve endpoint (legacy)
+      const endpoint = isFaq 
+        ? `/api/admin/inbox/${encodeURIComponent(id)}/promote`
+        : '/api/admin/inbox/approve';
       
       const body: Record<string, unknown> = {};
       
-      // Always use /promote endpoint with FAQ creation
-      // /promote endpoint: supports citations, answer, title, is_faq, note
-      // If item has suggested_citations, omit citations (backend will use suggested_citations)
-      // Citations are always required (allowEmptyCitations is disabled)
-      if (item?.suggested_citations && item.suggested_citations.length > 0) {
-        // Don't send citations - backend will use suggested_citations from inbox item
-      }
-      // If no citations, backend validation will catch this (citations required)
-      
-      if (editedAnswer && editedAnswer.trim().length > 0) {
-        body.answer = editedAnswer.trim();
-      }
-      body.is_faq = true; // Always create as FAQ
-      
-      // Add note if provided
-      if (note && note.trim().length > 0) {
-        body.note = note.trim();
+      if (isFaq) {
+        // /promote endpoint: supports citations, answer, title, is_faq, note
+        // If item has suggested_citations, omit citations (backend will use suggested_citations)
+        // If no citations and allowEmptyCitations is true, send empty array
+        // Otherwise, backend validation should catch missing citations
+        if (item?.suggested_citations && item.suggested_citations.length > 0) {
+          // Don't send citations - backend will use suggested_citations from inbox item
+        } else if (allowEmptyCitations) {
+          // Send empty array if empty citations are allowed
+          body.citations = [];
+        }
+        // If no citations and not allowed, backend validation will catch this
+        
+        if (editedAnswer && editedAnswer.trim().length > 0) {
+          body.answer = editedAnswer.trim();
+        }
+        body.is_faq = true;
+        
+        // Add note if provided
+        if (note && note.trim().length > 0) {
+          body.note = note.trim();
+        }
+      } else {
+        // /approve endpoint: only supports id, reembed, answer (no citations, no title, no note)
+        // Note: legacy endpoint may not support note field
+        body.id = id;
+        body.reembed = true;
+        if (editedAnswer && editedAnswer.trim().length > 0) {
+          body.answer = editedAnswer.trim();
+        }
+        // Note: legacy /approve endpoint may not support note, but we'll send it anyway
+        // Backend will ignore if not supported
+        if (note && note.trim().length > 0) {
+          body.note = note.trim();
+        }
       }
 
       const response = await fetch(endpoint, {
@@ -696,7 +717,7 @@ export function LegacyInboxPageClient({
         }
         
         // Parse detailed validation errors from backend
-        let errorMessage = data.details || data.error || data.message || `Failed to promote: ${response.status} ${response.statusText}`;
+        let errorMessage = data.details || data.error || data.message || `Failed to ${isFaq ? 'promote' : 'approve'}: ${response.status} ${response.statusText}`;
         
         // Check for detailed field errors (Admin API format)
         if (data.detail?.error?.fields && Array.isArray(data.detail.error.fields)) {
@@ -731,17 +752,23 @@ export function LegacyInboxPageClient({
 
       // Show notification message only if requested_by exists
       if (hasRequester) {
-        toast.success('Item promoted as FAQ ✓ (embeddings generated automatically). Requester will be notified via email.');
+        toast.success(isFaq 
+          ? 'Item promoted as FAQ ✓ (embeddings generated automatically). Requester will be notified via email.'
+          : 'Item approved ✓ (embeddings generated automatically). Requester will be notified via email.'
+        );
       } else {
-        toast.success('Item promoted as FAQ ✓ (embeddings generated automatically)');
+        toast.success(isFaq 
+          ? 'Item promoted as FAQ ✓ (embeddings generated automatically)'
+          : 'Item approved ✓ (embeddings generated automatically)'
+        );
       }
       setItems((prev) => prev.filter((item) => item.id !== id));
       setRefreshSignal((prev) => prev + 1);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to promote item';
-      toast.error(`Promotion failed: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : `Failed to ${isFaq ? 'promote' : 'approve'} item`;
+      toast.error(`${isFaq ? 'Promotion' : 'Approval'} failed: ${errorMessage}`);
     }
-  }, [items]);
+  }, [items, allowEmptyCitations]);
 
   const handleAttachCitations = useCallback(async (id: string, citations: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => {
     try {
@@ -1080,8 +1107,7 @@ export function LegacyInboxPageClient({
         requestBody.citations = citations;
       } else if (item?.suggested_citations && item.suggested_citations.length > 0) {
         // Backend will use suggested_citations from inbox item
-      } else {
-        // Citations are always required
+      } else if (allowEmptyCitations === false) {
         toast.error('Citations are required to convert to FAQ');
         throw new Error('Citations are required');
       }
@@ -1142,7 +1168,7 @@ export function LegacyInboxPageClient({
       const errorMessage = err instanceof Error ? err.message : 'Failed to convert to FAQ';
       console.error('[convert-to-faq] Error:', err);
     }
-  }, [items]);
+  }, [items, allowEmptyCitations]);
 
   // Chat review action: Dismiss
   const handleDismiss = useCallback(async (id: string, reason?: string) => {
@@ -1742,13 +1768,88 @@ export function LegacyInboxPageClient({
         </Button>
       </div>
 
+      {/* Toggle Bar - Clean, Subtle Design */}
+      {canManageFlags && onUpdateFlag && flags && (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6 px-4 py-2.5 bg-white border border-slate-200 rounded-lg">
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Options</span>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
+            {/* Enable FAQ Creation Toggle */}
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer group">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={flags.enableFaqCreation === true}
+                  onChange={(e) => {
+                    if (onUpdateFlag) {
+                      onUpdateFlag('enableFaqCreation' as any, e.target.checked);
+                    }
+                  }}
+                  disabled={updatingKey === 'enableFaqCreation'}
+                />
+                <div
+                  className={`w-10 h-5 rounded-full transition-colors duration-200 ${
+                    flags.enableFaqCreation
+                      ? 'bg-blue-600'
+                      : 'bg-slate-300'
+                  } ${updatingKey === 'enableFaqCreation' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <div
+                    className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${
+                      flags.enableFaqCreation ? 'translate-x-5' : 'translate-x-0.5'
+                    } mt-0.5`}
+                  />
+                </div>
+              </div>
+              <span className={`text-sm ${updatingKey === 'enableFaqCreation' ? 'text-slate-400' : 'text-slate-700'}`}>
+                Enable FAQ creation
+              </span>
+            </label>
+
+            {/* Allow Empty Citations Toggle - Only show if it can be enabled */}
+            {flags.allowEmptyCitations !== undefined && (
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer group">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={flags.allowEmptyCitations === true}
+                    onChange={(e) => {
+                      if (onUpdateFlag) {
+                        onUpdateFlag('allowEmptyCitations' as any, e.target.checked);
+                      }
+                    }}
+                    disabled={updatingKey === 'allowEmptyCitations'}
+                  />
+                  <div
+                    className={`w-10 h-5 rounded-full transition-colors duration-200 ${
+                      flags.allowEmptyCitations
+                        ? 'bg-blue-600'
+                        : 'bg-slate-300'
+                    } ${updatingKey === 'allowEmptyCitations' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${
+                        flags.allowEmptyCitations ? 'translate-x-5' : 'translate-x-0.5'
+                      } mt-0.5`}
+                    />
+                  </div>
+                </div>
+                <span className={`text-sm ${updatingKey === 'allowEmptyCitations' ? 'text-slate-400' : 'text-slate-700'}`}>
+                  Allow empty citations
+                </span>
+              </label>
+            )}
+          </div>
+        </div>
+      )}
 
       <LegacyInboxList
         items={filteredItems}
         loading={loading}
         error={error}
-        enableFaqCreation={true}
-        allowEmptyCitations={false}
+        enableFaqCreation={enableFaqCreation}
+        allowEmptyCitations={flags?.allowEmptyCitations ?? allowEmptyCitations}
         onApprove={handleApprove}
         onReject={handleReject}
         onAttachCitations={handleAttachCitations}

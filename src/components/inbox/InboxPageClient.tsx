@@ -336,19 +336,19 @@ export function InboxPageClient({
             tenantId={tenantId}
             reviewFlagEnabled={flags.enableReviewPromote === true}
             hasReviewerAccess={canModerate}
-            enableFaqCreation={true}
+            enableFaqCreation={flags.enableFaqCreation === true}
             modeKey={resolvedMode}
             onRegisterActions={setModernActions}
           />
         </>
       ) : (
         <LegacyInboxPageClient 
-          enableFaqCreation={true}
-          allowEmptyCitations={false}
+          enableFaqCreation={flags.enableFaqCreation === true}
+          allowEmptyCitations={flags.allowEmptyCitations === true}
           canManageFlags={Boolean(canManageFlags)}
           flags={{
-            enableFaqCreation: true,
-            allowEmptyCitations: false,
+            enableFaqCreation: flags.enableFaqCreation,
+            allowEmptyCitations: flags.allowEmptyCitations,
           }}
           onUpdateFlag={updateFlag}
           updatingKey={updatingKey}

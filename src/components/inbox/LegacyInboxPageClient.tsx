@@ -773,6 +773,12 @@ export function LegacyInboxPageClient({
   }, [items, allowEmptyCitations, enableFaqCreation]);
 
   const handleAttachCitations = useCallback(async (id: string, citations: Array<{ type: string; doc_id: string; page?: number; span?: { start?: number; end?: number; text?: string } }>) => {
+    // Check if attach is allowed (requires ENABLE_REVIEW_PROMOTE flag)
+    if (!enableFaqCreation) {
+      toast.error('Attach source is disabled. Please enable the "Enable FAQ creation" flag in settings.');
+      return;
+    }
+    
     try {
       const response = await fetch(`/api/admin/inbox/${encodeURIComponent(id)}/attach_source`, {
         method: 'POST',
@@ -975,7 +981,7 @@ export function LegacyInboxPageClient({
       toast.error(`Attachment failed: ${errorMessage}`);
       throw err; // Re-throw so caller can handle
     }
-  }, [fetchItems]);
+  }, [fetchItems, enableFaqCreation]);
 
   const handleReject = useCallback(async (id: string, note?: string) => {
     try {

@@ -620,14 +620,15 @@ export function LegacyInboxPageClient({
   );
 
   const handleApprove = useCallback(async (id: string, editedAnswer?: string, isFaq: boolean = true, note?: string) => {
+    // Use /promote endpoint for FAQ creation (requires ENABLE_REVIEW_PROMOTE=1)
+    // For regular QA pairs without FAQ, use /approve endpoint (legacy)
+    // Only use /promote if enableFaqCreation flag is enabled AND isFaq is true
+    // Declare outside try block so it's accessible in catch block
+    const useFaqEndpoint = enableFaqCreation && isFaq;
+    
     try {
       // Find the item to check for suggested_citations
       const item = items.find((i) => i.id === id);
-      
-      // Use /promote endpoint for FAQ creation (requires ENABLE_REVIEW_PROMOTE=1)
-      // For regular QA pairs without FAQ, use /approve endpoint (legacy)
-      // Only use /promote if enableFaqCreation flag is enabled AND isFaq is true
-      const useFaqEndpoint = enableFaqCreation && isFaq;
       const endpoint = useFaqEndpoint
         ? `/api/admin/inbox/${encodeURIComponent(id)}/promote`
         : '/api/admin/inbox/approve';

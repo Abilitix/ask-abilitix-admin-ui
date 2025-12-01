@@ -995,7 +995,16 @@ export function LegacyInboxPageClient({
         body: JSON.stringify(body),
       });
 
-      const data = await response.json();
+      let data: any = null;
+      try {
+        const text = await response.text();
+        if (text && text.trim().length > 0) {
+          data = JSON.parse(text);
+        }
+      } catch (parseErr) {
+        // If response is not JSON or empty, treat as null
+        console.warn('[reject] Failed to parse response:', parseErr);
+      }
 
       if (!response.ok) {
         // Handle 403 Forbidden (ownership check failed)
@@ -1010,7 +1019,7 @@ export function LegacyInboxPageClient({
       }
       
       // Check for error in response data even if status is OK
-      if (data?.error) {
+      if (data && data.error) {
         throw new Error(data.details || data.error || 'Rejection failed');
       }
 

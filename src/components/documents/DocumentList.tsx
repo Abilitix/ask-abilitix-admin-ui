@@ -120,6 +120,7 @@ export function DocumentList({
   // Local UI state
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState<DisplayStatus | 'all'>(initialStatus || 'all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | '7days' | '30days' | '90days' | 'year'>('all');
   const [limit, setLimit] = useState(20);
   const [offset, setOffset] = useState(0);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -213,6 +214,42 @@ export function DocumentList({
       console.error('DocumentList error:', error);
     }
   }, [error]);
+
+  // Date filter helper - calculates cutoff date based on filter selection
+  const getDateCutoff = useCallback((filter: typeof dateFilter): Date | null => {
+    const now = new Date();
+    switch (filter) {
+      case 'today':
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        return today;
+      case '7days':
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        return sevenDaysAgo;
+      case '30days':
+        const thirtyDaysAgo = new Date(now);
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+        return thirtyDaysAgo;
+      case '90days':
+        const ninetyDaysAgo = new Date(now);
+        ninetyDaysAgo.setDate(now.getDate() - 90);
+        return ninetyDaysAgo;
+      case 'year':
+        const oneYearAgo = new Date(now);
+        oneYearAgo.setFullYear(now.getFullYear() - 1);
+        return oneYearAgo;
+      case 'all':
+      default:
+        return null; // No date filter
+    }
+  }, []);
+
+  // Handle date filter change
+  const handleDateFilterChange = useCallback((value: string) => {
+    const newDateFilter = value as typeof dateFilter;
+    setDateFilter(newDateFilter);
+    setOffset(0); // Reset to first page
+  }, []);
 
   // Apply filters when they change
   const handleStatusFilterChange = useCallback((value: string) => {
@@ -603,27 +640,41 @@ export function DocumentList({
   const hasPreviousPage = useMemo(() => offset > 0, [offset]);
   const currentPage = useMemo(() => Math.floor(offset / limit) + 1, [offset, limit]);
   const totalPages = useMemo(() => Math.ceil(total / limit), [total, limit]);
-  // Filter documents based on status filter (client-side for computed statuses like deleted)
+  // Filter documents based on status filter and date filter (client-side)
   const filteredDocuments = useMemo(() => {
     const docs = Array.isArray(documents) ? documents : [];
     
-    // If status filter is 'all', return all documents
+    // Apply date filter first (client-side filtering)
+    let dateFilteredDocs = docs;
+    if (dateFilter !== 'all') {
+      const cutoffDate = getDateCutoff(dateFilter);
+      if (cutoffDate) {
+        dateFilteredDocs = docs.filter(doc => {
+          if (!doc.created_at) return false;
+          const docDate = new Date(doc.created_at);
+          return docDate >= cutoffDate;
+        });
+      }
+    }
+    
+    // Apply status filter
+    // If status filter is 'all', return date-filtered documents
     if (statusFilter === 'all') {
-      return docs;
+      return dateFilteredDocs;
     }
     
     // If status filter is a backend status (active, archived, superseded), 
-    // backend already filtered, so return as-is
+    // backend already filtered, but we need to apply date filter
     if (statusFilter === 'active' || statusFilter === 'archived' || statusFilter === 'superseded') {
-      return docs;
+      return dateFilteredDocs;
     }
     
     // For computed statuses (deleted, pending, processing, failed), filter client-side
-    return docs.filter(doc => {
+    return dateFilteredDocs.filter(doc => {
       const displayStatus = computeDisplayStatus(doc);
       return displayStatus === statusFilter;
     });
-  }, [documents, statusFilter]);
+  }, [documents, statusFilter, dateFilter, getDateCutoff]);
 
   // Render document row
   const renderDocumentRow = useCallback((doc: Document) => {
@@ -689,9 +740,9 @@ export function DocumentList({
         <TableCell 
           className="text-sm text-muted-foreground cursor-default" 
           onClick={(e) => e.stopPropagation()}
-          title="Last update time"
+          title="Upload date"
         >
-          {doc.updated_at ? formatDistanceToNow(doc.updated_at) : 'Never'}
+          {doc.created_at ? formatDistanceToNow(doc.created_at) : 'Never'}
         </TableCell>
         {showActions && (
           <TableCell>
@@ -860,8 +911,8 @@ export function DocumentList({
                 <DocumentStatusBadge status={displayStatus} />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Updated:</span>
-                <span className="text-xs text-muted-foreground">{doc.updated_at ? formatDistanceToNow(doc.updated_at) : 'Never'}</span>
+                <span className="text-xs text-muted-foreground">Created:</span>
+                <span className="text-xs text-muted-foreground">{doc.created_at ? formatDistanceToNow(doc.created_at) : 'Never'}</span>
               </div>
             </div>
           </div>
@@ -1035,7 +1086,7 @@ export function DocumentList({
             <div className="flex flex-col items-center justify-center gap-2">
               <FileText className="h-6 w-6 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                {searchTerm || statusFilter !== 'all'
+                {searchTerm || statusFilter !== 'all' || dateFilter !== 'all'
                   ? 'No documents match your filters'
                   : 'No documents found'}
               </p>
@@ -1046,7 +1097,7 @@ export function DocumentList({
     }
 
     return null;
-  }, [loading, error, filteredDocuments, searchTerm, statusFilter, showActions, handleRefresh]);
+  }, [loading, error, filteredDocuments, searchTerm, statusFilter, dateFilter, showActions, handleRefresh]);
 
   return (
     <Card className="border-2 shadow-lg">
@@ -1151,8 +1202,9 @@ export function DocumentList({
           )}
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-5">
+        {/* Filters - Mobile-friendly responsive layout */}
+        <div className="space-y-3 mb-5">
+          {/* Search Bar - Full width on mobile, flex-1 on desktop */}
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1160,21 +1212,40 @@ export function DocumentList({
                 placeholder="Search documents..."
                 value={searchTerm}
                 onChange={(e) => handleSearchInput(e.target.value)}
-                className="pl-9"
+                className="pl-9 min-h-[44px]"
               />
             </div>
           </div>
-          <div className="w-full sm:w-48">
-            <Select
-              value={statusFilter}
-              onChange={(e) => handleStatusFilterChange(e.target.value)}
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
-              <option value="superseded">Superseded</option>
-              <option value="deleted">Deleted</option>
-            </Select>
+          
+          {/* Status and Date Filters - Stack on mobile, side-by-side on desktop */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="w-full sm:w-48">
+              <Select
+                value={statusFilter}
+                onChange={(e) => handleStatusFilterChange(e.target.value)}
+                className="min-h-[44px]"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+                <option value="superseded">Superseded</option>
+                <option value="deleted">Deleted</option>
+              </Select>
+            </div>
+            <div className="w-full sm:w-48">
+              <Select
+                value={dateFilter}
+                onChange={(e) => handleDateFilterChange(e.target.value)}
+                className="min-h-[44px]"
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="7days">Last 7 Days</option>
+                <option value="30days">Last 30 Days</option>
+                <option value="90days">Last 90 Days</option>
+                <option value="year">Last Year</option>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -1256,7 +1327,7 @@ export function DocumentList({
             <div className="flex flex-col items-center justify-center gap-2 py-12">
               <FileText className="h-6 w-6 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                {searchTerm || statusFilter !== 'all'
+                {searchTerm || statusFilter !== 'all' || dateFilter !== 'all'
                   ? 'No documents match your filters'
                   : 'No documents found'}
               </p>
@@ -1279,7 +1350,7 @@ export function DocumentList({
                 <TableHead>Status</TableHead>
                 <TableHead>Chunks</TableHead>
                 <TableHead>Citations</TableHead>
-                <TableHead>Updated</TableHead>
+                <TableHead>Created</TableHead>
                 {showActions && <TableHead className="w-24">Actions</TableHead>}
               </TableRow>
             </TableHeader>

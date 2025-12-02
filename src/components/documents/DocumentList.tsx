@@ -39,12 +39,22 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 /**
  * Formats a date string as a relative time (e.g., "2h ago", "3d ago").
  */
-function formatDistanceToNow(dateString: string): string {
+function formatDistanceToNow(dateString: string | null | undefined): string {
+  if (!dateString) return '-';
+  
   const date = new Date(dateString);
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date string:', dateString);
+    return '-';
+  }
+  
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
@@ -98,6 +108,8 @@ export function DocumentList({
   const [limit, setLimit] = useState(20);
   const [offset, setOffset] = useState(0);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [docToDelete, setDocToDelete] = useState<Document | null>(null);
 
   // Document data hook
   const {
@@ -199,6 +211,89 @@ export function DocumentList({
     toast.success('Documents refreshed');
   }, [refetch, refetchStats]);
 
+  // Archive handler
+  const handleArchive = useCallback(async (docId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch('/api/admin/docs/archive', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: docId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Archive failed: ${response.status}`);
+      }
+
+      toast.success('Document archived');
+      await refetch();
+      await refetchStats();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Archive failed';
+      toast.error(`Archive failed: ${errorMessage}`);
+    }
+  }, [refetch, refetchStats]);
+
+  // Unarchive handler
+  const handleUnarchive = useCallback(async (docId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch('/api/admin/docs/unarchive', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: docId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Unarchive failed: ${response.status}`);
+      }
+
+      toast.success('Document unarchived');
+      await refetch();
+      await refetchStats();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unarchive failed';
+      toast.error(`Unarchive failed: ${errorMessage}`);
+    }
+  }, [refetch, refetchStats]);
+
+  // Delete handler
+  const handleDeleteClick = useCallback((doc: Document, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDocToDelete(doc);
+    setDeleteDialogOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!docToDelete) return;
+
+    try {
+      const response = await fetch(`/api/admin/docs/${encodeURIComponent(docToDelete.doc_id)}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Delete failed: ${response.status}`);
+      }
+
+      toast.success('Document deleted');
+      setDeleteDialogOpen(false);
+      setDocToDelete(null);
+      await refetch();
+      await refetchStats();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Delete failed';
+      toast.error(`Delete failed: ${errorMessage}`);
+    }
+  }, [docToDelete, refetch, refetchStats]);
+
   // Document selection handler
   const handleDocumentClick = useCallback((docId: string) => {
     setSelectedDocId(docId);
@@ -245,27 +340,34 @@ export function DocumentList({
         {showActions && (
           <TableCell>
             <div className="flex items-center gap-2">
-              {isAccessible && (
+              {isAccessible && displayStatus === 'active' && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Handle open action
-                  }}
-                  className="h-8 w-8 p-0"
+                  onClick={(e) => handleArchive(doc.doc_id, e)}
+                  className="h-8 px-2 text-xs"
+                  title="Archive"
                 >
-                  <Eye className="h-4 w-4" />
+                  Archive
+                </Button>
+              )}
+              {displayStatus === 'superseded' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => handleUnarchive(doc.doc_id, e)}
+                  className="h-8 px-2 text-xs"
+                  title="Unarchive"
+                >
+                  Unarchive
                 </Button>
               )}
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Handle delete action
-                }}
+                onClick={(e) => handleDeleteClick(doc, e)}
                 className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                title="Delete"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -462,6 +564,20 @@ export function DocumentList({
           </div>
         )}
       </CardContent>
+
+      {/* Delete confirmation dialog */}
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setDocToDelete(null);
+        }}
+        title="Delete Document"
+        message={`Are you sure you want to delete "${docToDelete?.title || docToDelete?.file_name || 'this document'}"? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+      />
     </Card>
   );
 }

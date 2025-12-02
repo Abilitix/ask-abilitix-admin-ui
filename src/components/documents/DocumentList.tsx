@@ -793,6 +793,168 @@ export function DocumentList({
     );
   }, [selectedDocId, showActions, handleDocumentClick, handleArchive, handleUnarchive, handleDeleteClick, handleHardDeleteClick, handleOpenFile, actionLoading, getDocumentId]);
 
+  // Render mobile card view
+  const renderMobileCard = useCallback((doc: Document) => {
+    const docId = getDocumentId(doc);
+    
+    if (!docId) {
+      console.error('[DocumentList] Document missing ID:', doc);
+      return null;
+    }
+    
+    const displayStatus = computeDisplayStatus(doc as any);
+    const isSelected = selectedDocId === docId;
+    const isAccessible = displayStatus !== 'deleted' && displayStatus !== 'superseded';
+
+    return (
+      <div
+        key={docId}
+        className={`border rounded-lg p-4 mb-3 bg-white hover:bg-muted/50 transition-colors ${isSelected ? 'bg-muted border-2' : ''} ${!isAccessible ? 'opacity-60' : ''}`}
+        onClick={() => handleDocumentClick(docId)}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            {/* Doc Name */}
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="font-medium text-sm truncate">{doc.title || doc.file_name || 'Untitled'}</span>
+            </div>
+            
+            {/* Status and Updated */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Status:</span>
+                <DocumentStatusBadge status={displayStatus} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Updated:</span>
+                <span className="text-xs text-muted-foreground">{formatDistanceToNow(doc.updated_at)}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Burger Menu */}
+          {showActions && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 flex-shrink-0"
+                    disabled={actionLoading.has(docId)}
+                  >
+                    {actionLoading.has(docId) ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <MoreVertical className="h-4 w-4" />
+                    )}
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  {/* Primary action */}
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenFile(docId);
+                    }}
+                    disabled={actionLoading.has(docId)}
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    <span>Open File</span>
+                    <span className="ml-2 text-xs text-muted-foreground">PDF/DOCX</span>
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* Status management */}
+                  {displayStatus !== 'archived' && displayStatus !== 'deleted' && displayStatus !== 'superseded' && (
+                    <DropdownMenuItem
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await handleArchive(docId, e);
+                        } catch (err) {
+                          console.error('Archive error:', err);
+                        }
+                      }}
+                      disabled={actionLoading.has(docId)}
+                      className="text-orange-600 focus:text-orange-600"
+                    >
+                      <Archive className="mr-2 h-4 w-4" />
+                      <div className="flex flex-col">
+                        <span>Archive</span>
+                        <span className="text-xs text-muted-foreground">Hide from active view (can be restored)</span>
+                      </div>
+                    </DropdownMenuItem>
+                  )}
+                  {(displayStatus === 'superseded' || displayStatus === 'archived' || displayStatus === 'deleted') && (
+                    <DropdownMenuItem
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await handleUnarchive(docId, displayStatus, e);
+                        } catch (err) {
+                          console.error('Unarchive/Restore error:', err);
+                        }
+                      }}
+                      disabled={actionLoading.has(docId)}
+                      className="text-green-600 focus:text-green-600"
+                    >
+                      <ArchiveRestore className="mr-2 h-4 w-4" />
+                      <div className="flex flex-col">
+                        <span>{displayStatus === 'deleted' ? 'Restore' : 'Unarchive'}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {displayStatus === 'deleted' 
+                            ? 'Restore deleted document to active' 
+                            : 'Restore to active view'}
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                  )}
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* Destructive actions */}
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(doc, e);
+                    }}
+                    disabled={actionLoading.has(docId)}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span>Delete</span>
+                      <span className="text-xs text-muted-foreground">Mark for removal (can be restored)</span>
+                    </div>
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleHardDeleteClick(doc, e);
+                    }}
+                    disabled={actionLoading.has(docId)}
+                    className="text-red-700 focus:text-red-700 focus:bg-red-50"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">Delete Permanently</span>
+                      <span className="text-xs text-muted-foreground">Cannot be restored</span>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }, [selectedDocId, showActions, handleDocumentClick, handleArchive, handleUnarchive, handleDeleteClick, handleHardDeleteClick, handleOpenFile, actionLoading, getDocumentId]);
+
   // Render empty state
   const renderEmptyState = useCallback(() => {
     if (loading) {
@@ -974,9 +1136,9 @@ export function DocumentList({
           </div>
         </div>
 
-        {/* Stats Summary - Enhanced with colored cards */}
+        {/* Stats Summary - Enhanced with colored cards (hidden on mobile) */}
         {computedStats && (typeof computedStats.total_docs === 'number' || typeof computedStats.active === 'number') && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+          <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
             <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
               <CardContent className="p-4 text-center">
                 <div className="text-2xl font-bold text-gray-800">{computedStats.total_docs ?? 0}</div>
@@ -1028,8 +1190,46 @@ export function DocumentList({
           </div>
         )}
 
-        {/* Document Table */}
-        <div className="rounded-md border overflow-x-auto">
+        {/* Mobile Card View */}
+        <div className="block md:hidden">
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mt-2">Loading documents...</p>
+            </div>
+          )}
+          
+          {error && (
+            <div className="flex flex-col items-center justify-center gap-2 py-12">
+              <AlertCircle className="h-6 w-6 text-destructive" />
+              <p className="text-sm text-destructive">{error}</p>
+              <Button variant="outline" size="sm" onClick={handleRefresh}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
+          )}
+          
+          {!loading && !error && (!filteredDocuments || filteredDocuments.length === 0) && (
+            <div className="flex flex-col items-center justify-center gap-2 py-12">
+              <FileText className="h-6 w-6 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                {searchTerm || statusFilter !== 'all'
+                  ? 'No documents match your filters'
+                  : 'No documents found'}
+              </p>
+            </div>
+          )}
+          
+          {!loading && !error && Array.isArray(filteredDocuments) && filteredDocuments.length > 0 && (
+            <div>
+              {filteredDocuments.map(renderMobileCard)}
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

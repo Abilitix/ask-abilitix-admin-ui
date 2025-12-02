@@ -139,6 +139,7 @@ export function DocumentList({
     error,
     refetch,
     refetchStats,
+    silentRefetch,
     setFilters,
   } = useDocuments({
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -362,8 +363,18 @@ export function DocumentList({
       toast.success('Document archived');
       
       // Silently refresh data in background without showing loading state
-      Promise.all([refetch(), refetchStats()]).catch(err => {
-        console.error('Failed to refresh after archive:', err);
+      // Only refresh if document would disappear from current filter
+      const needsRefresh = statusFilter === 'active';
+      if (needsRefresh) {
+        // Silently refresh to remove archived doc from active list
+        silentRefetch().catch(err => {
+          console.error('Failed to refresh after archive:', err);
+        });
+      }
+      
+      // Always refresh stats in background (doesn't cause table refresh)
+      refetchStats().catch(err => {
+        console.error('Failed to refresh stats after archive:', err);
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Archive failed';
@@ -376,7 +387,7 @@ export function DocumentList({
         return next;
       });
     }
-  }, [refetch, refetchStats]);
+  }, [silentRefetch, refetchStats, statusFilter]);
 
   // Unarchive/Restore handler - works for archived, superseded, and deleted documents
   const handleUnarchive = useCallback(async (docId: string, currentStatus?: DisplayStatus, e?: React.MouseEvent) => {
@@ -412,8 +423,18 @@ export function DocumentList({
       toast.success(isRestore ? 'Document restored to active' : 'Document unarchived');
       
       // Silently refresh data in background without showing loading state
-      Promise.all([refetch(), refetchStats()]).catch(err => {
-        console.error(`Failed to refresh after ${isRestore ? 'restore' : 'unarchive'}:`, err);
+      // Only refresh if document would appear/disappear from current filter
+      const needsRefresh = statusFilter === 'archived' || statusFilter === 'active';
+      if (needsRefresh) {
+        // Silently refresh to update list
+        silentRefetch().catch(err => {
+          console.error(`Failed to refresh after ${isRestore ? 'restore' : 'unarchive'}:`, err);
+        });
+      }
+      
+      // Always refresh stats in background (doesn't cause table refresh)
+      refetchStats().catch(err => {
+        console.error(`Failed to refresh stats after ${isRestore ? 'restore' : 'unarchive'}:`, err);
       });
     } catch (err) {
       const isRestore = currentStatus === 'deleted';
@@ -427,7 +448,7 @@ export function DocumentList({
         return next;
       });
     }
-  }, [refetch, refetchStats]);
+  }, [silentRefetch, refetchStats, statusFilter]);
 
   // Helper to get document ID (handles both 'id' and 'doc_id' fields)
   const getDocumentId = useCallback((doc: Document | any): string | null => {
@@ -542,8 +563,12 @@ export function DocumentList({
       setDocToDelete(null);
       
       // Silently refresh data in background without showing loading state
-      Promise.all([refetch(), refetchStats()]).catch(err => {
+      silentRefetch().catch(err => {
         console.error('Failed to refresh after delete:', err);
+      });
+      // Always refresh stats in background (doesn't cause table refresh)
+      refetchStats().catch(err => {
+        console.error('Failed to refresh stats after delete:', err);
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Delete failed';
@@ -556,7 +581,7 @@ export function DocumentList({
         return next;
       });
     }
-  }, [docToDelete, refetch, refetchStats, getDocumentId]);
+  }, [docToDelete, silentRefetch, refetchStats, getDocumentId]);
 
   // Document selection handler - with error handling to prevent client-side exceptions
   const handleDocumentClick = useCallback((docId: string) => {
@@ -764,7 +789,11 @@ export function DocumentList({
                   disabled={actionLoading.has(docId)}
                   className="text-red-600 focus:text-red-600"
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
+                  {actionLoading.has(docId) ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
                   <div className="flex flex-col">
                     <span>Delete</span>
                     <span className="text-xs text-muted-foreground">Mark for removal (can be restored)</span>
@@ -779,7 +808,11 @@ export function DocumentList({
                   disabled={actionLoading.has(docId)}
                   className="text-red-700 focus:text-red-700 focus:bg-red-50"
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
+                  {actionLoading.has(docId) ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
                   <div className="flex flex-col">
                     <span className="font-medium">Delete Permanently</span>
                     <span className="text-xs text-muted-foreground">Cannot be restored</span>
@@ -925,7 +958,11 @@ export function DocumentList({
                     disabled={actionLoading.has(docId)}
                     className="text-red-600 focus:text-red-600"
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    {actionLoading.has(docId) ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-2 h-4 w-4" />
+                    )}
                     <div className="flex flex-col">
                       <span>Delete</span>
                       <span className="text-xs text-muted-foreground">Mark for removal (can be restored)</span>
@@ -940,7 +977,11 @@ export function DocumentList({
                     disabled={actionLoading.has(docId)}
                     className="text-red-700 focus:text-red-700 focus:bg-red-50"
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    {actionLoading.has(docId) ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-2 h-4 w-4" />
+                    )}
                     <div className="flex flex-col">
                       <span className="font-medium">Delete Permanently</span>
                       <span className="text-xs text-muted-foreground">Cannot be restored</span>
@@ -1289,13 +1330,17 @@ export function DocumentList({
       <ConfirmationDialog
         open={deleteDialogOpen}
         onClose={() => {
-          setDeleteDialogOpen(false);
-          setDocToDelete(null);
+          if (!docToDelete || !actionLoading.has(getDocumentId(docToDelete) || '')) {
+            setDeleteDialogOpen(false);
+            setDocToDelete(null);
+          }
         }}
         title="Delete Document"
         message={`Are you sure you want to delete "${docToDelete?.title || docToDelete?.file_name || 'this document'}"? This is a soft delete and can be restored later.`}
         confirmText="Delete"
         variant="destructive"
+        loading={docToDelete ? actionLoading.has(getDocumentId(docToDelete) || '') : false}
+        loadingText="Deleting..."
         onConfirm={() => handleDeleteConfirm(false)}
       />
       
@@ -1303,13 +1348,17 @@ export function DocumentList({
       <ConfirmationDialog
         open={hardDeleteDialogOpen}
         onClose={() => {
-          setHardDeleteDialogOpen(false);
-          setDocToDelete(null);
+          if (!docToDelete || !actionLoading.has(getDocumentId(docToDelete) || '')) {
+            setHardDeleteDialogOpen(false);
+            setDocToDelete(null);
+          }
         }}
         title="⚠️ Permanently Delete Document"
         message={`⚠️ WARNING: Are you sure you want to PERMANENTLY delete "${docToDelete?.title || docToDelete?.file_name || 'this document'}"? This action CANNOT be undone. All data will be permanently removed from the system.`}
         confirmText="Delete Permanently"
         variant="destructive"
+        loading={docToDelete ? actionLoading.has(getDocumentId(docToDelete) || '') : false}
+        loadingText="Deleting permanently..."
         onConfirm={() => handleDeleteConfirm(true)}
       />
     </Card>

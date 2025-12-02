@@ -37,6 +37,7 @@ export interface UseDocumentsReturn {
   // Actions
   refetch: () => Promise<void>;
   refetchStats: () => Promise<void>;
+  silentRefetch: () => Promise<void>; // Refetch without showing loading state
   setFilters: (filters: DocumentListParams) => void;
   
   // Current filters
@@ -87,6 +88,20 @@ export function useDocuments(initialFilters: DocumentListParams = {}): UseDocume
     }
   }, [filters]);
 
+  // Silent refetch - updates data without showing loading state
+  const silentRefetch = useCallback(async () => {
+    try {
+      setError(null);
+      const response: DocumentListResponse = await fetchDocuments(filters);
+      setDocuments(Array.isArray(response.items) ? response.items : []);
+      setTotal(typeof response.total === 'number' ? response.total : 0);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch documents';
+      console.error('Silent refetch failed:', err);
+      // Don't show toast or set error for silent refetch - it's background update
+    }
+  }, [filters]);
+
   // Fetch document statistics
   const refetchStats = useCallback(async () => {
     try {
@@ -130,6 +145,7 @@ export function useDocuments(initialFilters: DocumentListParams = {}): UseDocume
     error,
     refetch,
     refetchStats,
+    silentRefetch,
     setFilters,
     filters,
   };

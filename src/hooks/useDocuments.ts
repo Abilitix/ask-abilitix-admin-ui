@@ -74,8 +74,9 @@ export function useDocuments(initialFilters: DocumentListParams = {}): UseDocume
 
       const response: DocumentListResponse = await fetchDocuments(filters);
       
-      setDocuments(response.items);
-      setTotal(response.total);
+      // Defensive check
+      setDocuments(Array.isArray(response.items) ? response.items : []);
+      setTotal(typeof response.total === 'number' ? response.total : 0);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch documents';
       setError(errorMessage);
@@ -108,12 +109,16 @@ export function useDocuments(initialFilters: DocumentListParams = {}): UseDocume
 
   // Initial fetch on mount and when filters change
   useEffect(() => {
-    refetch();
+    refetch().catch((err) => {
+      console.error('Initial fetch error:', err);
+    });
   }, [refetch]);
 
   // Initial stats fetch on mount
   useEffect(() => {
-    refetchStats();
+    refetchStats().catch((err) => {
+      console.error('Initial stats fetch error:', err);
+    });
   }, [refetchStats]);
 
   return {

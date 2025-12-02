@@ -76,6 +76,17 @@ export async function fetchDocuments(
     throw new Error('Empty response from server');
   }
 
+  // Defensive check: ensure response has expected structure
+  if (!data.items || !Array.isArray(data.items)) {
+    console.error('Invalid API response structure:', data);
+    return {
+      items: [],
+      total: 0,
+      limit: params.limit || 20,
+      offset: params.offset || 0,
+    };
+  }
+
   return data;
 }
 
@@ -108,6 +119,20 @@ export async function fetchDocumentStats(): Promise<DocumentStats> {
   const data = await safeParseJson<DocumentStats>(response);
   if (!data) {
     throw new Error('Empty response from server');
+  }
+
+  // Defensive check: ensure response has expected structure
+  if (typeof data.total !== 'number') {
+    console.error('Invalid stats response structure:', data);
+    return {
+      total: 0,
+      active: 0,
+      pending: 0,
+      processing: 0,
+      failed: 0,
+      superseded: 0,
+      deleted: 0,
+    };
   }
 
   return data;

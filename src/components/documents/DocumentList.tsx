@@ -117,6 +117,13 @@ export function DocumentList({
     offset,
   });
 
+  // Handle errors gracefully
+  useEffect(() => {
+    if (error) {
+      console.error('DocumentList error:', error);
+    }
+  }, [error]);
+
   // Apply filters when they change
   const handleStatusFilterChange = useCallback((value: string) => {
     const newStatus = value as DisplayStatus | 'all';
@@ -203,7 +210,7 @@ export function DocumentList({
   const hasPreviousPage = useMemo(() => offset > 0, [offset]);
   const currentPage = useMemo(() => Math.floor(offset / limit) + 1, [offset, limit]);
   const totalPages = useMemo(() => Math.ceil(total / limit), [total, limit]);
-  const filteredDocuments = useMemo(() => documents, [documents]);
+  const filteredDocuments = useMemo(() => Array.isArray(documents) ? documents : [], [documents]);
 
   // Render document row
   const renderDocumentRow = useCallback((doc: Document) => {
@@ -301,7 +308,7 @@ export function DocumentList({
       );
     }
 
-    if (filteredDocuments.length === 0) {
+    if (!filteredDocuments || filteredDocuments.length === 0) {
       return (
         <TableRow>
           <TableCell colSpan={showActions ? 6 : 5} className="h-24 text-center">
@@ -319,7 +326,7 @@ export function DocumentList({
     }
 
     return null;
-  }, [loading, error, filteredDocuments.length, searchTerm, statusFilter, showActions, handleRefresh]);
+  }, [loading, error, filteredDocuments, searchTerm, statusFilter, showActions, handleRefresh]);
 
   return (
     <Card>
@@ -370,30 +377,30 @@ export function DocumentList({
         </div>
 
         {/* Stats Summary */}
-        {stats && (
+        {stats && typeof stats.total === 'number' && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mb-6">
             <div className="text-center p-2 bg-muted rounded">
-              <div className="text-lg font-semibold">{stats.total}</div>
+              <div className="text-lg font-semibold">{stats.total ?? 0}</div>
               <div className="text-xs text-muted-foreground">Total</div>
             </div>
             <div className="text-center p-2 bg-green-50 rounded">
-              <div className="text-lg font-semibold text-green-700">{stats.active}</div>
+              <div className="text-lg font-semibold text-green-700">{stats.active ?? 0}</div>
               <div className="text-xs text-muted-foreground">Active</div>
             </div>
             <div className="text-center p-2 bg-yellow-50 rounded">
-              <div className="text-lg font-semibold text-yellow-700">{stats.pending}</div>
+              <div className="text-lg font-semibold text-yellow-700">{stats.pending ?? 0}</div>
               <div className="text-xs text-muted-foreground">Pending</div>
             </div>
             <div className="text-center p-2 bg-blue-50 rounded">
-              <div className="text-lg font-semibold text-blue-700">{stats.processing}</div>
+              <div className="text-lg font-semibold text-blue-700">{stats.processing ?? 0}</div>
               <div className="text-xs text-muted-foreground">Processing</div>
             </div>
             <div className="text-center p-2 bg-red-50 rounded">
-              <div className="text-lg font-semibold text-red-700">{stats.failed}</div>
+              <div className="text-lg font-semibold text-red-700">{stats.failed ?? 0}</div>
               <div className="text-xs text-muted-foreground">Failed</div>
             </div>
             <div className="text-center p-2 bg-gray-50 rounded">
-              <div className="text-lg font-semibold text-gray-700">{stats.superseded}</div>
+              <div className="text-lg font-semibold text-gray-700">{stats.superseded ?? 0}</div>
               <div className="text-xs text-muted-foreground">Superseded</div>
             </div>
           </div>
@@ -414,7 +421,7 @@ export function DocumentList({
             </TableHeader>
             <TableBody>
               {renderEmptyState()}
-              {!loading && !error && filteredDocuments.length > 0 && (
+              {!loading && !error && Array.isArray(filteredDocuments) && filteredDocuments.length > 0 && (
                 <>
                   {filteredDocuments.map(renderDocumentRow)}
                 </>

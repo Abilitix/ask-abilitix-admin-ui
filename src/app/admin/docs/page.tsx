@@ -1,6 +1,6 @@
 import { requireAuth, canManageDocs } from '@/lib/auth';
+import { DocumentsClient } from '@/components/documents/DocumentsClient';
 import { DocsStatsCard } from '@/components/docs/DocsStatsCard';
-import { DocumentManagementClient } from '@/components/docs/DocumentManagementClient';
 import { ReembedButton } from '@/components/docs/ReembedButton';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -35,8 +35,8 @@ export default async function AdminDocsPage() {
           {/* Document Statistics */}
           <DocsStatsCard />
           
-          {/* Complete Document Management */}
-          <DocumentManagementClient />
+          {/* New Document Management System */}
+          <DocumentsClient showActions={true} />
           
           {/* Re-embed Button */}
           <ReembedButton />

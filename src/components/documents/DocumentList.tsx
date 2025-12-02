@@ -224,7 +224,9 @@ export function DocumentList({
       });
 
       if (!response.ok) {
-        throw new Error(`Archive failed: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail?.message || errorData.message || `Archive failed: ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       toast.success('Document archived');
@@ -249,7 +251,9 @@ export function DocumentList({
       });
 
       if (!response.ok) {
-        throw new Error(`Unarchive failed: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail?.message || errorData.message || `Unarchive failed: ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       toast.success('Document unarchived');
@@ -280,7 +284,9 @@ export function DocumentList({
       });
 
       if (!response.ok) {
-        throw new Error(`Delete failed: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail?.message || errorData.message || `Delete failed: ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       toast.success('Document deleted');

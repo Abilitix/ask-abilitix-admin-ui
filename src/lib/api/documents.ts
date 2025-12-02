@@ -176,10 +176,12 @@ export async function fetchDocumentStats(): Promise<DocumentStats> {
     throw new Error(handleApiError(response, data));
   }
 
-  const data = await safeParseJson<DocumentStats>(response);
+  const data = await safeParseJson<any>(response);
   if (!data) {
     throw new Error('Empty response from server');
   }
+
+  console.log('[DMS Stats] Backend response:', data);
 
   // Defensive check: ensure response has expected structure
   if (typeof data.total !== 'number') {
@@ -195,7 +197,21 @@ export async function fetchDocumentStats(): Promise<DocumentStats> {
     };
   }
 
-  return data;
+  // Map backend response to expected format
+  // Backend might return different field names, so we normalize them
+  const normalizedStats: DocumentStats = {
+    total: typeof data.total === 'number' ? data.total : 0,
+    active: typeof data.active === 'number' ? data.active : (typeof data.active_count === 'number' ? data.active_count : 0),
+    pending: typeof data.pending === 'number' ? data.pending : (typeof data.pending_count === 'number' ? data.pending_count : 0),
+    processing: typeof data.processing === 'number' ? data.processing : (typeof data.processing_count === 'number' ? data.processing_count : 0),
+    failed: typeof data.failed === 'number' ? data.failed : (typeof data.failed_count === 'number' ? data.failed_count : 0),
+    superseded: typeof data.superseded === 'number' ? data.superseded : (typeof data.superseded_count === 'number' ? data.superseded_count : 0),
+    deleted: typeof data.deleted === 'number' ? data.deleted : (typeof data.deleted_count === 'number' ? data.deleted_count : 0),
+  };
+
+  console.log('[DMS Stats] Normalized stats:', normalizedStats);
+
+  return normalizedStats;
 }
 
 /**

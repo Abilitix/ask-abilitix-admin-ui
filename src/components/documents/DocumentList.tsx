@@ -24,7 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Document, DisplayStatus } from '@/lib/types/documents';
+import type { Document, DisplayStatus, DocumentStats } from '@/lib/types/documents';
 import { computeDisplayStatus } from '@/lib/types/documents';
 import {
   Search,
@@ -143,6 +143,50 @@ export function DocumentList({
     offset,
   });
 
+  // Compute stats from actual documents if backend stats are missing/incorrect
+  const computedStats = useMemo(() => {
+    if (!documents || documents.length === 0) {
+      return stats;
+    }
+
+    // If stats exist and look valid, use them
+    if (stats && typeof stats.total === 'number' && stats.total > 0) {
+      return stats;
+    }
+
+    // Otherwise, compute from documents
+    const computed = {
+      total: documents.length,
+      active: documents.filter(d => {
+        const status = computeDisplayStatus(d);
+        return status === 'active';
+      }).length,
+      pending: documents.filter(d => {
+        const status = computeDisplayStatus(d);
+        return status === 'pending';
+      }).length,
+      processing: documents.filter(d => {
+        const status = computeDisplayStatus(d);
+        return status === 'processing';
+      }).length,
+      failed: documents.filter(d => {
+        const status = computeDisplayStatus(d);
+        return status === 'failed';
+      }).length,
+      superseded: documents.filter(d => {
+        const status = computeDisplayStatus(d);
+        return status === 'superseded';
+      }).length,
+      deleted: documents.filter(d => {
+        const status = computeDisplayStatus(d);
+        return status === 'deleted';
+      }).length,
+    };
+
+    console.log('[DocumentList] Computed stats from documents:', computed);
+    return computed;
+  }, [documents, stats]);
+
   // Handle errors gracefully
   useEffect(() => {
     if (error) {
@@ -237,8 +281,10 @@ export function DocumentList({
   }, [refetch, refetchStats]);
 
   // Archive handler
-  const handleArchive = useCallback(async (docId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleArchive = useCallback(async (docId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
     
     if (!docId || docId === 'undefined' || docId === 'null') {
       console.error('[Archive] Invalid document ID:', docId);
@@ -311,8 +357,10 @@ export function DocumentList({
   }, [refetch, refetchStats]);
 
   // Unarchive handler
-  const handleUnarchive = useCallback(async (docId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleUnarchive = useCallback(async (docId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
     
     // Set loading state for this specific document
     setActionLoading(prev => new Set(prev).add(docId));
@@ -541,12 +589,23 @@ export function DocumentList({
             : '0'}
         </TableCell>
         <TableCell 
-          className="text-sm text-muted-foreground cursor-help" 
-          title="Number of citations referencing this document (click row to view details)"
+          className="text-sm text-muted-foreground cursor-pointer hover:text-foreground hover:underline" 
+          title="Click to view citation details (click row to view full document)"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDocumentClick(docId);
+          }}
         >
           {doc.citation_count !== undefined ? `${doc.citation_count}` : '0'}
         </TableCell>
-        <TableCell className="text-sm text-muted-foreground">
+        <TableCell 
+          className="text-sm text-muted-foreground cursor-pointer hover:text-foreground hover:underline"
+          title="Click to view document details"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDocumentClick(docId);
+          }}
+        >
           {formatDistanceToNow(doc.updated_at)}
         </TableCell>
         {showActions && (
@@ -587,9 +646,14 @@ export function DocumentList({
                 {/* Status management */}
                 {displayStatus === 'active' && (
                   <DropdownMenuItem
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      handleArchive(docId, e);
+                      try {
+                        await handleArchive(docId, e);
+                      } catch (err) {
+                        console.error('Archive error:', err);
+                        // Error is already handled in handleArchive
+                      }
                     }}
                     disabled={actionLoading.has(docId)}
                     className="text-orange-600 focus:text-orange-600"
@@ -603,9 +667,14 @@ export function DocumentList({
                 )}
                 {(displayStatus === 'superseded' || displayStatus === 'archived') && (
                   <DropdownMenuItem
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      handleUnarchive(docId, e);
+                      try {
+                        await handleUnarchive(docId, e);
+                      } catch (err) {
+                        console.error('Unarchive error:', err);
+                        // Error is already handled in handleUnarchive
+                      }
                     }}
                     disabled={actionLoading.has(docId)}
                     className="text-green-600 focus:text-green-600"
@@ -756,41 +825,41 @@ export function DocumentList({
         </div>
 
         {/* Stats Summary - Enhanced with colored cards */}
-        {stats && typeof stats.total === 'number' && (
+        {computedStats && typeof computedStats.total === 'number' && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
             <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-gray-800">{stats.total ?? 0}</div>
+                <div className="text-2xl font-bold text-gray-800">{computedStats.total ?? 0}</div>
                 <div className="text-xs font-medium text-gray-600 mt-1">Total</div>
               </CardContent>
             </Card>
             <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-green-700">{stats.active ?? 0}</div>
+                <div className="text-2xl font-bold text-green-700">{computedStats.active ?? 0}</div>
                 <div className="text-xs font-medium text-green-600 mt-1">Active</div>
               </CardContent>
             </Card>
             <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-yellow-700">{stats.pending ?? 0}</div>
+                <div className="text-2xl font-bold text-yellow-700">{computedStats.pending ?? 0}</div>
                 <div className="text-xs font-medium text-yellow-600 mt-1">Pending</div>
               </CardContent>
             </Card>
             <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-blue-700">{stats.processing ?? 0}</div>
+                <div className="text-2xl font-bold text-blue-700">{computedStats.processing ?? 0}</div>
                 <div className="text-xs font-medium text-blue-600 mt-1">Processing</div>
               </CardContent>
             </Card>
             <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-red-700">{stats.failed ?? 0}</div>
+                <div className="text-2xl font-bold text-red-700">{computedStats.failed ?? 0}</div>
                 <div className="text-xs font-medium text-red-600 mt-1">Failed</div>
               </CardContent>
             </Card>
             <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-orange-700">{stats.superseded ?? 0}</div>
+                <div className="text-2xl font-bold text-orange-700">{computedStats.superseded ?? 0}</div>
                 <div className="text-xs font-medium text-orange-600 mt-1">Superseded</div>
               </CardContent>
             </Card>

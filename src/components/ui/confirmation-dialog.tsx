@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, CheckCircle2, XCircle, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, XCircle, X, Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
 
 type ConfirmationDialogProps = {
@@ -15,6 +15,7 @@ type ConfirmationDialogProps = {
   cancelText?: string;
   variant?: 'default' | 'destructive' | 'warning';
   loading?: boolean;
+  loadingText?: string; // Custom loading text (e.g., "Deleting...", "Archiving...")
 };
 
 export function ConfirmationDialog({
@@ -27,6 +28,7 @@ export function ConfirmationDialog({
   cancelText = 'Cancel',
   variant = 'default',
   loading = false,
+  loadingText,
 }: ConfirmationDialogProps) {
   // Handle ESC key
   useEffect(() => {
@@ -148,12 +150,12 @@ export function ConfirmationDialog({
             <Button
               onClick={handleConfirm}
               disabled={loading}
-              className={`min-w-[80px] ${style.confirmButton} transition-all`}
+              className={`min-w-[80px] ${style.confirmButton} transition-all ${loading ? 'opacity-75 cursor-not-allowed' : ''}`}
             >
               {loading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                  Processing...
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  {loadingText || 'Processing...'}
                 </>
               ) : (
                 confirmText

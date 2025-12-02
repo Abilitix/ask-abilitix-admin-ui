@@ -149,8 +149,8 @@ export function DocumentList({
 
   // Use backend stats if available, otherwise compute from all documents
   const computedStats = useMemo(() => {
-    // Always prefer backend stats if they exist (even if some counts are 0)
-    if (stats && typeof stats.total === 'number') {
+    // Always prefer backend stats if they exist (check for total_docs or active field)
+    if (stats && (typeof stats.total_docs === 'number' || typeof stats.active === 'number')) {
       console.log('[DocumentList] Using backend stats:', stats);
       return stats;
     }
@@ -158,7 +158,7 @@ export function DocumentList({
     // Fallback: compute from current page documents (limited accuracy)
     if (documents && documents.length > 0) {
       const computed = {
-        total: total || documents.length, // Use total from hook if available
+        total_docs: total || documents.length, // Use total from hook if available
         active: documents.filter(d => {
           const status = computeDisplayStatus(d);
           return status === 'active';
@@ -174,6 +174,10 @@ export function DocumentList({
         failed: documents.filter(d => {
           const status = computeDisplayStatus(d);
           return status === 'failed';
+        }).length,
+        archived: documents.filter(d => {
+          const status = computeDisplayStatus(d);
+          return status === 'archived';
         }).length,
         superseded: documents.filter(d => {
           const status = computeDisplayStatus(d);
@@ -191,11 +195,12 @@ export function DocumentList({
 
     // Default empty stats
     return {
-      total: 0,
+      total_docs: 0,
       active: 0,
       pending: 0,
       processing: 0,
       failed: 0,
+      archived: 0,
       superseded: 0,
       deleted: 0,
     };
@@ -639,7 +644,8 @@ export function DocumentList({
           <DocumentStatusBadge status={displayStatus} />
         </TableCell>
         <TableCell 
-          className="text-sm text-muted-foreground" 
+          className="text-sm text-muted-foreground cursor-default" 
+          onClick={(e) => e.stopPropagation()}
           title="Number of text chunks this document was split into (for RAG/search)"
         >
           {(doc as any).chunks_count !== undefined 
@@ -649,12 +655,17 @@ export function DocumentList({
             : '0'}
         </TableCell>
         <TableCell 
-          className="text-sm text-muted-foreground" 
+          className="text-sm text-muted-foreground cursor-default" 
+          onClick={(e) => e.stopPropagation()}
           title="Number of FAQs/inbox items that reference this document"
         >
           {doc.citation_count !== undefined ? `${doc.citation_count}` : '0'}
         </TableCell>
-        <TableCell className="text-sm text-muted-foreground">
+        <TableCell 
+          className="text-sm text-muted-foreground cursor-default" 
+          onClick={(e) => e.stopPropagation()}
+          title="Last update time"
+        >
           {formatDistanceToNow(doc.updated_at)}
         </TableCell>
         {showActions && (
@@ -964,11 +975,11 @@ export function DocumentList({
         </div>
 
         {/* Stats Summary - Enhanced with colored cards */}
-        {computedStats && typeof computedStats.total === 'number' && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+        {computedStats && (typeof computedStats.total_docs === 'number' || typeof computedStats.active === 'number') && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
             <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-gray-800">{computedStats.total ?? 0}</div>
+                <div className="text-2xl font-bold text-gray-800">{computedStats.total_docs ?? computedStats.total ?? 0}</div>
                 <div className="text-xs font-medium text-gray-600 mt-1">Total</div>
               </CardContent>
             </Card>
@@ -996,10 +1007,22 @@ export function DocumentList({
                 <div className="text-xs font-medium text-red-600 mt-1">Failed</div>
               </CardContent>
             </Card>
+            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-purple-700">{computedStats.archived ?? 0}</div>
+                <div className="text-xs font-medium text-purple-600 mt-1">Archived</div>
+              </CardContent>
+            </Card>
             <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
               <CardContent className="p-4 text-center">
                 <div className="text-2xl font-bold text-orange-700">{computedStats.superseded ?? 0}</div>
                 <div className="text-xs font-medium text-orange-600 mt-1">Superseded</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-red-100 to-red-200 border-red-300">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-red-800">{computedStats.deleted ?? 0}</div>
+                <div className="text-xs font-medium text-red-700 mt-1">Deleted</div>
               </CardContent>
             </Card>
           </div>

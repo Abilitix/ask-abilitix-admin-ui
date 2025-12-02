@@ -71,13 +71,22 @@ export interface DocumentListResponse {
 
 /**
  * Document statistics response from GET /admin/docs/stats.
+ * 
+ * Backend returns both chunk stats (with_vec, missing_vec, total) and document counts by status.
  */
 export interface DocumentStats {
-  total: number;
+  // Chunk statistics (existing, preserved for backward compatibility)
+  with_vec?: number; // Chunks with embeddings
+  missing_vec?: number; // Chunks without embeddings
+  total?: number; // Total chunks (legacy field name, still used for chunks)
+  
+  // Document counts by status (new fields from backend)
+  total_docs?: number; // Total document count
   active: number;
   pending: number;
   processing: number;
   failed: number;
+  archived: number; // New field for archived documents
   superseded: number;
   deleted: number;
 }

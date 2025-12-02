@@ -183,30 +183,24 @@ export async function fetchDocumentStats(): Promise<DocumentStats> {
 
   console.log('[DMS Stats] Backend response:', data);
 
-  // Defensive check: ensure response has expected structure
-  if (typeof data.total !== 'number') {
-    console.error('Invalid stats response structure:', data);
-    return {
-      total: 0,
-      active: 0,
-      pending: 0,
-      processing: 0,
-      failed: 0,
-      superseded: 0,
-      deleted: 0,
-    };
-  }
-
   // Map backend response to expected format
-  // Backend might return different field names, so we normalize them
+  // Backend now returns: total_docs, active, pending, processing, failed, archived, deleted, superseded (document counts)
+  // Plus: with_vec, missing_vec, total (chunk counts - preserved for backward compatibility)
   const normalizedStats: DocumentStats = {
-    total: typeof data.total === 'number' ? data.total : 0,
-    active: typeof data.active === 'number' ? data.active : (typeof data.active_count === 'number' ? data.active_count : 0),
-    pending: typeof data.pending === 'number' ? data.pending : (typeof data.pending_count === 'number' ? data.pending_count : 0),
-    processing: typeof data.processing === 'number' ? data.processing : (typeof data.processing_count === 'number' ? data.processing_count : 0),
-    failed: typeof data.failed === 'number' ? data.failed : (typeof data.failed_count === 'number' ? data.failed_count : 0),
-    superseded: typeof data.superseded === 'number' ? data.superseded : (typeof data.superseded_count === 'number' ? data.superseded_count : 0),
-    deleted: typeof data.deleted === 'number' ? data.deleted : (typeof data.deleted_count === 'number' ? data.deleted_count : 0),
+    // Chunk statistics (preserved from backend)
+    with_vec: typeof data.with_vec === 'number' ? data.with_vec : undefined,
+    missing_vec: typeof data.missing_vec === 'number' ? data.missing_vec : undefined,
+    total: typeof data.total === 'number' ? data.total : undefined, // Total chunks (legacy field)
+    
+    // Document counts by status (new fields from backend)
+    total_docs: typeof data.total_docs === 'number' ? data.total_docs : undefined,
+    active: typeof data.active === 'number' ? data.active : 0,
+    pending: typeof data.pending === 'number' ? data.pending : 0,
+    processing: typeof data.processing === 'number' ? data.processing : 0,
+    failed: typeof data.failed === 'number' ? data.failed : 0,
+    archived: typeof data.archived === 'number' ? data.archived : 0, // New field
+    superseded: typeof data.superseded === 'number' ? data.superseded : 0,
+    deleted: typeof data.deleted === 'number' ? data.deleted : 0,
   };
 
   console.log('[DMS Stats] Normalized stats:', normalizedStats);

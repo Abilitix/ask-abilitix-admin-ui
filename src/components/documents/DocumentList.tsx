@@ -407,7 +407,7 @@ export function DocumentList({
         )}
 
         {/* Document Table */}
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -432,7 +432,7 @@ export function DocumentList({
 
         {/* Pagination */}
         {total > 0 && (
-          <div className="flex items-center justify-between mt-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-4">
             <div className="text-sm text-muted-foreground">
               Showing {offset + 1} to {Math.min(offset + limit, total)} of {total} documents
             </div>

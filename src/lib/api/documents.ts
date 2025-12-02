@@ -58,6 +58,8 @@ export async function fetchDocuments(
   const queryString = searchParams.toString();
   const url = `${API_BASE}${queryString ? `?${queryString}` : ''}`;
 
+  console.log('[DMS] Fetching documents:', { url, params });
+
   const response = await fetch(url, {
     method: 'GET',
     headers: {
@@ -71,13 +73,45 @@ export async function fetchDocuments(
     throw new Error(handleApiError(response, data));
   }
 
-  const data = await safeParseJson<DocumentListResponse>(response);
+  const data = await safeParseJson<any>(response);
   if (!data) {
     throw new Error('Empty response from server');
   }
 
-  // Defensive check: ensure response has expected structure
-  if (!data.items || !Array.isArray(data.items)) {
+  console.log('[DMS] API response:', { 
+    hasItems: !!data.items, 
+    hasDocs: !!data.docs, 
+    hasDocuments: !!data.documents, 
+    isArray: Array.isArray(data),
+    keys: Object.keys(data),
+    total: data.total,
+    sample: JSON.stringify(data).substring(0, 200)
+  });
+
+  // Handle both old format (docs/documents array) and new format (items array)
+  let items: Document[] = [];
+  let total = 0;
+
+  // New DMS format: { items: [...], total: number, limit: number, offset: number }
+  if (data.items && Array.isArray(data.items)) {
+    items = data.items;
+    total = typeof data.total === 'number' ? data.total : items.length;
+  }
+  // Old format: { docs: [...] } or { documents: [...] }
+  else if (data.docs && Array.isArray(data.docs)) {
+    items = data.docs;
+    total = items.length;
+  }
+  else if (data.documents && Array.isArray(data.documents)) {
+    items = data.documents;
+    total = items.length;
+  }
+  // Legacy: direct array
+  else if (Array.isArray(data)) {
+    items = data;
+    total = items.length;
+  }
+  else {
     console.error('Invalid API response structure:', data);
     return {
       items: [],
@@ -87,7 +121,12 @@ export async function fetchDocuments(
     };
   }
 
-  return data;
+  return {
+    items,
+    total,
+    limit: typeof data.limit === 'number' ? data.limit : (params.limit || 20),
+    offset: typeof data.offset === 'number' ? data.offset : (params.offset || 0),
+  };
 }
 
 /**

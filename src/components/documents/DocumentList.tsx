@@ -40,6 +40,9 @@ import {
   MoreVertical,
   Archive,
   ArchiveRestore,
+  Info,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -51,7 +54,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { openDocument } from '@/lib/api/documents';
+import { openDocument, DocumentOpenError } from '@/lib/api/documents';
 
 /**
  * Formats a date string as a relative time (e.g., "2h ago", "3d ago").
@@ -124,6 +127,7 @@ export function DocumentList({
   const [hardDeleteDialogOpen, setHardDeleteDialogOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState<Document | null>(null);
   const [actionLoading, setActionLoading] = useState<Set<string>>(new Set()); // Track which documents are being acted upon
+  const [showHelp, setShowHelp] = useState(false); // Help section visibility
 
   // Document data hook
   const {
@@ -207,8 +211,11 @@ export function DocumentList({
       backendStatus = undefined; // 'all' means no filter
     } else if (newStatus === 'active' || newStatus === 'archived' || newStatus === 'superseded') {
       backendStatus = newStatus;
+    } else if (newStatus === 'deleted') {
+      // Deleted is a computed status, filter client-side
+      backendStatus = undefined; // Fetch all and filter client-side
     }
-    // Ignore: pending, processing, failed, deleted (these are computed, not backend statuses)
+    // Ignore: pending, processing, failed (these are computed from upload_status, not backend statuses)
     
     setFilters({
       status: backendStatus,
@@ -429,8 +436,19 @@ export function DocumentList({
         throw new Error('No file URL returned from server');
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to open file';
-      toast.error(errorMessage);
+      // Handle structured error from openDocument
+      if (err instanceof Error) {
+        // Check if it's a DocumentOpenError with a code
+        const errorCode = (err as any).code;
+        const errorMessage = err.message;
+        
+        // Show user-friendly error message (already formatted by openDocument)
+        toast.error(errorMessage, {
+          duration: errorCode === 'no_original_file' ? 6000 : 4000, // Longer duration for important messages
+        });
+      } else {
+        toast.error('Failed to open file. Please try again.');
+      }
     } finally {
       // Remove loading state
       setActionLoading(prev => {
@@ -534,7 +552,27 @@ export function DocumentList({
   const hasPreviousPage = useMemo(() => offset > 0, [offset]);
   const currentPage = useMemo(() => Math.floor(offset / limit) + 1, [offset, limit]);
   const totalPages = useMemo(() => Math.ceil(total / limit), [total, limit]);
-  const filteredDocuments = useMemo(() => Array.isArray(documents) ? documents : [], [documents]);
+  // Filter documents based on status filter (client-side for computed statuses like deleted)
+  const filteredDocuments = useMemo(() => {
+    const docs = Array.isArray(documents) ? documents : [];
+    
+    // If status filter is 'all', return all documents
+    if (statusFilter === 'all') {
+      return docs;
+    }
+    
+    // If status filter is a backend status (active, archived, superseded), 
+    // backend already filtered, so return as-is
+    if (statusFilter === 'active' || statusFilter === 'archived' || statusFilter === 'superseded') {
+      return docs;
+    }
+    
+    // For computed statuses (deleted, pending, processing, failed), filter client-side
+    return docs.filter(doc => {
+      const displayStatus = computeDisplayStatus(doc);
+      return displayStatus === statusFilter;
+    });
+  }, [documents, statusFilter]);
 
   // Render document row
   const renderDocumentRow = useCallback((doc: Document) => {
@@ -562,8 +600,9 @@ export function DocumentList({
     return (
       <TableRow
         key={docId}
-        className={`cursor-pointer ${isSelected ? 'bg-muted' : ''} ${!isAccessible ? 'opacity-60' : ''}`}
+        className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-muted' : ''} ${!isAccessible ? 'opacity-60' : ''}`}
         onClick={() => handleDocumentClick(docId)}
+        title="Click row to view document details, chunks, and citations"
       >
         <TableCell className="font-medium">
           <div className="flex items-center gap-2">
@@ -575,12 +614,8 @@ export function DocumentList({
           <DocumentStatusBadge status={displayStatus} />
         </TableCell>
         <TableCell 
-          className="text-sm text-muted-foreground cursor-pointer hover:text-foreground hover:underline" 
-          title="Click to view chunk details (click row to view full document)"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDocumentClick(docId);
-          }}
+          className="text-sm text-muted-foreground" 
+          title="Number of text chunks this document was split into (for RAG/search)"
         >
           {(doc as any).chunks_count !== undefined 
             ? `${(doc as any).chunks_count}` 
@@ -589,23 +624,12 @@ export function DocumentList({
             : '0'}
         </TableCell>
         <TableCell 
-          className="text-sm text-muted-foreground cursor-pointer hover:text-foreground hover:underline" 
-          title="Click to view citation details (click row to view full document)"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDocumentClick(docId);
-          }}
+          className="text-sm text-muted-foreground" 
+          title="Number of FAQs/inbox items that reference this document"
         >
           {doc.citation_count !== undefined ? `${doc.citation_count}` : '0'}
         </TableCell>
-        <TableCell 
-          className="text-sm text-muted-foreground cursor-pointer hover:text-foreground hover:underline"
-          title="Click to view document details"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDocumentClick(docId);
-          }}
-        >
+        <TableCell className="text-sm text-muted-foreground">
           {formatDistanceToNow(doc.updated_at)}
         </TableCell>
         {showActions && (
@@ -798,6 +822,89 @@ export function DocumentList({
         </div>
       </CardHeader>
       <CardContent>
+        {/* Help Section - Collapsible */}
+        <div className="mb-4 border rounded-lg bg-blue-50/50 border-blue-200">
+          <button
+            onClick={() => setShowHelp(!showHelp)}
+            className="w-full flex items-center justify-between p-3 text-left hover:bg-blue-100/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Info className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-900">Understanding Archive vs Delete</span>
+            </div>
+            {showHelp ? (
+              <ChevronUp className="h-4 w-4 text-blue-600" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-blue-600" />
+            )}
+          </button>
+          {showHelp && (
+            <div className="px-3 pb-3 border-t border-blue-200 bg-white">
+              <div className="pt-3 space-y-3 text-sm">
+                <p className="text-muted-foreground">
+                  Documents can be managed using three actions. Choose the right one for your workflow:
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2 font-semibold">Scenario</th>
+                        <th className="text-center p-2 font-semibold">Archive</th>
+                        <th className="text-center p-2 font-semibold">Soft Delete</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b">
+                        <td className="p-2">I don't need this document anymore</td>
+                        <td className="text-center p-2">✅</td>
+                        <td className="text-center p-2">✅</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="p-2">I want to keep it for compliance</td>
+                        <td className="text-center p-2">✅</td>
+                        <td className="text-center p-2">❌</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="p-2">I want to delete but might need it back</td>
+                        <td className="text-center p-2">❌</td>
+                        <td className="text-center p-2">✅</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2">I want to permanently remove it</td>
+                        <td className="text-center p-2">❌</td>
+                        <td className="text-center p-2">❌</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-start gap-2">
+                    <Archive className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <span className="font-medium">Archive:</span>
+                      <span className="text-muted-foreground"> Hides from active view, keeps for audit/compliance. Can be restored.</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Trash2 className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <span className="font-medium">Delete (Soft):</span>
+                      <span className="text-muted-foreground"> Marks as deleted, recoverable. Use when you might need it back.</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Trash2 className="h-4 w-4 text-red-700 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <span className="font-medium">Delete Permanently (Hard):</span>
+                      <span className="text-muted-foreground"> Permanent removal, cannot be restored. Use with caution.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex-1">
@@ -820,6 +927,7 @@ export function DocumentList({
               <option value="active">Active</option>
               <option value="archived">Archived</option>
               <option value="superseded">Superseded</option>
+              <option value="deleted">Deleted</option>
             </Select>
           </div>
         </div>

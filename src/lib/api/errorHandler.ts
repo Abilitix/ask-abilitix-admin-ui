@@ -120,6 +120,7 @@ export function getUserFriendlyError(error: ParsedError): string {
     invalid_doc_id: 'Invalid document ID format',
     doc_not_found: 'Document not found',
     document_not_accessible: 'This document is not accessible (may be deleted or superseded)',
+    no_original_file: 'This document was uploaded as text and cannot be opened as a file. Only documents uploaded as files (PDF/DOCX) can be opened.',
     unauthorized: 'You are not authenticated. Please sign in.',
     forbidden: 'You do not have permission to perform this action',
     duplicate_faq_exists: 'This FAQ already exists',

@@ -55,6 +55,8 @@ export interface Document {
   chunk_count?: number; // Legacy field name
   chunks_count?: number; // Backend API returns 'chunks_count'
   citation_count?: number;
+  storage_path?: string | null; // Optional: path to original file in storage (required for /open endpoint)
+  has_original_file?: boolean; // Optional: whether document has an original file that can be opened
 }
 
 /**

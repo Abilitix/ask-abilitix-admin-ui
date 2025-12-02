@@ -227,6 +227,13 @@ export async function fetchDocumentStats(): Promise<DocumentStats> {
  * ```
  */
 export async function fetchDocument(docId: string): Promise<DocumentDetail> {
+  // Validate docId format
+  if (!docId || docId === 'undefined' || docId === 'null' || docId.trim() === '') {
+    throw new Error('Invalid document ID');
+  }
+
+  console.log('[DMS] Fetching document detail:', { docId, url: `${API_BASE}/${encodeURIComponent(docId)}` });
+
   const response = await fetch(`${API_BASE}/${encodeURIComponent(docId)}`, {
     method: 'GET',
     headers: {
@@ -235,15 +242,21 @@ export async function fetchDocument(docId: string): Promise<DocumentDetail> {
     cache: 'no-store',
   });
 
+  console.log('[DMS] Document detail response:', { status: response.status, ok: response.ok });
+
   if (!response.ok) {
     const data = await safeParseJson(response);
-    throw new Error(handleApiError(response, data));
+    const errorMessage = handleApiError(response, data);
+    console.error('[DMS] Document detail error:', { status: response.status, error: errorMessage, data });
+    throw new Error(errorMessage);
   }
 
   const data = await safeParseJson<DocumentDetail>(response);
   if (!data) {
     throw new Error('Empty response from server');
   }
+
+  console.log('[DMS] Document detail success:', { docId, hasData: !!data });
 
   return data;
 }
@@ -361,6 +374,20 @@ export async function fetchDocumentCitations(
  * window.open(result.url, '_blank');
  * ```
  */
+/**
+ * Error types for document open operation
+ */
+export class DocumentOpenError extends Error {
+  constructor(
+    message: string,
+    public code?: string,
+    public originalError?: unknown
+  ) {
+    super(message);
+    this.name = 'DocumentOpenError';
+  }
+}
+
 export async function openDocument(docId: string): Promise<{ url: string; expires_in?: number }> {
   const response = await fetch(`${API_BASE}/${encodeURIComponent(docId)}/open`, {
     method: 'GET',
@@ -371,13 +398,41 @@ export async function openDocument(docId: string): Promise<{ url: string; expire
   });
 
   if (!response.ok) {
-    const data = await safeParseJson(response);
-    throw new Error(handleApiError(response, data));
+    const data = await safeParseJson<any>(response);
+    
+    // Parse structured error response from API
+    const errorCode = data?.error?.code || data?.detail?.error?.code;
+    const errorMessage = data?.error?.message || data?.detail?.error?.message || data?.detail?.message || data?.message;
+    
+    console.error('[Open Document] Error response:', { 
+      status: response.status, 
+      code: errorCode, 
+      message: errorMessage,
+      data 
+    });
+
+    // Map error codes to user-friendly messages
+    let userMessage: string;
+    switch (errorCode) {
+      case 'no_original_file':
+        userMessage = 'This document was uploaded as text and cannot be opened as a file. Only documents uploaded as files (PDF/DOCX) can be opened.';
+        break;
+      case 'document_not_accessible':
+        userMessage = 'This document has been deleted or superseded and cannot be opened.';
+        break;
+      case 'doc_not_found':
+        userMessage = 'Document not found. It may have been deleted or you may not have access to it.';
+        break;
+      default:
+        userMessage = errorMessage || `Unable to open document (${response.status}). Please try again.`;
+    }
+
+    throw new DocumentOpenError(userMessage, errorCode, data);
   }
 
   const data = await safeParseJson<{ url: string; signed_url?: string; expires_in?: number }>(response);
   if (!data) {
-    throw new Error('Empty response from server');
+    throw new DocumentOpenError('Empty response from server');
   }
 
   return {

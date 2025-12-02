@@ -399,15 +399,10 @@ export function DocumentList({
 
       toast.success('Document archived');
       
-      // Silently refresh data in background without showing loading state
-      // Only refresh if document would disappear from current filter
-      const needsRefresh = statusFilter === 'active';
-      if (needsRefresh) {
-        // Silently refresh to remove archived doc from active list
-        silentRefetch().catch(err => {
-          console.error('Failed to refresh after archive:', err);
-        });
-      }
+      // Always refresh document list to update UI (button changes from Archive to Unarchive)
+      silentRefetch().catch(err => {
+        console.error('Failed to refresh after archive:', err);
+      });
       
       // Always refresh stats in background (doesn't cause table refresh)
       refetchStats().catch(err => {
@@ -459,15 +454,10 @@ export function DocumentList({
 
       toast.success(isRestore ? 'Document restored to active' : 'Document unarchived');
       
-      // Silently refresh data in background without showing loading state
-      // Only refresh if document would appear/disappear from current filter
-      const needsRefresh = statusFilter === 'archived' || statusFilter === 'active';
-      if (needsRefresh) {
-        // Silently refresh to update list
-        silentRefetch().catch(err => {
-          console.error(`Failed to refresh after ${isRestore ? 'restore' : 'unarchive'}:`, err);
-        });
-      }
+      // Always refresh document list to update UI (button changes from Unarchive to Archive)
+      silentRefetch().catch(err => {
+        console.error(`Failed to refresh after ${isRestore ? 'restore' : 'unarchive'}:`, err);
+      });
       
       // Always refresh stats in background (doesn't cause table refresh)
       refetchStats().catch(err => {
@@ -590,6 +580,28 @@ export function DocumentList({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // Handle 409 Conflict - document is already deleted
+        if (response.status === 409) {
+          const conflictMessage = errorData.detail?.error?.message || errorData.detail?.message || errorData.message || 
+            'This document has already been deleted.';
+          toast.error(conflictMessage, { duration: 5000 });
+          setDeleteDialogOpen(false);
+          setHardDeleteDialogOpen(false);
+          setDocToDelete(null);
+          // Refresh to update UI state
+          silentRefetch().catch(err => {
+            console.error('Failed to refresh after 409:', err);
+          });
+          setActionLoading(prev => {
+            const next = new Set(prev);
+            next.delete(docId);
+            return next;
+          });
+          return;
+        }
+        
+        // Handle other errors
         const errorMessage = errorData.detail?.message || errorData.message || `Delete failed: ${response.status}`;
         throw new Error(errorMessage);
       }
@@ -706,7 +718,11 @@ export function DocumentList({
         onClick={() => handleDocumentClick(docId)}
         title="Click row to view document details, chunks, and citations"
       >
-        <TableCell className="font-medium">
+        <TableCell 
+          className="font-medium cursor-default"
+          onClick={(e) => e.stopPropagation()}
+          title="Document title (display only)"
+        >
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <span className="truncate max-w-[300px]">{doc.title || doc.file_name || 'Untitled'}</span>

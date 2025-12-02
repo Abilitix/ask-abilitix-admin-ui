@@ -333,29 +333,41 @@ export async function fetchDocumentCitations(
 }
 
 /**
- * Opens a document (triggers processing/reprocessing).
+ * Opens a document (returns signed URL to open the original file).
  * 
  * @param docId - Document ID (UUID)
- * @returns Success response
+ * @returns Signed URL response with { url: string, expires_in: number }
  * @throws Error if request fails
  * 
  * @example
  * ```typescript
- * await openDocument(docId);
+ * const result = await openDocument(docId);
+ * window.open(result.url, '_blank');
  * ```
  */
-export async function openDocument(docId: string): Promise<void> {
+export async function openDocument(docId: string): Promise<{ url: string; expires_in?: number }> {
   const response = await fetch(`${API_BASE}/${encodeURIComponent(docId)}/open`, {
-    method: 'POST',
+    method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
+    cache: 'no-store',
   });
 
   if (!response.ok) {
     const data = await safeParseJson(response);
     throw new Error(handleApiError(response, data));
   }
+
+  const data = await safeParseJson<{ url: string; signed_url?: string; expires_in?: number }>(response);
+  if (!data) {
+    throw new Error('Empty response from server');
+  }
+
+  return {
+    url: data.url || data.signed_url || '',
+    expires_in: data.expires_in,
+  };
 }
 
 /**

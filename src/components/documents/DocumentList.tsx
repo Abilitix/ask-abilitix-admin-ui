@@ -37,10 +37,21 @@ import {
   Trash2,
   AlertCircle,
   ExternalLink,
+  MoreVertical,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { openDocument } from '@/lib/api/documents';
 
 /**
  * Formats a date string as a relative time (e.g., "2h ago", "3d ago").
@@ -352,32 +363,19 @@ export function DocumentList({
   }, []);
 
   // Open file handler - opens original PDF/DOCX file
-  const handleOpenFile = useCallback(async (docId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleOpenFile = useCallback(async (docId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
     
     // Set loading state
     setActionLoading(prev => new Set(prev).add(docId));
     
     try {
-      const response = await fetch(`/api/admin/docs/${encodeURIComponent(docId)}/open`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.detail?.message || errorData.message || `Failed to open file: ${response.status}`;
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
+      const result = await openDocument(docId);
       
-      // Backend returns signed URL
-      if (data.url || data.signed_url) {
-        const fileUrl = data.url || data.signed_url;
-        window.open(fileUrl, '_blank');
+      if (result.url) {
+        window.open(result.url, '_blank');
         toast.success('Opening file...');
       } else {
         throw new Error('No file URL returned from server');
@@ -553,95 +551,112 @@ export function DocumentList({
         </TableCell>
         {showActions && (
           <TableCell>
-            <div className="flex items-center gap-2">
-              {displayStatus === 'active' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  onClick={(e) => handleArchive(docId, e)}
+                  className="h-8 w-8 p-0"
+                  onClick={(e) => e.stopPropagation()}
                   disabled={actionLoading.has(docId)}
-                  className="h-8 px-3 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300 disabled:opacity-50"
-                  title="Archive"
                 >
                   {actionLoading.has(docId) ? (
-                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Trash2 className="h-3 w-3 mr-1.5" />
+                    <MoreVertical className="h-4 w-4" />
                   )}
-                  Archive
+                  <span className="sr-only">Open menu</span>
                 </Button>
-              )}
-              {(displayStatus === 'superseded' || displayStatus === 'archived') && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => handleUnarchive(docId, e)}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                {/* Primary action */}
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenFile(docId);
+                  }}
                   disabled={actionLoading.has(docId)}
-                  className="h-8 px-3 text-xs border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 disabled:opacity-50"
-                  title="Unarchive"
                 >
-                  {actionLoading.has(docId) ? (
-                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-3 w-3 mr-1.5" />
-                  )}
-                  Unarchive
-                </Button>
-              )}
-              
-              {/* Open file button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => handleOpenFile(docId, e)}
-                disabled={actionLoading.has(docId)}
-                className="h-8 px-3 text-xs border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50"
-                title="Open original file (PDF/DOCX)"
-              >
-                {actionLoading.has(docId) ? (
-                  <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                ) : (
-                  <ExternalLink className="h-3 w-3 mr-1.5" />
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  <span>Open File</span>
+                  <span className="ml-2 text-xs text-muted-foreground">PDF/DOCX</span>
+                </DropdownMenuItem>
+                
+                <DropdownMenuSeparator />
+                
+                {/* Status management */}
+                {displayStatus === 'active' && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleArchive(docId, e);
+                    }}
+                    disabled={actionLoading.has(docId)}
+                    className="text-orange-600 focus:text-orange-600"
+                  >
+                    <Archive className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span>Archive</span>
+                      <span className="text-xs text-muted-foreground">Hide from active view (can be restored)</span>
+                    </div>
+                  </DropdownMenuItem>
                 )}
-                Open
-              </Button>
-              
-              {/* Soft delete button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteClick(doc, e);
-                }}
-                disabled={actionLoading.has(docId)}
-                className="h-8 px-3 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300 disabled:opacity-50"
-                title="Delete (soft delete - can be restored)"
-              >
-                <Trash2 className="h-3 w-3 mr-1.5" />
-                Delete
-              </Button>
-              
-              {/* Hard delete button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleHardDeleteClick(doc, e);
-                }}
-                disabled={actionLoading.has(docId)}
-                className="h-8 px-2 text-xs border-red-300 text-red-800 hover:bg-red-100 hover:border-red-400 disabled:opacity-50"
-                title="Permanently delete (cannot be restored)"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
+                {(displayStatus === 'superseded' || displayStatus === 'archived') && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUnarchive(docId, e);
+                    }}
+                    disabled={actionLoading.has(docId)}
+                    className="text-green-600 focus:text-green-600"
+                  >
+                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span>Unarchive</span>
+                      <span className="text-xs text-muted-foreground">Restore to active view</span>
+                    </div>
+                  </DropdownMenuItem>
+                )}
+                
+                <DropdownMenuSeparator />
+                
+                {/* Destructive actions */}
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClick(doc, e);
+                  }}
+                  disabled={actionLoading.has(docId)}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  <div className="flex flex-col">
+                    <span>Delete</span>
+                    <span className="text-xs text-muted-foreground">Mark for removal (can be restored)</span>
+                  </div>
+                </DropdownMenuItem>
+                
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleHardDeleteClick(doc, e);
+                  }}
+                  disabled={actionLoading.has(docId)}
+                  className="text-red-700 focus:text-red-700 focus:bg-red-50"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">Delete Permanently</span>
+                    <span className="text-xs text-muted-foreground">Cannot be restored</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </TableCell>
         )}
       </TableRow>
     );
-  }, [selectedDocId, showActions, handleDocumentClick, handleArchive, handleUnarchive, handleDeleteClick, getDocumentId]);
+  }, [selectedDocId, showActions, handleDocumentClick, handleArchive, handleUnarchive, handleDeleteClick, handleHardDeleteClick, handleOpenFile, actionLoading, getDocumentId]);
 
   // Render empty state
   const renderEmptyState = useCallback(() => {

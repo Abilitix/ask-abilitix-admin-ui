@@ -399,15 +399,10 @@ export function DocumentList({
 
       toast.success('Document archived');
       
-      // Silently refresh data in background without showing loading state
-      // Only refresh if document would disappear from current filter
-      const needsRefresh = statusFilter === 'active';
-      if (needsRefresh) {
-        // Silently refresh to remove archived doc from active list
-        silentRefetch().catch(err => {
-          console.error('Failed to refresh after archive:', err);
-        });
-      }
+      // Always refresh document list to update UI (button changes from Archive to Unarchive)
+      silentRefetch().catch(err => {
+        console.error('Failed to refresh after archive:', err);
+      });
       
       // Always refresh stats in background (doesn't cause table refresh)
       refetchStats().catch(err => {
@@ -459,15 +454,10 @@ export function DocumentList({
 
       toast.success(isRestore ? 'Document restored to active' : 'Document unarchived');
       
-      // Silently refresh data in background without showing loading state
-      // Only refresh if document would appear/disappear from current filter
-      const needsRefresh = statusFilter === 'archived' || statusFilter === 'active';
-      if (needsRefresh) {
-        // Silently refresh to update list
-        silentRefetch().catch(err => {
-          console.error(`Failed to refresh after ${isRestore ? 'restore' : 'unarchive'}:`, err);
-        });
-      }
+      // Always refresh document list to update UI (button changes from Unarchive to Archive)
+      silentRefetch().catch(err => {
+        console.error(`Failed to refresh after ${isRestore ? 'restore' : 'unarchive'}:`, err);
+      });
       
       // Always refresh stats in background (doesn't cause table refresh)
       refetchStats().catch(err => {

@@ -215,17 +215,24 @@ export function DocumentList({
   const handleArchive = useCallback(async (docId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
+      // Backend expects: { id: "uuid" }
+      const requestBody = { id: docId };
+      console.log('[Archive] Sending request:', { docId, requestBody });
+      
       const response = await fetch('/api/admin/docs/archive', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id: docId }),
+        body: JSON.stringify(requestBody),
       });
+      
+      console.log('[Archive] Response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.detail?.message || errorData.message || `Archive failed: ${response.status}`;
+        console.error('[Archive] Error response:', errorData);
+        const errorMessage = errorData.detail?.message || errorData.detail?.error?.message || errorData.message || `Archive failed: ${response.status}`;
         throw new Error(errorMessage);
       }
 
@@ -242,13 +249,19 @@ export function DocumentList({
   const handleUnarchive = useCallback(async (docId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
+      // Backend expects: { id: "uuid" }
+      const requestBody = { id: docId };
+      console.log('[Unarchive] Sending request:', { docId, requestBody });
+      
       const response = await fetch('/api/admin/docs/unarchive', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id: docId }),
+        body: JSON.stringify(requestBody),
       });
+      
+      console.log('[Unarchive] Response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

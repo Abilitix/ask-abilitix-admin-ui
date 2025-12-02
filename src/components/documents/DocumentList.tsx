@@ -590,6 +590,28 @@ export function DocumentList({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // Handle 409 Conflict - document is already deleted
+        if (response.status === 409) {
+          const conflictMessage = errorData.detail?.error?.message || errorData.detail?.message || errorData.message || 
+            'This document has already been deleted.';
+          toast.error(conflictMessage, { duration: 5000 });
+          setDeleteDialogOpen(false);
+          setHardDeleteDialogOpen(false);
+          setDocToDelete(null);
+          // Refresh to update UI state
+          silentRefetch().catch(err => {
+            console.error('Failed to refresh after 409:', err);
+          });
+          setActionLoading(prev => {
+            const next = new Set(prev);
+            next.delete(docId);
+            return next;
+          });
+          return;
+        }
+        
+        // Handle other errors
         const errorMessage = errorData.detail?.message || errorData.message || `Delete failed: ${response.status}`;
         throw new Error(errorMessage);
       }

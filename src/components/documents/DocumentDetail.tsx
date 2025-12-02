@@ -113,13 +113,6 @@ export function DocumentDetail({
     handleDelete,
   } = useDocumentDetail(docId, true);
 
-  // Load chunks and citations when document loads
-  useEffect(() => {
-    if (docId && document) {
-      refetchChunks({ limit: chunksLimit, offset: chunksOffset });
-      refetchCitations({ limit: citationsLimit, offset: citationsOffset });
-    }
-  }, [docId, document, chunksLimit, chunksOffset, citationsLimit, citationsOffset, refetchChunks, refetchCitations]);
 
   // Delete handler with confirmation
   const handleDeleteConfirm = useCallback(async () => {
@@ -209,7 +202,32 @@ export function DocumentDetail({
   }
 
   const displayStatus = computeDisplayStatus(document);
-  const isAccessible = isDocumentAccessible(document);
+  const isAccessible = document ? isDocumentAccessible(document) : false;
+
+  // Load chunks and citations when document loads (moved after isAccessible calculation)
+  useEffect(() => {
+    if (docId && document && isAccessible) {
+      // Only fetch if document is accessible (not deleted/superseded)
+      // Wrap in try-catch to prevent client-side exceptions
+      (async () => {
+        try {
+          await refetchChunks({ limit: chunksLimit, offset: chunksOffset });
+        } catch (err) {
+          // Error is already handled in useDocumentDetail hook (no toast shown)
+          console.error('[DocumentDetail] Failed to load chunks:', err);
+        }
+      })();
+      
+      (async () => {
+        try {
+          await refetchCitations({ limit: citationsLimit, offset: citationsOffset });
+        } catch (err) {
+          // Error is already handled in useDocumentDetail hook (no toast shown)
+          console.error('[DocumentDetail] Failed to load citations:', err);
+        }
+      })();
+    }
+  }, [docId, document, isAccessible, chunksLimit, chunksOffset, citationsLimit, citationsOffset, refetchChunks, refetchCitations]);
 
   // Render document metadata section
   const renderMetadata = () => (

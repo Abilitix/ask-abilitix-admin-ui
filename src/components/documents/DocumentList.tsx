@@ -147,49 +147,59 @@ export function DocumentList({
     offset,
   });
 
-  // Compute stats from actual documents if backend stats are missing/incorrect
+  // Use backend stats if available, otherwise compute from all documents
   const computedStats = useMemo(() => {
-    if (!documents || documents.length === 0) {
+    // Always prefer backend stats if they exist (even if some counts are 0)
+    if (stats && typeof stats.total === 'number') {
+      console.log('[DocumentList] Using backend stats:', stats);
       return stats;
     }
 
-    // If stats exist and look valid, use them
-    if (stats && typeof stats.total === 'number' && stats.total > 0) {
-      return stats;
+    // Fallback: compute from current page documents (limited accuracy)
+    if (documents && documents.length > 0) {
+      const computed = {
+        total: total || documents.length, // Use total from hook if available
+        active: documents.filter(d => {
+          const status = computeDisplayStatus(d);
+          return status === 'active';
+        }).length,
+        pending: documents.filter(d => {
+          const status = computeDisplayStatus(d);
+          return status === 'pending';
+        }).length,
+        processing: documents.filter(d => {
+          const status = computeDisplayStatus(d);
+          return status === 'processing';
+        }).length,
+        failed: documents.filter(d => {
+          const status = computeDisplayStatus(d);
+          return status === 'failed';
+        }).length,
+        superseded: documents.filter(d => {
+          const status = computeDisplayStatus(d);
+          return status === 'superseded';
+        }).length,
+        deleted: documents.filter(d => {
+          const status = computeDisplayStatus(d);
+          return status === 'deleted';
+        }).length,
+      };
+
+      console.log('[DocumentList] Computed stats from current page (limited accuracy):', computed);
+      return computed;
     }
 
-    // Otherwise, compute from documents
-    const computed = {
-      total: documents.length,
-      active: documents.filter(d => {
-        const status = computeDisplayStatus(d);
-        return status === 'active';
-      }).length,
-      pending: documents.filter(d => {
-        const status = computeDisplayStatus(d);
-        return status === 'pending';
-      }).length,
-      processing: documents.filter(d => {
-        const status = computeDisplayStatus(d);
-        return status === 'processing';
-      }).length,
-      failed: documents.filter(d => {
-        const status = computeDisplayStatus(d);
-        return status === 'failed';
-      }).length,
-      superseded: documents.filter(d => {
-        const status = computeDisplayStatus(d);
-        return status === 'superseded';
-      }).length,
-      deleted: documents.filter(d => {
-        const status = computeDisplayStatus(d);
-        return status === 'deleted';
-      }).length,
+    // Default empty stats
+    return {
+      total: 0,
+      active: 0,
+      pending: 0,
+      processing: 0,
+      failed: 0,
+      superseded: 0,
+      deleted: 0,
     };
-
-    console.log('[DocumentList] Computed stats from documents:', computed);
-    return computed;
-  }, [documents, stats]);
+  }, [documents, stats, total]);
 
   // Handle errors gracefully
   useEffect(() => {
@@ -363,8 +373,8 @@ export function DocumentList({
     }
   }, [refetch, refetchStats]);
 
-  // Unarchive handler
-  const handleUnarchive = useCallback(async (docId: string, e?: React.MouseEvent) => {
+  // Unarchive/Restore handler - works for archived, superseded, and deleted documents
+  const handleUnarchive = useCallback(async (docId: string, currentStatus?: DisplayStatus, e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
     }
@@ -375,7 +385,8 @@ export function DocumentList({
     try {
       // Backend expects: { id: "uuid" }
       const requestBody = { id: docId };
-      console.log('[Unarchive] Sending request:', { docId, requestBody });
+      const isRestore = currentStatus === 'deleted';
+      console.log(`[${isRestore ? 'Restore' : 'Unarchive'}] Sending request:`, { docId, requestBody, currentStatus });
       
       const response = await fetch('/api/admin/docs/unarchive', {
         method: 'POST',
@@ -385,23 +396,24 @@ export function DocumentList({
         body: JSON.stringify(requestBody),
       });
       
-      console.log('[Unarchive] Response status:', response.status);
+      console.log(`[${isRestore ? 'Restore' : 'Unarchive'}] Response status:`, response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.detail?.message || errorData.message || `Unarchive failed: ${response.status}`;
+        const errorMessage = errorData.detail?.message || errorData.message || `${isRestore ? 'Restore' : 'Unarchive'} failed: ${response.status}`;
         throw new Error(errorMessage);
       }
 
-      toast.success('Document unarchived');
+      toast.success(isRestore ? 'Document restored to active' : 'Document unarchived');
       
       // Silently refresh data in background without showing loading state
       Promise.all([refetch(), refetchStats()]).catch(err => {
-        console.error('Failed to refresh after unarchive:', err);
+        console.error(`Failed to refresh after ${isRestore ? 'restore' : 'unarchive'}:`, err);
       });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unarchive failed';
-      toast.error(`Unarchive failed: ${errorMessage}`);
+      const isRestore = currentStatus === 'deleted';
+      const errorMessage = err instanceof Error ? err.message : `${isRestore ? 'Restore' : 'Unarchive'} failed`;
+      toast.error(`${isRestore ? 'Restore' : 'Unarchive'} failed: ${errorMessage}`);
     } finally {
       // Remove loading state
       setActionLoading(prev => {
@@ -541,10 +553,19 @@ export function DocumentList({
     }
   }, [docToDelete, refetch, refetchStats, getDocumentId]);
 
-  // Document selection handler
+  // Document selection handler - with error handling to prevent client-side exceptions
   const handleDocumentClick = useCallback((docId: string) => {
-    setSelectedDocId(docId);
-    onSelectDocument?.(docId);
+    try {
+      if (!docId || docId === 'undefined' || docId === 'null') {
+        console.error('[DocumentList] Invalid document ID:', docId);
+        return;
+      }
+      setSelectedDocId(docId);
+      onSelectDocument?.(docId);
+    } catch (err) {
+      console.error('[DocumentList] Error opening document:', err);
+      toast.error('Failed to open document. Please try again.');
+    }
   }, [onSelectDocument]);
 
   // Computed values
@@ -610,7 +631,11 @@ export function DocumentList({
             <span className="truncate max-w-[300px]">{doc.title || doc.file_name || 'Untitled'}</span>
           </div>
         </TableCell>
-        <TableCell>
+        <TableCell 
+          className="cursor-default"
+          onClick={(e) => e.stopPropagation()}
+          title="Document status (display only)"
+        >
           <DocumentStatusBadge status={displayStatus} />
         </TableCell>
         <TableCell 
@@ -668,7 +693,8 @@ export function DocumentList({
                 <DropdownMenuSeparator />
                 
                 {/* Status management */}
-                {displayStatus === 'active' && (
+                {/* Show Archive for any document that can be archived (not already archived, deleted, or superseded) */}
+                {displayStatus !== 'archived' && displayStatus !== 'deleted' && displayStatus !== 'superseded' && (
                   <DropdownMenuItem
                     onClick={async (e) => {
                       e.stopPropagation();
@@ -689,14 +715,15 @@ export function DocumentList({
                     </div>
                   </DropdownMenuItem>
                 )}
-                {(displayStatus === 'superseded' || displayStatus === 'archived') && (
+                {/* Show Unarchive/Restore for archived, superseded, or deleted documents */}
+                {(displayStatus === 'superseded' || displayStatus === 'archived' || displayStatus === 'deleted') && (
                   <DropdownMenuItem
                     onClick={async (e) => {
                       e.stopPropagation();
                       try {
-                        await handleUnarchive(docId, e);
+                        await handleUnarchive(docId, displayStatus, e);
                       } catch (err) {
-                        console.error('Unarchive error:', err);
+                        console.error('Unarchive/Restore error:', err);
                         // Error is already handled in handleUnarchive
                       }
                     }}
@@ -705,8 +732,12 @@ export function DocumentList({
                   >
                     <ArchiveRestore className="mr-2 h-4 w-4" />
                     <div className="flex flex-col">
-                      <span>Unarchive</span>
-                      <span className="text-xs text-muted-foreground">Restore to active view</span>
+                      <span>{displayStatus === 'deleted' ? 'Restore' : 'Unarchive'}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {displayStatus === 'deleted' 
+                          ? 'Restore deleted document to active' 
+                          : 'Restore to active view'}
+                      </span>
                     </div>
                   </DropdownMenuItem>
                 )}

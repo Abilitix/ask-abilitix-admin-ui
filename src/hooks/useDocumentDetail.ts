@@ -112,13 +112,17 @@ export function useDocumentDetail(
 
       try {
         setChunksLoading(true);
+        console.log('[useDocumentDetail] Fetching chunks:', { docId, options });
         const response: DocumentChunksResponse = await fetchDocumentChunks(docId, options);
-        setChunks(response.items);
-        setChunksTotal(response.total);
+        console.log('[useDocumentDetail] Chunks response:', { total: response.total, itemsCount: response.items?.length });
+        setChunks(Array.isArray(response.items) ? response.items : []);
+        setChunksTotal(typeof response.total === 'number' ? response.total : 0);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch chunks';
-        toast.error(errorMessage);
-        console.error('Failed to fetch document chunks:', err);
+        console.error('[useDocumentDetail] Failed to fetch chunks:', { docId, error: err, message: errorMessage });
+        // Don't show toast for chunks - it's not critical
+        setChunks([]);
+        setChunksTotal(0);
       } finally {
         setChunksLoading(false);
       }
@@ -136,13 +140,17 @@ export function useDocumentDetail(
 
       try {
         setCitationsLoading(true);
+        console.log('[useDocumentDetail] Fetching citations:', { docId, options });
         const response: DocumentCitationsResponse = await fetchDocumentCitations(docId, options);
-        setCitations(response.items);
-        setCitationsTotal(response.total);
+        console.log('[useDocumentDetail] Citations response:', { total: response.total, itemsCount: response.items?.length });
+        setCitations(Array.isArray(response.items) ? response.items : []);
+        setCitationsTotal(typeof response.total === 'number' ? response.total : 0);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch citations';
-        toast.error(errorMessage);
-        console.error('Failed to fetch document citations:', err);
+        console.error('[useDocumentDetail] Failed to fetch citations:', { docId, error: err, message: errorMessage });
+        // Don't show toast for citations - it's not critical
+        setCitations([]);
+        setCitationsTotal(0);
       } finally {
         setCitationsLoading(false);
       }

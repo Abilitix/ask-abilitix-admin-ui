@@ -279,36 +279,51 @@ export async function fetchDocumentChunks(
   docId: string,
   options: { limit?: number; offset?: number } = {}
 ): Promise<DocumentChunksResponse> {
-  const searchParams = new URLSearchParams();
-  if (options.limit) {
-    searchParams.set('limit', String(options.limit));
-  }
-  if (options.offset) {
-    searchParams.set('offset', String(options.offset));
+  // Validate docId
+  if (!docId || docId === 'undefined' || docId === 'null' || docId.trim() === '') {
+    throw new Error('Invalid document ID');
   }
 
-  const queryString = searchParams.toString();
-  const url = `${API_BASE}/${encodeURIComponent(docId)}/chunks${queryString ? `?${queryString}` : ''}`;
+  try {
+    const searchParams = new URLSearchParams();
+    if (options.limit) {
+      searchParams.set('limit', String(options.limit));
+    }
+    if (options.offset) {
+      searchParams.set('offset', String(options.offset));
+    }
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    cache: 'no-store',
-  });
+    const queryString = searchParams.toString();
+    const url = `${API_BASE}/${encodeURIComponent(docId)}/chunks${queryString ? `?${queryString}` : ''}`;
 
-  if (!response.ok) {
-    const data = await safeParseJson(response);
-    throw new Error(handleApiError(response, data));
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const data = await safeParseJson(response);
+      const errorMessage = handleApiError(response, data);
+      console.error('[fetchDocumentChunks] API error:', { status: response.status, docId, error: errorMessage });
+      throw new Error(errorMessage);
+    }
+
+    const data = await safeParseJson<DocumentChunksResponse>(response);
+    if (!data) {
+      throw new Error('Empty response from server');
+    }
+
+    return data;
+  } catch (err) {
+    // Re-throw with context if it's not already an Error
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to fetch document chunks: ${String(err)}`);
   }
-
-  const data = await safeParseJson<DocumentChunksResponse>(response);
-  if (!data) {
-    throw new Error('Empty response from server');
-  }
-
-  return data;
 }
 
 /**
@@ -329,36 +344,51 @@ export async function fetchDocumentCitations(
   docId: string,
   options: { limit?: number; offset?: number } = {}
 ): Promise<DocumentCitationsResponse> {
-  const searchParams = new URLSearchParams();
-  if (options.limit) {
-    searchParams.set('limit', String(options.limit));
-  }
-  if (options.offset) {
-    searchParams.set('offset', String(options.offset));
+  // Validate docId
+  if (!docId || docId === 'undefined' || docId === 'null' || docId.trim() === '') {
+    throw new Error('Invalid document ID');
   }
 
-  const queryString = searchParams.toString();
-  const url = `${API_BASE}/${encodeURIComponent(docId)}/citations${queryString ? `?${queryString}` : ''}`;
+  try {
+    const searchParams = new URLSearchParams();
+    if (options.limit) {
+      searchParams.set('limit', String(options.limit));
+    }
+    if (options.offset) {
+      searchParams.set('offset', String(options.offset));
+    }
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    cache: 'no-store',
-  });
+    const queryString = searchParams.toString();
+    const url = `${API_BASE}/${encodeURIComponent(docId)}/citations${queryString ? `?${queryString}` : ''}`;
 
-  if (!response.ok) {
-    const data = await safeParseJson(response);
-    throw new Error(handleApiError(response, data));
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const data = await safeParseJson(response);
+      const errorMessage = handleApiError(response, data);
+      console.error('[fetchDocumentCitations] API error:', { status: response.status, docId, error: errorMessage });
+      throw new Error(errorMessage);
+    }
+
+    const data = await safeParseJson<DocumentCitationsResponse>(response);
+    if (!data) {
+      throw new Error('Empty response from server');
+    }
+
+    return data;
+  } catch (err) {
+    // Re-throw with context if it's not already an Error
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to fetch document citations: ${String(err)}`);
   }
-
-  const data = await safeParseJson<DocumentCitationsResponse>(response);
-  if (!data) {
-    throw new Error('Empty response from server');
-  }
-
-  return data;
 }
 
 /**

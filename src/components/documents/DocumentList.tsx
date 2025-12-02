@@ -214,10 +214,25 @@ export function DocumentList({
   // Archive handler
   const handleArchive = useCallback(async (docId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    if (!docId || docId === 'undefined' || docId === 'null') {
+      console.error('[Archive] Invalid document ID:', docId);
+      toast.error('Archive failed: Document ID is missing or invalid');
+      return;
+    }
+    
     try {
-      // Backend expects: { id: "uuid" }
-      const requestBody = { id: docId };
-      console.log('[Archive] Sending request:', { docId, requestBody });
+      // Backend expects: { id: "uuid" } - ensure it's a string UUID
+      const requestBody = { id: String(docId).trim() };
+      
+      // Validate UUID format (basic check)
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestBody.id)) {
+        console.error('[Archive] Invalid UUID format:', requestBody.id);
+        toast.error('Archive failed: Invalid document ID format');
+        return;
+      }
+      
+      console.log('[Archive] Sending request:', { docId, requestBody, bodyString: JSON.stringify(requestBody) });
       
       const response = await fetch('/api/admin/docs/archive', {
         method: 'POST',
@@ -228,9 +243,16 @@ export function DocumentList({
       });
       
       console.log('[Archive] Response status:', response.status);
-
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorText = await response.text().catch(() => '');
+        console.error('[Archive] Error response text:', errorText);
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText || `Archive failed: ${response.status}` };
+        }
         console.error('[Archive] Error response:', errorData);
         const errorMessage = errorData.detail?.message || errorData.detail?.error?.message || errorData.message || `Archive failed: ${response.status}`;
         throw new Error(errorMessage);
@@ -286,15 +308,35 @@ export function DocumentList({
   }, []);
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!docToDelete) return;
+    if (!docToDelete) {
+      toast.error('Delete failed: Document is missing');
+      setDeleteDialogOpen(false);
+      setDocToDelete(null);
+      return;
+    }
+
+    // Handle both 'id' and 'doc_id' fields from API
+    const docId = getDocumentId(docToDelete);
+    
+    if (!docId) {
+      console.error('[Delete] Document missing ID:', docToDelete);
+      toast.error('Delete failed: Document ID is missing');
+      setDeleteDialogOpen(false);
+      setDocToDelete(null);
+      return;
+    }
 
     try {
-      const response = await fetch(`/api/admin/docs/${encodeURIComponent(docToDelete.doc_id)}`, {
+      console.log('[Delete] Sending request:', { docId, doc: docToDelete });
+      
+      const response = await fetch(`/api/admin/docs/${encodeURIComponent(docId)}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
       });
+      
+      console.log('[Delete] Response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -326,17 +368,30 @@ export function DocumentList({
   const totalPages = useMemo(() => Math.ceil(total / limit), [total, limit]);
   const filteredDocuments = useMemo(() => Array.isArray(documents) ? documents : [], [documents]);
 
+  // Helper to get document ID (handles both 'id' and 'doc_id' fields)
+  const getDocumentId = useCallback((doc: Document | any): string | null => {
+    return doc?.id || doc?.doc_id || null;
+  }, []);
+
   // Render document row
   const renderDocumentRow = useCallback((doc: Document) => {
+    // Handle both 'id' and 'doc_id' fields from API
+    const docId = getDocumentId(doc);
+    
+    if (!docId) {
+      console.error('[DocumentList] Document missing ID:', doc);
+      return null;
+    }
+    
     const displayStatus = computeDisplayStatus(doc);
-    const isSelected = selectedDocId === doc.doc_id;
+    const isSelected = selectedDocId === docId;
     const isAccessible = displayStatus !== 'deleted' && displayStatus !== 'superseded';
 
     return (
       <TableRow
-        key={doc.doc_id}
+        key={docId}
         className={`cursor-pointer ${isSelected ? 'bg-muted' : ''} ${!isAccessible ? 'opacity-60' : ''}`}
-        onClick={() => handleDocumentClick(doc.doc_id)}
+        onClick={() => handleDocumentClick(docId)}
       >
         <TableCell className="font-medium">
           <div className="flex items-center gap-2">
@@ -361,41 +416,44 @@ export function DocumentList({
             <div className="flex items-center gap-2">
               {isAccessible && displayStatus === 'active' && (
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={(e) => handleArchive(doc.doc_id, e)}
-                  className="h-8 px-2 text-xs"
+                  onClick={(e) => handleArchive(docId, e)}
+                  className="h-8 px-3 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
                   title="Archive"
                 >
+                  <Trash2 className="h-3 w-3 mr-1.5" />
                   Archive
                 </Button>
               )}
               {displayStatus === 'superseded' && (
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={(e) => handleUnarchive(doc.doc_id, e)}
-                  className="h-8 px-2 text-xs"
+                  onClick={(e) => handleUnarchive(docId, e)}
+                  className="h-8 px-3 text-xs border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300"
                   title="Unarchive"
                 >
+                  <RefreshCw className="h-3 w-3 mr-1.5" />
                   Unarchive
                 </Button>
               )}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={(e) => handleDeleteClick(doc, e)}
-                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                className="h-8 px-3 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
                 title="Delete"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3 w-3 mr-1.5" />
+                Delete
               </Button>
             </div>
           </TableCell>
         )}
       </TableRow>
     );
-  }, [selectedDocId, showActions, handleDocumentClick]);
+  }, [selectedDocId, showActions, handleDocumentClick, handleArchive, handleUnarchive, handleDeleteClick, getDocumentId]);
 
   // Render empty state
   const renderEmptyState = useCallback(() => {
@@ -450,10 +508,10 @@ export function DocumentList({
   }, [loading, error, filteredDocuments, searchTerm, statusFilter, showActions, handleRefresh]);
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-2 shadow-lg">
+      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <CardTitle>Documents</CardTitle>
+          <CardTitle className="text-xl font-bold text-gray-800">Documents</CardTitle>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -497,33 +555,45 @@ export function DocumentList({
           </div>
         </div>
 
-        {/* Stats Summary */}
+        {/* Stats Summary - Enhanced with colored cards */}
         {stats && typeof stats.total === 'number' && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mb-6">
-            <div className="text-center p-2 bg-muted rounded">
-              <div className="text-lg font-semibold">{stats.total ?? 0}</div>
-              <div className="text-xs text-muted-foreground">Total</div>
-            </div>
-            <div className="text-center p-2 bg-green-50 rounded">
-              <div className="text-lg font-semibold text-green-700">{stats.active ?? 0}</div>
-              <div className="text-xs text-muted-foreground">Active</div>
-            </div>
-            <div className="text-center p-2 bg-yellow-50 rounded">
-              <div className="text-lg font-semibold text-yellow-700">{stats.pending ?? 0}</div>
-              <div className="text-xs text-muted-foreground">Pending</div>
-            </div>
-            <div className="text-center p-2 bg-blue-50 rounded">
-              <div className="text-lg font-semibold text-blue-700">{stats.processing ?? 0}</div>
-              <div className="text-xs text-muted-foreground">Processing</div>
-            </div>
-            <div className="text-center p-2 bg-red-50 rounded">
-              <div className="text-lg font-semibold text-red-700">{stats.failed ?? 0}</div>
-              <div className="text-xs text-muted-foreground">Failed</div>
-            </div>
-            <div className="text-center p-2 bg-gray-50 rounded">
-              <div className="text-lg font-semibold text-gray-700">{stats.superseded ?? 0}</div>
-              <div className="text-xs text-muted-foreground">Superseded</div>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+            <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-gray-800">{stats.total ?? 0}</div>
+                <div className="text-xs font-medium text-gray-600 mt-1">Total</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-green-700">{stats.active ?? 0}</div>
+                <div className="text-xs font-medium text-green-600 mt-1">Active</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-yellow-700">{stats.pending ?? 0}</div>
+                <div className="text-xs font-medium text-yellow-600 mt-1">Pending</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-blue-700">{stats.processing ?? 0}</div>
+                <div className="text-xs font-medium text-blue-600 mt-1">Processing</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-red-700">{stats.failed ?? 0}</div>
+                <div className="text-xs font-medium text-red-600 mt-1">Failed</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-orange-700">{stats.superseded ?? 0}</div>
+                <div className="text-xs font-medium text-orange-600 mt-1">Superseded</div>
+              </CardContent>
+            </Card>
           </div>
         )}
 

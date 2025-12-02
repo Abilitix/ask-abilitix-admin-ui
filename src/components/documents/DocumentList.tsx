@@ -55,6 +55,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { openDocument, DocumentOpenError } from '@/lib/api/documents';
+import { DocumentUpload } from './DocumentUpload';
 
 /**
  * Formats a date string as a relative time (e.g., "2h ago", "3d ago").
@@ -1053,7 +1054,13 @@ export function DocumentList({
       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle className="text-xl font-bold text-gray-800">Documents</CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <DocumentUpload 
+              compact={true} 
+              onUploadComplete={() => {
+                handleRefresh();
+              }} 
+            />
             <Button
               variant="outline"
               size="sm"
@@ -1061,7 +1068,7 @@ export function DocumentList({
               disabled={loading || statsLoading}
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${loading || statsLoading ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
           </div>
         </div>

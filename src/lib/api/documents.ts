@@ -425,7 +425,11 @@ export async function openDocument(docId: string): Promise<{ url: string; expire
     const data = await safeParseJson<any>(response);
     
     // Parse structured error response from API
-    const errorCode = data?.error?.code || data?.detail?.error?.code;
+    // Support multiple error formats:
+    // 1. { error: { code, message } } - Our API route format
+    // 2. { detail: { error: { code, message } } } - Backend format
+    // 3. { detail: { code, message } } - Alternative backend format
+    const errorCode = data?.error?.code || data?.detail?.error?.code || data?.detail?.code;
     const errorMessage = data?.error?.message || data?.detail?.error?.message || data?.detail?.message || data?.message;
     
     console.error('[Open Document] Error response:', { 
@@ -437,7 +441,14 @@ export async function openDocument(docId: string): Promise<{ url: string; expire
 
     // Map error codes to user-friendly messages
     let userMessage: string;
-    switch (errorCode) {
+    let finalErrorCode = errorCode;
+    
+    // If 404 and no specific error code, assume it's likely "no original file" for text uploads
+    if (response.status === 404 && !errorCode) {
+      finalErrorCode = 'no_original_file';
+    }
+    
+    switch (finalErrorCode) {
       case 'no_original_file':
         userMessage = 'This document was uploaded as text and cannot be opened as a file. Only documents uploaded as files (PDF/DOCX) can be opened.';
         break;
@@ -448,10 +459,15 @@ export async function openDocument(docId: string): Promise<{ url: string; expire
         userMessage = 'Document not found. It may have been deleted or you may not have access to it.';
         break;
       default:
-        userMessage = errorMessage || `Unable to open document (${response.status}). Please try again.`;
+        // For 404 errors, provide helpful context about text uploads
+        if (response.status === 404) {
+          userMessage = 'This document cannot be opened. It may have been uploaded as text-only, or the original file is no longer available. Only documents uploaded as files (PDF/DOCX) can be opened.';
+        } else {
+          userMessage = errorMessage || `Unable to open document (${response.status}). Please try again.`;
+        }
     }
 
-    throw new DocumentOpenError(userMessage, errorCode, data);
+    throw new DocumentOpenError(userMessage, finalErrorCode, data);
   }
 
   const data = await safeParseJson<{ url: string; signed_url?: string; expires_in?: number }>(response);

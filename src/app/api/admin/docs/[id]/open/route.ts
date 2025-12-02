@@ -38,10 +38,19 @@ export async function GET(
     
     if (!response.ok) {
       console.error('[Open Document] Error:', { status: response.status, data });
+      
+      // Preserve backend error structure if available
+      // Backend may return: { detail: { error: { code, message } } } or { error: { code, message } }
+      const errorCode = data?.detail?.error?.code || data?.error?.code || data?.detail?.code;
+      const errorMessage = data?.detail?.error?.message || data?.error?.message || data?.detail?.message || data?.message;
+      
       return NextResponse.json(
         { 
-          error: 'Failed to open document',
-          details: data.detail || data.message || `Admin API returned ${response.status}`,
+          error: {
+            code: errorCode || (response.status === 404 ? 'no_original_file' : 'open_failed'),
+            message: errorMessage || 'Failed to open document'
+          },
+          detail: data.detail || data.error || { message: `Admin API returned ${response.status}` },
           status: response.status
         },
         { status: response.status, headers: { 'Cache-Control': 'no-store' } }

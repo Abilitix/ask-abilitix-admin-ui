@@ -48,10 +48,17 @@ export async function GET() {
     );
   }
   
-  // Return the Admin API response directly with tenant_id included
-  return NextResponse.json({
+  // Forward backend's Set-Cookie header if present (for cookie refresh when backend enables it)
+  const setCookieHeader = r.headers.get('set-cookie');
+  const response = NextResponse.json({
     ...body,  // Include all fields from Admin API
     tenant_id: body.tenant_id,  // Explicitly include tenant_id
     tenant: body.tenant_slug ? { slug: body.tenant_slug } : null,  // Map flat to nested structure
   }, { status: r.status });
+  
+  if (setCookieHeader) {
+    response.headers.set('set-cookie', setCookieHeader);
+  }
+  
+  return response;
 }

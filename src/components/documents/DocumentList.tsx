@@ -706,7 +706,11 @@ export function DocumentList({
         onClick={() => handleDocumentClick(docId)}
         title="Click row to view document details, chunks, and citations"
       >
-        <TableCell className="font-medium">
+        <TableCell 
+          className="font-medium cursor-default"
+          onClick={(e) => e.stopPropagation()}
+          title="Document title (display only)"
+        >
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <span className="truncate max-w-[300px]">{doc.title || doc.file_name || 'Untitled'}</span>

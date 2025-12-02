@@ -39,8 +39,8 @@ export function DocsUploadForm(props: DocsUploadFormProps) {
       return;
     }
 
-    // TUS only when explicitly requested via pref
-    const nextMode = pref === 'tus' ? 'tus' : 'legacy';
+    // TUS is now default, legacy only when explicitly requested
+    const nextMode = pref === 'legacy' ? 'legacy' : 'tus';
     console.info('[UPLOAD] decided mode:', nextMode, { qp, ls, enableTusUi: ENABLE_TUS_UI, force });
     setMode(nextMode);
     if (typeof window !== 'undefined') (window as any).__uploader = nextMode;

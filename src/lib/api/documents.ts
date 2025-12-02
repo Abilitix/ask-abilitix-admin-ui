@@ -475,8 +475,20 @@ export async function openDocument(docId: string): Promise<{ url: string; expire
     throw new DocumentOpenError('Empty response from server');
   }
 
+  // Normalize signed URL format - backend may return URLs missing /storage/v1
+  const rawUrl = data.url || data.signed_url || '';
+  let normalizedUrl = rawUrl;
+  
+  // Fix Supabase Storage signed URL format if missing /storage/v1
+  // Backend may return: https://[project].supabase.co/object/sign/...
+  // Should be: https://[project].supabase.co/storage/v1/object/sign/...
+  if (rawUrl.includes('.supabase.co/object/sign/') && !rawUrl.includes('/storage/v1/object/sign/')) {
+    normalizedUrl = rawUrl.replace('.supabase.co/object/sign/', '.supabase.co/storage/v1/object/sign/');
+    console.log('[Open Document] Normalized URL:', { original: rawUrl, normalized: normalizedUrl });
+  }
+
   return {
-    url: data.url || data.signed_url || '',
+    url: normalizedUrl,
     expires_in: data.expires_in,
   };
 }

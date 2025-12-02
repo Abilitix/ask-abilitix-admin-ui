@@ -979,7 +979,7 @@ export function DocumentList({
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
             <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-gray-800">{computedStats.total_docs ?? computedStats.total ?? 0}</div>
+                <div className="text-2xl font-bold text-gray-800">{computedStats.total_docs ?? 0}</div>
                 <div className="text-xs font-medium text-gray-600 mt-1">Total</div>
               </CardContent>
             </Card>

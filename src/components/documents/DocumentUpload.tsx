@@ -21,6 +21,7 @@ import { Upload as TusUpload } from 'tus-js-client';
 type DocumentUploadProps = {
   onUploadComplete?: () => void;
   compact?: boolean; // Compact mode for header integration
+  header?: boolean; // Header mode - prominent button for page header
 };
 
 type UploadItem = {
@@ -49,7 +50,7 @@ const ALLOWED_MIME_TYPES = {
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
-export function DocumentUpload({ onUploadComplete, compact = false }: DocumentUploadProps) {
+export function DocumentUpload({ onUploadComplete, compact = false, header = false }: DocumentUploadProps) {
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showUploadArea, setShowUploadArea] = useState(false);
@@ -392,6 +393,129 @@ export function DocumentUpload({ onUploadComplete, compact = false }: DocumentUp
   const completedUploads = uploads.filter((u) => u.status === 'ready');
   const failedUploads = uploads.filter((u) => u.status === 'failed');
 
+  // Header mode - prominent button for page header
+  if (header) {
+    return (
+      <>
+        <Button
+          onClick={() => {
+            fileInputRef.current?.click();
+            setShowUploadArea(true);
+          }}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm hover:shadow-md transition-all min-h-[44px] px-4"
+          size="default"
+        >
+          <Upload className="h-4 w-4" />
+          Upload Documents
+        </Button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".pdf,.docx,.jpg,.jpeg,.png,.mp4,.webm"
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files) {
+              handleFiles(e.target.files);
+            }
+          }}
+        />
+
+        {/* Upload Queue - Compact with Enhanced UI */}
+        {showUploadArea && uploads.length > 0 && (
+          <Card className="mt-4 border-2 shadow-lg animate-in slide-in-from-top-2 fade-in-0">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Upload className="h-4 w-4 text-blue-600" />
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Upload Queue {activeUploads.length > 0 && `(${activeUploads.length} active)`}
+                  </h3>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowUploadArea(false);
+                    setUploads([]);
+                  }}
+                  className="h-8 w-8 sm:h-7 sm:w-7 p-0 hover:bg-gray-100 touch-manipulation"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {uploads.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                      item.status === 'uploading' || item.status === 'processing'
+                        ? 'bg-blue-50 border-blue-200'
+                        : item.status === 'ready'
+                        ? 'bg-green-50 border-green-200'
+                        : item.status === 'failed'
+                        ? 'bg-red-50 border-red-200'
+                        : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <div className="flex-shrink-0">
+                      {item.status === 'uploading' || item.status === 'processing' ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                      ) : item.status === 'ready' ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      ) : item.status === 'failed' ? (
+                        <AlertCircle className="h-5 w-5 text-red-600" />
+                      ) : (
+                        <File className="h-5 w-5 text-gray-400" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate text-gray-900">{item.title}</div>
+                      <div className="text-xs text-gray-600 mt-0.5">
+                        {formatFileSize(item.file.size)}
+                        {item.status === 'uploading' && ` • ${item.progress}%`}
+                        {item.status === 'processing' && ' • Processing document...'}
+                        {item.status === 'failed' && item.error && ` • ${item.error}`}
+                      </div>
+                      {item.status === 'uploading' && (
+                        <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-out rounded-full"
+                            style={{ width: `${item.progress}%` }}
+                          />
+                        </div>
+                      )}
+                      {item.status === 'processing' && (
+                        <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full animate-pulse" style={{ width: '60%' }} />
+                        </div>
+                      )}
+                    </div>
+
+                    {(item.status === 'ready' || item.status === 'failed') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeUpload(item.id)}
+                        className="h-7 w-7 p-0 hover:bg-gray-200"
+                        aria-label="Remove"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </>
+    );
+  }
+
   if (compact) {
     return (
       <>
@@ -438,7 +562,7 @@ export function DocumentUpload({ onUploadComplete, compact = false }: DocumentUp
                     setShowUploadArea(false);
                     setUploads([]);
                   }}
-                  className="h-7 w-7 p-0 hover:bg-gray-100"
+                  className="h-8 w-8 sm:h-7 sm:w-7 p-0 hover:bg-gray-100 touch-manipulation"
                 >
                   <X className="h-4 w-4" />
                 </Button>

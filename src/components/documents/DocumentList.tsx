@@ -55,7 +55,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { openDocument, DocumentOpenError } from '@/lib/api/documents';
-import { DocumentUpload } from './DocumentUpload';
 
 /**
  * Formats a date string as a relative time (e.g., "2h ago", "3d ago").
@@ -692,7 +691,7 @@ export function DocumentList({
           onClick={(e) => e.stopPropagation()}
           title="Last update time"
         >
-          {formatDistanceToNow(doc.updated_at)}
+          {doc.updated_at ? formatDistanceToNow(doc.updated_at) : 'Never'}
         </TableCell>
         {showActions && (
           <TableCell>
@@ -862,7 +861,7 @@ export function DocumentList({
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Updated:</span>
-                <span className="text-xs text-muted-foreground">{formatDistanceToNow(doc.updated_at)}</span>
+                <span className="text-xs text-muted-foreground">{doc.updated_at ? formatDistanceToNow(doc.updated_at) : 'Never'}</span>
               </div>
             </div>
           </div>
@@ -1054,28 +1053,23 @@ export function DocumentList({
       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle className="text-xl font-bold text-gray-800">Documents</CardTitle>
-          <div className="flex items-center gap-2 flex-wrap">
-            <DocumentUpload 
-              compact={true} 
-              onUploadComplete={() => {
-                handleRefresh();
-              }} 
-            />
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleRefresh}
               disabled={loading || statsLoading}
+              className="flex items-center gap-2"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading || statsLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${loading || statsLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         {/* Help Section - Collapsible */}
-        <div className="mb-4 border rounded-lg bg-blue-50/50 border-blue-200">
+        <div className="mb-6 border rounded-lg bg-blue-50/50 border-blue-200 shadow-sm">
           <button
             onClick={() => setShowHelp(!showHelp)}
             className="w-full flex items-center justify-between p-3 text-left hover:bg-blue-100/50 transition-colors"
@@ -1158,7 +1152,7 @@ export function DocumentList({
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 mb-5">
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

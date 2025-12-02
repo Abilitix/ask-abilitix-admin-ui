@@ -21,6 +21,7 @@ export type UploadStatus = 'pending' | 'processing' | 'completed' | 'failed';
  * 
  * Logic:
  * - If doc_status = 'deleted' → display_status = 'deleted'
+ * - Else if doc_status = 'archived' → display_status = 'archived' (if backend supports it)
  * - Else if upload_status = 'failed' → display_status = 'failed'
  * - Else if upload_status = 'pending' → display_status = 'pending'
  * - Else if upload_status = 'processing' → display_status = 'processing'
@@ -29,6 +30,7 @@ export type UploadStatus = 'pending' | 'processing' | 'completed' | 'failed';
  */
 export type DisplayStatus = 
   | 'active' 
+  | 'archived'
   | 'pending' 
   | 'processing' 
   | 'failed' 
@@ -41,10 +43,11 @@ export type DisplayStatus =
 export interface Document {
   doc_id: string;
   title: string;
-  doc_status: DocStatus;
+  doc_status: DocStatus | 'archived'; // Backend may return 'archived' status
   upload_status: UploadStatus;
   created_at: string; // ISO 8601 timestamp
   updated_at: string; // ISO 8601 timestamp
+  archived_at?: string | null; // Optional: timestamp when document was archived
   file_name?: string;
   file_size?: number;
   mime_type?: string;
@@ -141,15 +144,21 @@ export interface DocumentListParams {
  * @returns Display status for UI
  */
 export function computeDisplayStatus(doc: {
-  doc_status: DocStatus;
+  doc_status: DocStatus | 'archived';
   upload_status: UploadStatus;
+  archived_at?: string | null; // Optional field to check if document is archived
 }): DisplayStatus {
   // Priority 1: deleted
   if (doc.doc_status === 'deleted') {
     return 'deleted';
   }
 
-  // Priority 2: upload_status takes precedence
+  // Priority 2: archived (check both doc_status and archived_at field)
+  if (doc.doc_status === 'archived' || doc.archived_at) {
+    return 'archived';
+  }
+
+  // Priority 3: upload_status takes precedence
   if (doc.upload_status === 'failed') {
     return 'failed';
   }
@@ -160,7 +169,7 @@ export function computeDisplayStatus(doc: {
     return 'processing';
   }
 
-  // Priority 3: superseded
+  // Priority 4: superseded
   if (doc.doc_status === 'superseded') {
     return 'superseded';
   }
@@ -189,6 +198,7 @@ export function isDocumentAccessible(doc: Document): boolean {
 export function getDisplayStatusLabel(status: DisplayStatus): string {
   const labels: Record<DisplayStatus, string> = {
     active: 'Active',
+    archived: 'Archived',
     pending: 'Pending',
     processing: 'Processing',
     failed: 'Failed',
@@ -211,6 +221,7 @@ export function getDisplayStatusVariant(status: DisplayStatus):
   | 'outline' {
   const variants: Record<DisplayStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     active: 'default',
+    archived: 'outline',
     pending: 'secondary',
     processing: 'secondary',
     failed: 'destructive',

@@ -41,6 +41,11 @@ export function DocumentStatusBadge({ status, className }: DocumentStatusBadgePr
       icon: CheckCircle2,
       className: 'bg-green-50 text-green-700 border-green-200',
     },
+    archived: {
+      label: 'Archived',
+      icon: Archive,
+      className: 'bg-gray-50 text-gray-700 border-gray-200',
+    },
     pending: {
       label: 'Pending',
       icon: Clock,
@@ -59,7 +64,7 @@ export function DocumentStatusBadge({ status, className }: DocumentStatusBadgePr
     superseded: {
       label: 'Superseded',
       icon: Archive,
-      className: 'bg-gray-50 text-gray-700 border-gray-200',
+      className: 'bg-orange-50 text-orange-700 border-orange-200',
     },
     deleted: {
       label: 'Deleted',

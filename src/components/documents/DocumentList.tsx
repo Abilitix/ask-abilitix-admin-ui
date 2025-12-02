@@ -259,8 +259,12 @@ export function DocumentList({
       }
 
       toast.success('Document archived');
-      await refetch();
-      await refetchStats();
+      // Force refresh to show updated status
+      await Promise.all([refetch(), refetchStats()]);
+      // Additional refresh after short delay to ensure backend has updated
+      setTimeout(async () => {
+        await Promise.all([refetch(), refetchStats()]);
+      }, 1000);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Archive failed';
       toast.error(`Archive failed: ${errorMessage}`);
@@ -426,7 +430,7 @@ export function DocumentList({
                   Archive
                 </Button>
               )}
-              {displayStatus === 'superseded' && (
+              {(displayStatus === 'superseded' || displayStatus === 'archived') && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -546,6 +550,7 @@ export function DocumentList({
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
+              <option value="archived">Archived</option>
               <option value="pending">Pending</option>
               <option value="processing">Processing</option>
               <option value="failed">Failed</option>

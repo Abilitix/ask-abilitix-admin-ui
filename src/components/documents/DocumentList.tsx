@@ -36,6 +36,7 @@ import {
   Eye,
   Trash2,
   AlertCircle,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -109,7 +110,9 @@ export function DocumentList({
   const [offset, setOffset] = useState(0);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [hardDeleteDialogOpen, setHardDeleteDialogOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState<Document | null>(null);
+  const [actionLoading, setActionLoading] = useState<Set<string>>(new Set()); // Track which documents are being acted upon
 
   // Document data hook
   const {
@@ -141,8 +144,19 @@ export function DocumentList({
     const newStatus = value as DisplayStatus | 'all';
     setStatusFilter(newStatus);
     setOffset(0); // Reset to first page
+    
+    // Backend only accepts: active, archived, superseded, all
+    // Map DisplayStatus to backend status
+    let backendStatus: 'active' | 'archived' | 'superseded' | undefined = undefined;
+    if (newStatus === 'all') {
+      backendStatus = undefined; // 'all' means no filter
+    } else if (newStatus === 'active' || newStatus === 'archived' || newStatus === 'superseded') {
+      backendStatus = newStatus;
+    }
+    // Ignore: pending, processing, failed, deleted (these are computed, not backend statuses)
+    
     setFilters({
-      status: newStatus === 'all' ? undefined : newStatus,
+      status: backendStatus,
       search: searchTerm || undefined,
       limit,
       offset: 0,
@@ -221,6 +235,9 @@ export function DocumentList({
       return;
     }
     
+    // Set loading state for this specific document
+    setActionLoading(prev => new Set(prev).add(docId));
+    
     try {
       // Backend expects: { id: "uuid" } - ensure it's a string UUID
       const requestBody = { id: String(docId).trim() };
@@ -229,6 +246,11 @@ export function DocumentList({
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestBody.id)) {
         console.error('[Archive] Invalid UUID format:', requestBody.id);
         toast.error('Archive failed: Invalid document ID format');
+        setActionLoading(prev => {
+          const next = new Set(prev);
+          next.delete(docId);
+          return next;
+        });
         return;
       }
       
@@ -259,21 +281,31 @@ export function DocumentList({
       }
 
       toast.success('Document archived');
-      // Force refresh to show updated status
-      await Promise.all([refetch(), refetchStats()]);
-      // Additional refresh after short delay to ensure backend has updated
-      setTimeout(async () => {
-        await Promise.all([refetch(), refetchStats()]);
-      }, 1000);
+      
+      // Silently refresh data in background without showing loading state
+      Promise.all([refetch(), refetchStats()]).catch(err => {
+        console.error('Failed to refresh after archive:', err);
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Archive failed';
       toast.error(`Archive failed: ${errorMessage}`);
+    } finally {
+      // Remove loading state
+      setActionLoading(prev => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
     }
   }, [refetch, refetchStats]);
 
   // Unarchive handler
   const handleUnarchive = useCallback(async (docId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Set loading state for this specific document
+    setActionLoading(prev => new Set(prev).add(docId));
+    
     try {
       // Backend expects: { id: "uuid" }
       const requestBody = { id: docId };
@@ -296,25 +328,92 @@ export function DocumentList({
       }
 
       toast.success('Document unarchived');
-      await refetch();
-      await refetchStats();
+      
+      // Silently refresh data in background without showing loading state
+      Promise.all([refetch(), refetchStats()]).catch(err => {
+        console.error('Failed to refresh after unarchive:', err);
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unarchive failed';
       toast.error(`Unarchive failed: ${errorMessage}`);
+    } finally {
+      // Remove loading state
+      setActionLoading(prev => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
     }
   }, [refetch, refetchStats]);
 
-  // Delete handler
+  // Helper to get document ID (handles both 'id' and 'doc_id' fields)
+  const getDocumentId = useCallback((doc: Document | any): string | null => {
+    return doc?.id || doc?.doc_id || null;
+  }, []);
+
+  // Open file handler - opens original PDF/DOCX file
+  const handleOpenFile = useCallback(async (docId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Set loading state
+    setActionLoading(prev => new Set(prev).add(docId));
+    
+    try {
+      const response = await fetch(`/api/admin/docs/${encodeURIComponent(docId)}/open`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail?.message || errorData.message || `Failed to open file: ${response.status}`;
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      
+      // Backend returns signed URL
+      if (data.url || data.signed_url) {
+        const fileUrl = data.url || data.signed_url;
+        window.open(fileUrl, '_blank');
+        toast.success('Opening file...');
+      } else {
+        throw new Error('No file URL returned from server');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to open file';
+      toast.error(errorMessage);
+    } finally {
+      // Remove loading state
+      setActionLoading(prev => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
+    }
+  }, []);
+
+  // Delete handler - soft delete (default)
   const handleDeleteClick = useCallback((doc: Document, e: React.MouseEvent) => {
     e.stopPropagation();
     setDocToDelete(doc);
     setDeleteDialogOpen(true);
   }, []);
 
-  const handleDeleteConfirm = useCallback(async () => {
+  // Hard delete handler
+  const handleHardDeleteClick = useCallback((doc: Document, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDocToDelete(doc);
+    setHardDeleteDialogOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async (hardDelete: boolean = false) => {
     if (!docToDelete) {
       toast.error('Delete failed: Document is missing');
       setDeleteDialogOpen(false);
+      setHardDeleteDialogOpen(false);
       setDocToDelete(null);
       return;
     }
@@ -326,14 +425,22 @@ export function DocumentList({
       console.error('[Delete] Document missing ID:', docToDelete);
       toast.error('Delete failed: Document ID is missing');
       setDeleteDialogOpen(false);
+      setHardDeleteDialogOpen(false);
       setDocToDelete(null);
       return;
     }
 
+    // Set loading state
+    setActionLoading(prev => new Set(prev).add(docId));
+
     try {
-      console.log('[Delete] Sending request:', { docId, doc: docToDelete });
+      const url = hardDelete 
+        ? `/api/admin/docs/${encodeURIComponent(docId)}?hard=true`
+        : `/api/admin/docs/${encodeURIComponent(docId)}`;
       
-      const response = await fetch(`/api/admin/docs/${encodeURIComponent(docId)}`, {
+      console.log('[Delete] Sending request:', { docId, hardDelete, url });
+      
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -348,16 +455,27 @@ export function DocumentList({
         throw new Error(errorMessage);
       }
 
-      toast.success('Document deleted');
+      toast.success(hardDelete ? 'Document permanently deleted' : 'Document deleted (can be restored)');
       setDeleteDialogOpen(false);
+      setHardDeleteDialogOpen(false);
       setDocToDelete(null);
-      await refetch();
-      await refetchStats();
+      
+      // Silently refresh data in background without showing loading state
+      Promise.all([refetch(), refetchStats()]).catch(err => {
+        console.error('Failed to refresh after delete:', err);
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Delete failed';
       toast.error(`Delete failed: ${errorMessage}`);
+    } finally {
+      // Remove loading state
+      setActionLoading(prev => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
     }
-  }, [docToDelete, refetch, refetchStats]);
+  }, [docToDelete, refetch, refetchStats, getDocumentId]);
 
   // Document selection handler
   const handleDocumentClick = useCallback((docId: string) => {
@@ -372,11 +490,6 @@ export function DocumentList({
   const totalPages = useMemo(() => Math.ceil(total / limit), [total, limit]);
   const filteredDocuments = useMemo(() => Array.isArray(documents) ? documents : [], [documents]);
 
-  // Helper to get document ID (handles both 'id' and 'doc_id' fields)
-  const getDocumentId = useCallback((doc: Document | any): string | null => {
-    return doc?.id || doc?.doc_id || null;
-  }, []);
-
   // Render document row
   const renderDocumentRow = useCallback((doc: Document) => {
     // Handle both 'id' and 'doc_id' fields from API
@@ -387,7 +500,16 @@ export function DocumentList({
       return null;
     }
     
-    const displayStatus = computeDisplayStatus(doc);
+    // Debug: Log document status fields
+    console.log('[DocumentList] Document status fields:', {
+      doc_id: docId,
+      doc_status: (doc as any).doc_status,
+      status: (doc as any).status,
+      archived_at: (doc as any).archived_at,
+      upload_status: (doc as any).upload_status,
+    });
+    
+    const displayStatus = computeDisplayStatus(doc as any);
     const isSelected = selectedDocId === docId;
     const isAccessible = displayStatus !== 'deleted' && displayStatus !== 'superseded';
 
@@ -406,11 +528,25 @@ export function DocumentList({
         <TableCell>
           <DocumentStatusBadge status={displayStatus} />
         </TableCell>
-        <TableCell className="text-sm text-muted-foreground">
-          {doc.chunk_count !== undefined ? `${doc.chunk_count} chunks` : '-'}
+        <TableCell 
+          className="text-sm text-muted-foreground cursor-pointer hover:text-foreground hover:underline" 
+          title="Click to view chunk details (click row to view full document)"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDocumentClick(docId);
+          }}
+        >
+          {(doc as any).chunks_count !== undefined 
+            ? `${(doc as any).chunks_count}` 
+            : doc.chunk_count !== undefined 
+            ? `${doc.chunk_count}` 
+            : '0'}
         </TableCell>
-        <TableCell className="text-sm text-muted-foreground">
-          {doc.citation_count !== undefined ? `${doc.citation_count} citations` : '-'}
+        <TableCell 
+          className="text-sm text-muted-foreground cursor-help" 
+          title="Number of citations referencing this document (click row to view details)"
+        >
+          {doc.citation_count !== undefined ? `${doc.citation_count}` : '0'}
         </TableCell>
         <TableCell className="text-sm text-muted-foreground">
           {formatDistanceToNow(doc.updated_at)}
@@ -418,15 +554,20 @@ export function DocumentList({
         {showActions && (
           <TableCell>
             <div className="flex items-center gap-2">
-              {isAccessible && displayStatus === 'active' && (
+              {displayStatus === 'active' && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={(e) => handleArchive(docId, e)}
-                  className="h-8 px-3 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+                  disabled={actionLoading.has(docId)}
+                  className="h-8 px-3 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300 disabled:opacity-50"
                   title="Archive"
                 >
-                  <Trash2 className="h-3 w-3 mr-1.5" />
+                  {actionLoading.has(docId) ? (
+                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3 mr-1.5" />
+                  )}
                   Archive
                 </Button>
               )}
@@ -435,22 +576,65 @@ export function DocumentList({
                   variant="outline"
                   size="sm"
                   onClick={(e) => handleUnarchive(docId, e)}
-                  className="h-8 px-3 text-xs border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300"
+                  disabled={actionLoading.has(docId)}
+                  className="h-8 px-3 text-xs border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 disabled:opacity-50"
                   title="Unarchive"
                 >
-                  <RefreshCw className="h-3 w-3 mr-1.5" />
+                  {actionLoading.has(docId) ? (
+                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3 mr-1.5" />
+                  )}
                   Unarchive
                 </Button>
               )}
+              
+              {/* Open file button */}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) => handleDeleteClick(doc, e)}
-                className="h-8 px-3 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
-                title="Delete"
+                onClick={(e) => handleOpenFile(docId, e)}
+                disabled={actionLoading.has(docId)}
+                className="h-8 px-3 text-xs border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50"
+                title="Open original file (PDF/DOCX)"
+              >
+                {actionLoading.has(docId) ? (
+                  <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-3 w-3 mr-1.5" />
+                )}
+                Open
+              </Button>
+              
+              {/* Soft delete button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick(doc, e);
+                }}
+                disabled={actionLoading.has(docId)}
+                className="h-8 px-3 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300 disabled:opacity-50"
+                title="Delete (soft delete - can be restored)"
               >
                 <Trash2 className="h-3 w-3 mr-1.5" />
                 Delete
+              </Button>
+              
+              {/* Hard delete button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleHardDeleteClick(doc, e);
+                }}
+                disabled={actionLoading.has(docId)}
+                className="h-8 px-2 text-xs border-red-300 text-red-800 hover:bg-red-100 hover:border-red-400 disabled:opacity-50"
+                title="Permanently delete (cannot be restored)"
+              >
+                <Trash2 className="h-3 w-3" />
               </Button>
             </div>
           </TableCell>
@@ -551,11 +735,7 @@ export function DocumentList({
               <option value="all">All Status</option>
               <option value="active">Active</option>
               <option value="archived">Archived</option>
-              <option value="pending">Pending</option>
-              <option value="processing">Processing</option>
-              <option value="failed">Failed</option>
               <option value="superseded">Superseded</option>
-              <option value="deleted">Deleted</option>
             </Select>
           </div>
         </div>
@@ -659,7 +839,7 @@ export function DocumentList({
         )}
       </CardContent>
 
-      {/* Delete confirmation dialog */}
+      {/* Soft delete confirmation dialog */}
       <ConfirmationDialog
         open={deleteDialogOpen}
         onClose={() => {
@@ -667,10 +847,24 @@ export function DocumentList({
           setDocToDelete(null);
         }}
         title="Delete Document"
-        message={`Are you sure you want to delete "${docToDelete?.title || docToDelete?.file_name || 'this document'}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete "${docToDelete?.title || docToDelete?.file_name || 'this document'}"? This is a soft delete and can be restored later.`}
         confirmText="Delete"
         variant="destructive"
-        onConfirm={handleDeleteConfirm}
+        onConfirm={() => handleDeleteConfirm(false)}
+      />
+      
+      {/* Hard delete confirmation dialog */}
+      <ConfirmationDialog
+        open={hardDeleteDialogOpen}
+        onClose={() => {
+          setHardDeleteDialogOpen(false);
+          setDocToDelete(null);
+        }}
+        title="⚠️ Permanently Delete Document"
+        message={`⚠️ WARNING: Are you sure you want to PERMANENTLY delete "${docToDelete?.title || docToDelete?.file_name || 'this document'}"? This action CANNOT be undone. All data will be permanently removed from the system.`}
+        confirmText="Delete Permanently"
+        variant="destructive"
+        onConfirm={() => handleDeleteConfirm(true)}
       />
     </Card>
   );

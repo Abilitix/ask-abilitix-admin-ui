@@ -42,8 +42,17 @@ export async function fetchDocuments(
 ): Promise<DocumentListResponse> {
   const searchParams = new URLSearchParams();
   
+  // Backend only accepts: active, archived, superseded, all
+  // Map our DisplayStatus to backend status
   if (params.status) {
-    searchParams.set('status', params.status);
+    const status = params.status as string;
+    // Only send valid backend statuses
+    if (['active', 'archived', 'superseded'].includes(status)) {
+      searchParams.set('status', status);
+    } else if (status === 'all') {
+      searchParams.set('status', 'all');
+    }
+    // Ignore: pending, processing, failed, deleted (these are computed from upload_status/doc_status)
   }
   if (params.search) {
     searchParams.set('search', params.search);
@@ -87,6 +96,18 @@ export async function fetchDocuments(
     total: data.total,
     sample: JSON.stringify(data).substring(0, 200)
   });
+  
+  // Debug: Log first document's status fields
+  const firstDoc = data.items?.[0] || data.docs?.[0] || data.documents?.[0] || (Array.isArray(data) ? data[0] : null);
+  if (firstDoc) {
+    console.log('[DMS] Sample document status fields:', {
+      doc_status: firstDoc.doc_status,
+      status: firstDoc.status,
+      archived_at: firstDoc.archived_at,
+      upload_status: firstDoc.upload_status,
+      allKeys: Object.keys(firstDoc)
+    });
+  }
 
   // Handle both old format (docs/documents array) and new format (items array)
   let items: Document[] = [];

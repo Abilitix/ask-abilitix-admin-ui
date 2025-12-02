@@ -43,15 +43,17 @@ export type DisplayStatus =
 export interface Document {
   doc_id: string;
   title: string;
-  doc_status: DocStatus | 'archived'; // Backend may return 'archived' status
-  upload_status: UploadStatus;
+  status?: 'active' | 'archived' | 'superseded' | 'deleted'; // Backend Admin API uses 'status' field (sets status='archived')
+  doc_status?: DocStatus | 'archived'; // Alternative field name (for compatibility)
+  upload_status?: UploadStatus;
   created_at: string; // ISO 8601 timestamp
   updated_at: string; // ISO 8601 timestamp
   archived_at?: string | null; // Optional: timestamp when document was archived
   file_name?: string;
   file_size?: number;
   mime_type?: string;
-  chunk_count?: number;
+  chunk_count?: number; // Legacy field name
+  chunks_count?: number; // Backend API returns 'chunks_count'
   citation_count?: number;
 }
 
@@ -144,33 +146,42 @@ export interface DocumentListParams {
  * @returns Display status for UI
  */
 export function computeDisplayStatus(doc: {
-  doc_status: DocStatus | 'archived';
-  upload_status: UploadStatus;
+  doc_status?: DocStatus | 'archived';
+  status?: 'active' | 'archived' | 'superseded' | 'deleted'; // Backend uses 'status' field (Admin API sets status='archived')
+  upload_status?: UploadStatus;
   archived_at?: string | null; // Optional field to check if document is archived
 }): DisplayStatus {
+  // Backend Admin API uses 'status' field (not 'doc_status')
+  // Priority: status field (from Admin API) > doc_status field > archived_at timestamp
+  const backendStatus = (doc as any).status || doc.doc_status;
+  const uploadStatus = doc.upload_status || 'completed'; // Default to completed if not provided
+  
   // Priority 1: deleted
-  if (doc.doc_status === 'deleted') {
+  if (backendStatus === 'deleted') {
     return 'deleted';
   }
 
-  // Priority 2: archived (check both doc_status and archived_at field)
-  if (doc.doc_status === 'archived' || doc.archived_at) {
+  // Priority 2: archived (Admin API sets status='archived')
+  // Check status field first (what Admin API uses), then doc_status, then archived_at
+  if (backendStatus === 'archived' || doc.archived_at) {
     return 'archived';
   }
 
-  // Priority 3: upload_status takes precedence
-  if (doc.upload_status === 'failed') {
-    return 'failed';
-  }
-  if (doc.upload_status === 'pending') {
-    return 'pending';
-  }
-  if (doc.upload_status === 'processing') {
-    return 'processing';
+  // Priority 3: upload_status takes precedence (only if upload_status is provided and not completed)
+  if (uploadStatus && uploadStatus !== 'completed') {
+    if (uploadStatus === 'failed') {
+      return 'failed';
+    }
+    if (uploadStatus === 'pending') {
+      return 'pending';
+    }
+    if (uploadStatus === 'processing') {
+      return 'processing';
+    }
   }
 
   // Priority 4: superseded
-  if (doc.doc_status === 'superseded') {
+  if (backendStatus === 'superseded') {
     return 'superseded';
   }
 

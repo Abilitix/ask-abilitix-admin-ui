@@ -15,6 +15,7 @@ import { DocumentStatusBadge } from './DocumentStatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -121,6 +122,7 @@ export function DocumentList({
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState<DisplayStatus | 'all'>(initialStatus || 'all');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | '7days' | '30days' | '90days' | 'year'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'gdrive' | 'tus'>('all');
   const [limit, setLimit] = useState(20);
   const [offset, setOffset] = useState(0);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -251,6 +253,29 @@ export function DocumentList({
     setOffset(0); // Reset to first page
   }, []);
 
+  // Handle source filter change
+  const handleSourceFilterChange = useCallback((value: string) => {
+    const newSourceFilter = value as typeof sourceFilter;
+    setSourceFilter(newSourceFilter);
+    setOffset(0); // Reset to first page
+    
+    // Update filters with new source
+    let backendStatus: 'active' | 'archived' | 'superseded' | undefined = undefined;
+    if (statusFilter === 'all') {
+      backendStatus = undefined;
+    } else if (statusFilter === 'active' || statusFilter === 'archived' || statusFilter === 'superseded') {
+      backendStatus = statusFilter;
+    }
+    
+    setFilters({
+      status: backendStatus,
+      search: searchTerm || undefined,
+      limit,
+      offset: 0,
+      source: newSourceFilter !== 'all' ? newSourceFilter : undefined,
+    });
+  }, [statusFilter, searchTerm, limit, setFilters]);
+
   // Apply filters when they change
   const handleStatusFilterChange = useCallback((value: string) => {
     const newStatus = value as DisplayStatus | 'all';
@@ -275,8 +300,9 @@ export function DocumentList({
       search: searchTerm || undefined,
       limit,
       offset: 0,
+      source: sourceFilter !== 'all' ? sourceFilter : undefined,
     });
-  }, [searchTerm, limit, setFilters]);
+  }, [searchTerm, limit, sourceFilter, setFilters]);
 
   // Debounced search handler
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -293,6 +319,7 @@ export function DocumentList({
         search: value || undefined,
         limit,
         offset: 0,
+        source: sourceFilter !== 'all' ? sourceFilter : undefined,
       });
     }, 500);
     setSearchTimeout(timeout);
@@ -317,9 +344,10 @@ export function DocumentList({
         search: searchTerm || undefined,
         limit,
         offset: newOffset,
+        source: sourceFilter !== 'all' ? sourceFilter : undefined,
       });
     }
-  }, [offset, limit, statusFilter, searchTerm, setFilters]);
+  }, [offset, limit, statusFilter, searchTerm, sourceFilter, setFilters]);
 
   const handleNextPage = useCallback(() => {
     if (offset + limit < total) {
@@ -330,9 +358,10 @@ export function DocumentList({
         search: searchTerm || undefined,
         limit,
         offset: newOffset,
+        source: sourceFilter !== 'all' ? sourceFilter : undefined,
       });
     }
-  }, [offset, limit, total, statusFilter, searchTerm, setFilters]);
+  }, [offset, limit, total, statusFilter, searchTerm, sourceFilter, setFilters]);
 
   // Refresh handler
   const handleRefresh = useCallback(async () => {
@@ -726,6 +755,11 @@ export function DocumentList({
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <span className="truncate max-w-[300px]">{doc.title || doc.file_name || 'Untitled'}</span>
+            {doc.source === 'gdrive' && (
+              <Badge variant="outline" className="text-xs">
+                📁 Google Drive
+              </Badge>
+            )}
           </div>
         </TableCell>
         <TableCell 
@@ -918,6 +952,11 @@ export function DocumentList({
             <div className="flex items-center gap-2 mb-2">
               <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <span className="font-medium text-sm truncate">{doc.title || doc.file_name || 'Untitled'}</span>
+              {doc.source === 'gdrive' && (
+                <Badge variant="outline" className="text-xs">
+                  📁 Google Drive
+                </Badge>
+              )}
             </div>
             
             {/* Status and Updated */}
@@ -1260,6 +1299,17 @@ export function DocumentList({
                 <option value="30days">Last 30 Days</option>
                 <option value="90days">Last 90 Days</option>
                 <option value="year">Last Year</option>
+              </Select>
+            </div>
+            <div className="w-full sm:w-48">
+              <Select
+                value={sourceFilter}
+                onChange={(e) => handleSourceFilterChange(e.target.value)}
+                className="min-h-[44px]"
+              >
+                <option value="all">All Sources</option>
+                <option value="gdrive">Google Drive</option>
+                <option value="tus">Upload</option>
               </Select>
             </div>
           </div>

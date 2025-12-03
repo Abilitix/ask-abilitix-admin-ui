@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle, Settings, Users, TestTube, Trash2, UserX } from 'lucide-react';
+import { HelpCircle, Settings, Users, TestTube, Trash2, UserX, Link as LinkIcon } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
 import { ApiErrorCode } from '@/types/errors';
@@ -1090,6 +1091,41 @@ export default function SettingsPage() {
 
       {/* Context Management Section */}
       <ContextNavigationCard />
+
+      {/* Integrations Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LinkIcon className="h-5 w-5" />
+            Integrations
+          </CardTitle>
+          <CardDescription>
+            Connect external services to sync documents automatically
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <Link href="/admin/settings/integrations/gdrive">
+              <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded bg-blue-50 flex items-center justify-center">
+                    <span className="text-xl">📁</span>
+                  </div>
+                  <div>
+                    <div className="font-medium">Google Drive</div>
+                    <div className="text-sm text-gray-600">
+                      Sync documents from your Google Drive account
+                    </div>
+                  </div>
+                </div>
+                <div className="text-gray-400">
+                  →
+                </div>
+              </div>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Current Members Section */}
       <Card>

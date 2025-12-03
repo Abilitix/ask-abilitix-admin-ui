@@ -19,7 +19,10 @@ import {
   type BrowseFolder,
   type SelectedFolder,
 } from '@/lib/api/storage';
-import { Loader2, CheckCircle2, XCircle, Folder, FolderOpen, Trash2, RefreshCw } from 'lucide-react';
+import { 
+  Loader2, CheckCircle2, XCircle, Folder, FolderOpen, Trash2, RefreshCw,
+  Cloud, Link2, Settings2, ChevronRight, Check
+} from 'lucide-react';
 
 export default function GoogleDriveIntegrationPage() {
   const searchParams = useSearchParams();
@@ -245,43 +248,72 @@ export default function GoogleDriveIntegrationPage() {
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 max-w-4xl space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">Google Drive Integration</h1>
-        <p className="text-sm text-gray-600">
-          Connect your Google Drive account to automatically sync documents to Ask Abilitix.
-        </p>
+    <div className="p-3 sm:p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      {/* Header - Best-in-class SaaS pattern */}
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+            <Cloud className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Google Drive Integration</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Automatically sync documents from your Google Drive
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Connection Status Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Connection Status</CardTitle>
-          <CardDescription>
-            Manage your Google Drive connection
-          </CardDescription>
+      {/* Connection Status Card - Best-in-class design */}
+      <Card className="border-2">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Link2 className="h-5 w-5 text-blue-600" />
+                Connection Status
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Manage your Google Drive account connection
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           {connection ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  <div>
-                    <div className="font-medium">Connected</div>
-                    <div className="text-sm text-gray-600">
-                      {connection.provider_account_name} ({connection.provider_account_id})
+              <div className="flex items-start justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start gap-4 flex-1">
+                  <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-gray-900">Connected</span>
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                        Active
+                      </Badge>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Connected: {new Date(connection.created_at).toLocaleDateString()}
+                    <div className="text-sm text-gray-700 font-medium mb-1">
+                      {connection.provider_account_name}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {connection.provider_account_id}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-2">
+                      Connected on {new Date(connection.created_at).toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}
                     </div>
                   </div>
                 </div>
                 <Button
-                  variant="destructive"
+                  variant="outline"
                   onClick={handleDisconnect}
                   disabled={disconnecting}
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
                 >
                   {disconnecting ? (
                     <>
@@ -289,35 +321,46 @@ export default function GoogleDriveIntegrationPage() {
                       Disconnecting...
                     </>
                   ) : (
-                    'Disconnect'
+                    <>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Disconnect
+                    </>
                   )}
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <XCircle className="h-5 w-5 text-gray-400" />
-                <div>
-                  <div className="font-medium">Not Connected</div>
-                  <div className="text-sm text-gray-600">
-                    Connect your Google Drive account to start syncing documents
+            <div className="p-6 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-4 flex-1">
+                  <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <Cloud className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900 mb-1">Not Connected</div>
+                    <div className="text-sm text-gray-600 max-w-md">
+                      Connect your Google Drive account to automatically sync documents to Ask Abilitix. Your files will be securely synced and available for AI-powered search.
+                    </div>
                   </div>
                 </div>
+                <Button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                >
+                  {connecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="h-4 w-4 mr-2" />
+                      Connect Google Drive
+                    </>
+                  )}
+                </Button>
               </div>
-              <Button
-                onClick={handleConnect}
-                disabled={connecting}
-              >
-                {connecting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  'Connect Google Drive'
-                )}
-              </Button>
             </div>
           )}
         </CardContent>
@@ -328,96 +371,154 @@ export default function GoogleDriveIntegrationPage() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Browse Folders</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Folder className="h-5 w-5 text-blue-600" />
+                Browse Folders
+              </CardTitle>
               <CardDescription>
-                Select folders from your Google Drive to sync
+                Select folders from your Google Drive to automatically sync documents
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {browsingFolders.length === 0 && !loadingBrowse['root'] ? (
-                  <div className="text-sm text-gray-500 py-4 text-center">
-                    Click "Load Folders" to browse your Google Drive
-                  </div>
-                ) : (
-                  <FolderTree
-                    folders={browsingFolders}
-                    parentId="root"
-                    expandedFolders={expandedFolders}
-                    loadingBrowse={loadingBrowse}
-                    onToggleExpansion={toggleFolderExpansion}
-                    onSelectFolder={handleSelectFolder}
-                    onBrowseFolder={handleBrowseFolder}
-                  />
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleBrowseFolder('root')}
-                  disabled={loadingBrowse['root']}
-                  className="mt-4"
-                >
-                  {loadingBrowse['root'] ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Loading...
-                    </>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-600">
+                    Browse and select folders to sync. Documents in selected folders will be automatically imported.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBrowseFolder('root')}
+                    disabled={loadingBrowse['root']}
+                    className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                  >
+                    {loadingBrowse['root'] ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Refresh Folders
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <div className="border rounded-lg bg-gray-50 p-4 max-h-96 overflow-y-auto">
+                  {browsingFolders.length === 0 && !loadingBrowse['root'] ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <Folder className="h-12 w-12 text-gray-300 mb-3" />
+                      <p className="text-sm font-medium text-gray-900 mb-1">No folders loaded</p>
+                      <p className="text-xs text-gray-500">
+                        Click "Refresh Folders" to browse your Google Drive
+                      </p>
+                    </div>
                   ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Load Folders
-                    </>
+                    <FolderTree
+                      folders={browsingFolders}
+                      parentId="root"
+                      expandedFolders={expandedFolders}
+                      loadingBrowse={loadingBrowse}
+                      onToggleExpansion={toggleFolderExpansion}
+                      onSelectFolder={handleSelectFolder}
+                      onBrowseFolder={handleBrowseFolder}
+                    />
                   )}
-                </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Selected Folders */}
+          {/* Selected Folders - Best-in-class design */}
           <Card>
             <CardHeader>
-              <CardTitle>Selected Folders</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Settings2 className="h-5 w-5 text-blue-600" />
+                Synced Folders
+                {selectedFolders.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {selectedFolders.length}
+                  </Badge>
+                )}
+              </CardTitle>
               <CardDescription>
-                Folders that are currently syncing to Ask Abilitix
+                Folders that are currently syncing documents to Ask Abilitix
               </CardDescription>
             </CardHeader>
             <CardContent>
               {loadingFolders ? (
-                <div className="flex items-center justify-center py-8">
+                <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
                 </div>
               ) : selectedFolders.length === 0 ? (
-                <div className="text-sm text-gray-500 py-4 text-center">
-                  No folders selected. Browse and select folders above to start syncing.
+                <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
+                  <Folder className="h-12 w-12 text-gray-300 mb-3" />
+                  <p className="text-sm font-medium text-gray-900 mb-1">No folders selected</p>
+                  <p className="text-xs text-gray-500 max-w-sm">
+                    Browse folders above and click "Select" to start syncing documents automatically
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {selectedFolders.map((folder) => (
                     <div
                       key={folder.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="group flex items-center justify-between p-4 border rounded-lg bg-white hover:border-blue-300 hover:shadow-sm transition-all"
                     >
-                      <div className="flex items-center gap-3 flex-1">
-                        <Folder className="h-5 w-5 text-blue-600" />
-                        <div className="flex-1">
-                          <div className="font-medium">{folder.folder_name}</div>
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          folder.sync_enabled ? 'bg-blue-100' : 'bg-gray-100'
+                        }`}>
+                          <Folder className={`h-5 w-5 ${
+                            folder.sync_enabled ? 'text-blue-600' : 'text-gray-400'
+                          }`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-gray-900 truncate">
+                              {folder.folder_name}
+                            </span>
+                            {folder.sync_enabled && (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 text-xs">
+                                <Check className="h-3 w-3 mr-1" />
+                                Syncing
+                              </Badge>
+                            )}
+                          </div>
                           <div className="text-xs text-gray-500">
-                            Added: {new Date(folder.created_at).toLocaleDateString()}
+                            Added {new Date(folder.created_at).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric', 
+                              year: 'numeric' 
+                            })}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <Button
                           variant={folder.sync_enabled ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => handleToggleSync(folder)}
+                          className={folder.sync_enabled 
+                            ? 'bg-blue-600 hover:bg-blue-700' 
+                            : 'border-gray-300'
+                          }
                         >
-                          {folder.sync_enabled ? 'Sync: ON' : 'Sync: OFF'}
+                          {folder.sync_enabled ? (
+                            <>
+                              <Check className="h-3 w-3 mr-1.5" />
+                              Enabled
+                            </>
+                          ) : (
+                            'Enable Sync'
+                          )}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveFolder(folder)}
+                          className="text-gray-400 hover:text-red-600 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -467,7 +568,7 @@ function FolderTree({
 
         return (
           <div key={folder.id} className="pl-4">
-            <div className="flex items-center gap-2 py-1 hover:bg-gray-50 rounded">
+            <div className="flex items-center gap-2 py-2 px-2 hover:bg-blue-50 rounded-lg group transition-colors">
               <button
                 onClick={() => {
                   if (hasChildren || isLoading) {
@@ -477,28 +578,33 @@ function FolderTree({
                     }
                   }
                 }}
-                className="flex items-center gap-2 flex-1 text-left"
+                className="flex items-center gap-2 flex-1 text-left min-w-0"
                 disabled={isLoading}
               >
                 {hasChildren || isLoading ? (
                   isExpanded ? (
-                    <FolderOpen className="h-4 w-4 text-blue-600" />
+                    <FolderOpen className="h-4 w-4 text-blue-600 flex-shrink-0" />
                   ) : (
-                    <Folder className="h-4 w-4 text-gray-400" />
+                    <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
                   )
                 ) : (
-                  <Folder className="h-4 w-4 text-gray-400" />
+                  <div className="h-4 w-4 flex-shrink-0" />
                 )}
-                <span className="text-sm">{folder.name}</span>
+                {!hasChildren && !isLoading && (
+                  <Folder className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                )}
+                <span className="text-sm text-gray-700 font-medium truncate">{folder.name}</span>
                 {isLoading && (
-                  <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
+                  <Loader2 className="h-3 w-3 animate-spin text-blue-600 flex-shrink-0" />
                 )}
               </button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onSelectFolder(folder)}
+                className="flex-shrink-0 border-blue-200 text-blue-700 hover:bg-blue-100"
               >
+                <Check className="h-3 w-3 mr-1.5" />
                 Select
               </Button>
             </div>

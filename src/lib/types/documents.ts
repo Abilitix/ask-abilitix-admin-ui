@@ -57,6 +57,8 @@ export interface Document {
   citation_count?: number;
   storage_path?: string | null; // Optional: path to original file in storage (required for /open endpoint)
   has_original_file?: boolean; // Optional: whether document has an original file that can be opened
+  source?: string; // Optional: document source (e.g., 'gdrive', 'tus', 'upload')
+  metadata?: Record<string, unknown>; // Optional: additional metadata (e.g., storage_folder_name for Google Drive)
 }
 
 /**
@@ -144,6 +146,7 @@ export interface DocumentCitationsResponse {
  * Query parameters for document list endpoint.
  */
 export interface DocumentListParams {
+  source?: string; // Optional: filter by source (e.g., 'gdrive')
   status?: DisplayStatus;
   search?: string;
   limit?: number;

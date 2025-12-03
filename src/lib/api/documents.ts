@@ -63,6 +63,9 @@ export async function fetchDocuments(
   if (params.offset) {
     searchParams.set('offset', String(params.offset));
   }
+  if (params.source) {
+    searchParams.set('source', params.source);
+  }
 
   const queryString = searchParams.toString();
   const url = `${API_BASE}${queryString ? `?${queryString}` : ''}`;

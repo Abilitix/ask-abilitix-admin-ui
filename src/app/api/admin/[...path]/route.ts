@@ -59,10 +59,36 @@ async function handleRequest(
     // Forward cookies for authentication
     const cookieHeader = request.headers.get('cookie') || '';
     
+    // Get tenant context from user session (for X-Tenant-Id header)
+    let tenantId: string | undefined;
+    try {
+      const authResponse = await fetch(`${ADMIN_API}/auth/me`, {
+        headers: {
+          'Cookie': cookieHeader
+        },
+        cache: 'no-store',
+      });
+
+      if (authResponse.ok) {
+        const userData = await authResponse.json();
+        tenantId = userData.tenant_id;
+      }
+      // If auth fails, continue without tenant_id (some endpoints may not need it)
+    } catch (authError) {
+      // If auth check fails, continue without tenant_id
+      // This allows endpoints that don't require authentication to still work
+      console.warn('Failed to get tenant_id for catch-all proxy:', authError);
+    }
+    
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Cookie': cookieHeader,
     };
+
+    // Add X-Tenant-Id header if available (required for storage endpoints)
+    if (tenantId) {
+      headers['X-Tenant-Id'] = tenantId;
+    }
 
     const body = method !== 'GET' ? await request.text() : undefined;
 

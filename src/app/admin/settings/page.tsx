@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle, Settings, Users, TestTube, Trash2, UserX, Link as LinkIcon } from 'lucide-react';
+import { HelpCircle, Settings, Users, TestTube, Trash2, UserX, Link as LinkIcon, Info } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
@@ -1105,6 +1105,15 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
+            {/* Testing Mode Notice - Brief */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  <strong>Testing Mode:</strong> Google Drive integration is in testing mode. You may see an "unverified app" warning when connecting—this is expected. Click "Advanced" then "Go to Ask Abilitix" to proceed.
+                </p>
+              </div>
+            </div>
             <Link href="/admin/settings/integrations/gdrive">
               <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
                 <div className="flex items-center gap-3">

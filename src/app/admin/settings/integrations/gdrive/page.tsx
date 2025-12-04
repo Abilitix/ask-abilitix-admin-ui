@@ -24,6 +24,7 @@ import {
   Cloud, Link2, Settings2, ChevronRight, Check, ArrowLeft, Info, X
 } from 'lucide-react';
 import Link from 'next/link';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 export default function GoogleDriveIntegrationPage() {
   const searchParams = useSearchParams();
@@ -39,6 +40,8 @@ export default function GoogleDriveIntegrationPage() {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [loadingBrowse, setLoadingBrowse] = useState<Record<string, boolean>>({});
   const [dismissedNotice, setDismissedNotice] = useState(false);
+  const [disconnectDialog, setDisconnectDialog] = useState(false);
+  const [removeFolderDialog, setRemoveFolderDialog] = useState<SelectedFolder | null>(null);
 
   // Check for OAuth callback success
   useEffect(() => {
@@ -117,15 +120,16 @@ export default function GoogleDriveIntegrationPage() {
     }
   }
 
+  function handleDisconnectClick() {
+    setDisconnectDialog(true);
+  }
+
   async function handleDisconnect() {
     if (!connection) return;
 
-    if (!confirm('Are you sure you want to disconnect Google Drive? This will also remove all selected folders.')) {
-      return;
-    }
-
     try {
       setDisconnecting(true);
+      setDisconnectDialog(false);
       await deleteConnection('gdrive', connection.id);
       toast.success('Google Drive disconnected successfully');
       setConnection(null);
@@ -216,16 +220,17 @@ export default function GoogleDriveIntegrationPage() {
     }
   }
 
-  async function handleRemoveFolder(folder: SelectedFolder) {
-    if (!connection) return;
+  function handleRemoveFolderClick(folder: SelectedFolder) {
+    setRemoveFolderDialog(folder);
+  }
 
-    if (!confirm(`Remove "${folder.folder_name}" from syncing?`)) {
-      return;
-    }
+  async function handleRemoveFolder() {
+    if (!connection || !removeFolderDialog) return;
 
     try {
-      await removeFolder('gdrive', connection.id, folder.folder_id);
-      toast.success(`Folder "${folder.folder_name}" removed`);
+      await removeFolder('gdrive', connection.id, removeFolderDialog.folder_id);
+      toast.success(`Folder "${removeFolderDialog.folder_name}" removed`);
+      setRemoveFolderDialog(null);
       await loadSelectedFolders();
     } catch (error) {
       console.error('Failed to remove folder:', error);
@@ -372,7 +377,7 @@ export default function GoogleDriveIntegrationPage() {
                 </div>
                 <Button
                   variant="outline"
-                  onClick={handleDisconnect}
+                  onClick={handleDisconnectClick}
                   disabled={disconnecting}
                   className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
                 >
@@ -578,7 +583,7 @@ export default function GoogleDriveIntegrationPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleRemoveFolder(folder)}
+                          onClick={() => handleRemoveFolderClick(folder)}
                           className="text-gray-400 hover:text-red-600 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -591,6 +596,34 @@ export default function GoogleDriveIntegrationPage() {
             </CardContent>
           </Card>
         </>
+      )}
+
+      {/* Disconnect Confirmation Dialog */}
+      <ConfirmationDialog
+        open={disconnectDialog}
+        onClose={() => setDisconnectDialog(false)}
+        onConfirm={handleDisconnect}
+        title="Disconnect Google Drive"
+        message="Are you sure you want to disconnect Google Drive? This will also remove all selected folders and stop syncing documents."
+        confirmText="Disconnect"
+        cancelText="Cancel"
+        variant="destructive"
+        loading={disconnecting}
+        loadingText="Disconnecting..."
+      />
+
+      {/* Remove Folder Confirmation Dialog */}
+      {removeFolderDialog && (
+        <ConfirmationDialog
+          open={!!removeFolderDialog}
+          onClose={() => setRemoveFolderDialog(null)}
+          onConfirm={handleRemoveFolder}
+          title="Remove Folder"
+          message={`Remove "${removeFolderDialog.folder_name}" from syncing? Documents from this folder will no longer be automatically imported.`}
+          confirmText="Remove"
+          cancelText="Cancel"
+          variant="destructive"
+        />
       )}
     </div>
   );

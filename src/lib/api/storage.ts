@@ -108,7 +108,7 @@ export interface SelectFolderRequest {
  * 
  * @example
  * ```typescript
- * const { oauth_url } = await startOAuth('gdrive', 'https://app.example.com/settings/integrations/gdrive?success=true');
+ * const { oauth_url } = await startOAuth('gdrive', 'https://app.example.com/admin/sources/gdrive?success=true');
  * window.location.href = oauth_url;
  * ```
  */

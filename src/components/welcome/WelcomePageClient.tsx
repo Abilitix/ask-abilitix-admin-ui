@@ -14,15 +14,6 @@ type WelcomePageClientProps = {
 
 export default function WelcomePageClient({ user }: WelcomePageClientProps) {
   const { summary, isLoading } = useDashboardSummary();
-  
-  // Prefetch dashboard data to reduce latency when navigating
-  React.useEffect(() => {
-    // Prefetch dashboard route
-    const link = document.createElement('link');
-    link.rel = 'prefetch';
-    link.href = '/';
-    document.head.appendChild(link);
-  }, []);
 
   if (isLoading) {
     return (
@@ -44,6 +35,32 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
   const userName = summary?.user.name || 'there';
   const isNewUser = !summary || (summary.metrics.docs_active === 0 && summary.metrics.faq_count === 0);
   const pendingReviews = summary?.metrics.pending_reviews || 0;
+  
+  // Prefetch key routes to reduce latency when navigating
+  React.useEffect(() => {
+    // Prefetch dashboard route
+    const dashboardLink = document.createElement('link');
+    dashboardLink.rel = 'prefetch';
+    dashboardLink.href = '/';
+    document.head.appendChild(dashboardLink);
+
+    // Prefetch most common entry points (Upload Docs and Connect Sources)
+    const entryPoints = ['/admin/docs', '/admin/sources'];
+    entryPoints.forEach(route => {
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.href = route;
+      document.head.appendChild(link);
+    });
+
+    // Conditionally prefetch inbox if there are pending reviews
+    if (pendingReviews > 0) {
+      const inboxLink = document.createElement('link');
+      inboxLink.rel = 'prefetch';
+      inboxLink.href = '/admin/inbox';
+      document.head.appendChild(inboxLink);
+    }
+  }, [pendingReviews]);
   const docsCount = summary?.metrics.docs_active || 0;
   const faqCount = summary?.metrics.faq_count || 0;
 

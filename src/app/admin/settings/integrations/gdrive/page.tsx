@@ -21,8 +21,9 @@ import {
 } from '@/lib/api/storage';
 import { 
   Loader2, CheckCircle2, XCircle, Folder, FolderOpen, Trash2, RefreshCw,
-  Cloud, Link2, Settings2, ChevronRight, Check
+  Cloud, Link2, Settings2, ChevronRight, Check, ArrowLeft, Info, X
 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function GoogleDriveIntegrationPage() {
   const searchParams = useSearchParams();
@@ -37,6 +38,7 @@ export default function GoogleDriveIntegrationPage() {
   const [browsingFolders, setBrowsingFolders] = useState<BrowseFolder[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [loadingBrowse, setLoadingBrowse] = useState<Record<string, boolean>>({});
+  const [dismissedNotice, setDismissedNotice] = useState(false);
 
   // Check for OAuth callback success
   useEffect(() => {
@@ -249,9 +251,35 @@ export default function GoogleDriveIntegrationPage() {
 
   return (
     <div className="p-3 sm:p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      {/* Breadcrumb Navigation - Best-in-class SaaS pattern */}
+      <nav className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+        <Link 
+          href="/admin/settings" 
+          className="hover:text-gray-900 transition-colors"
+        >
+          Settings
+        </Link>
+        <ChevronRight className="h-4 w-4 text-gray-400" />
+        <Link 
+          href="/admin/settings" 
+          className="hover:text-gray-900 transition-colors"
+        >
+          Integrations
+        </Link>
+        <ChevronRight className="h-4 w-4 text-gray-400" />
+        <span className="text-gray-900 font-medium">Google Drive</span>
+      </nav>
+
       {/* Header - Best-in-class SaaS pattern */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-3">
+          <Link
+            href="/admin/settings"
+            className="h-10 w-10 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 flex items-center justify-center transition-colors flex-shrink-0"
+            title="Back to Settings"
+          >
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
+          </Link>
           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
             <Cloud className="h-5 w-5 text-white" />
           </div>
@@ -263,6 +291,39 @@ export default function GoogleDriveIntegrationPage() {
           </div>
         </div>
       </div>
+
+      {/* Testing Mode Notice - Detailed */}
+      {!dismissedNotice && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Info className="h-4 w-4 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-amber-900 mb-1">
+                    Google Drive Integration (Testing Mode)
+                  </h3>
+                  <p className="text-sm text-amber-800 leading-relaxed">
+                    This integration is currently in Google's testing mode. When you connect your Google account, you may see a warning from Google about an unverified app. This is expected and safe—you can proceed by clicking <strong>"Advanced"</strong> and then <strong>"Go to Ask Abilitix (unsafe)"</strong>.
+                  </p>
+                  <p className="text-sm text-amber-700 mt-2">
+                    We're working on Google verification to remove this notice. Your data remains secure and private.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setDismissedNotice(true)}
+                  className="text-amber-600 hover:text-amber-800 transition-colors flex-shrink-0"
+                  aria-label="Dismiss notice"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Connection Status Card - Best-in-class design */}
       <Card className="border-2">

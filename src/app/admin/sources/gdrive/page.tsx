@@ -341,7 +341,7 @@ export default function GoogleDriveIntegrationPage() {
         <CardContent>
           {connection ? (
             <div className="space-y-4">
-              <div className="flex items-start justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-start gap-4 flex-1">
                   <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                     <CheckCircle2 className="h-6 w-6 text-green-600" />
@@ -372,7 +372,7 @@ export default function GoogleDriveIntegrationPage() {
                   variant="outline"
                   onClick={handleDisconnectClick}
                   disabled={disconnecting}
-                  className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 min-h-[44px] sm:min-h-0"
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 min-h-[44px] sm:min-h-0 w-full sm:w-auto"
                 >
                   {disconnecting ? (
                     <>

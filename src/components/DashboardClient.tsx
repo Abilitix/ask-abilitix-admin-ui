@@ -152,7 +152,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
           Dashboard Features
         </h2>
         {hasCards ? (
-          <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3 items-stretch">
             {cards.map((c) => {
               // Special handling for Sources card with connection status
               if (c.key === "sources") {
@@ -168,9 +168,11 @@ export default function DashboardClient({ user }: DashboardClientProps) {
                   <div className="text-lg font-bold text-slate-900 mb-2 group-hover:text-slate-700 transition-colors">
                     {c.title}
                   </div>
-                  <div className="text-sm leading-relaxed text-slate-600 group-hover:text-slate-700 transition-colors">
+                  <div className="text-sm leading-relaxed text-slate-600 group-hover:text-slate-700 transition-colors flex-grow">
                     {c.desc}
                   </div>
+                  {/* Spacer to match SourcesCard badge height for consistent card heights */}
+                  <div className="mt-auto pt-2 min-h-[28px]"></div>
                   {/* Subtle hover indicator */}
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                 </NoPrefetchLink>
@@ -244,19 +246,19 @@ function SourcesCard() {
       prefetch={false}
       className="group relative rounded-xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5 h-full flex flex-col"
     >
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-2">
         <div className="text-lg font-bold text-slate-900 group-hover:text-slate-700 transition-colors">
           Data Sources
         </div>
         <Link2 className="h-5 w-5 text-slate-400 group-hover:text-slate-600 transition-colors flex-shrink-0" />
       </div>
       
-      <div className="text-sm leading-relaxed text-slate-600 group-hover:text-slate-700 transition-colors mb-3">
+      <div className="text-sm leading-relaxed text-slate-600 group-hover:text-slate-700 transition-colors flex-grow">
         Connect Google Drive and other sources to automatically sync documents
       </div>
 
       {/* Connection Status Badge */}
-      <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-100">
+      <div className="flex items-center gap-2 mt-auto pt-2 border-t border-slate-100 min-h-[28px]">
         {loading ? (
           <div className="h-4 w-20 bg-slate-100 rounded animate-pulse" />
         ) : isConnected ? (

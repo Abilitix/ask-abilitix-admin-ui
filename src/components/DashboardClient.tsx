@@ -24,6 +24,12 @@ type Card = {
 
 const BASE_CARDS: Card[] = [
   {
+    key: "docs",
+    href: "/admin/docs",
+    title: "Upload Documents",
+    desc: "Upload documents; generate FAQs; archive/unarchive; supersede",
+  },
+  {
     key: "sources",
     href: "/admin/sources",
     title: "Data Sources",
@@ -40,12 +46,6 @@ const BASE_CARDS: Card[] = [
     href: "/admin/inbox",
     title: "Review Answers",
     desc: "Create, review, and approve FAQs; attach citations",
-  },
-  {
-    key: "docs",
-    href: "/admin/docs",
-    title: "Upload Documents",
-    desc: "Upload documents; generate FAQs; archive/unarchive; supersede",
   },
   {
     key: "faqs",
@@ -76,7 +76,8 @@ export default function DashboardClient({ user }: DashboardClientProps) {
   // Best-in-class SaaS principle: Users control their navigation
   // Welcome page is accessible via "Take Tour" button - no forced redirects
 
-  let cards: Card[] = [AI_CARD, ...BASE_CARDS];
+  // Order: Workflow-based (Upload → Sources → Generate → Review → Manage → AI → Settings)
+  let cards: Card[] = [...BASE_CARDS, AI_CARD];
   
   if (hideOld) {
     cards = cards.filter((c) => c.key !== "rag-classic");

@@ -163,7 +163,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
                   key={c.key}
                   href={c.href}
                   prefetch={false}
-                  className="group relative rounded-xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5"
+                  className="group relative rounded-xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5 h-full flex flex-col"
                 >
                   <div className="text-lg font-bold text-slate-900 mb-2 group-hover:text-slate-700 transition-colors">
                     {c.title}
@@ -242,7 +242,7 @@ function SourcesCard() {
     <NoPrefetchLink
       href="/admin/sources"
       prefetch={false}
-      className="group relative rounded-xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5"
+      className="group relative rounded-xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5 h-full flex flex-col"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="text-lg font-bold text-slate-900 group-hover:text-slate-700 transition-colors">

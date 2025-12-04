@@ -1092,50 +1092,6 @@ export default function SettingsPage() {
       {/* Context Management Section */}
       <ContextNavigationCard />
 
-      {/* Integrations Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <LinkIcon className="h-5 w-5" />
-            Integrations
-          </CardTitle>
-          <CardDescription>
-            Connect external services to sync documents automatically
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {/* Testing Mode Notice - Brief */}
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
-              <div className="flex items-start gap-2">
-                <Info className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-800 leading-relaxed">
-                  <strong>Testing Mode:</strong> Google Drive integration is in testing mode. You may see an "unverified app" warning when connecting—this is expected. Click "Advanced" then "Go to Ask Abilitix" to proceed.
-                </p>
-              </div>
-            </div>
-            <Link href="/admin/settings/integrations/gdrive">
-              <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded bg-blue-50 flex items-center justify-center">
-                    <span className="text-xl">📁</span>
-                  </div>
-                  <div>
-                    <div className="font-medium">Google Drive</div>
-                    <div className="text-sm text-gray-600">
-                      Sync documents from your Google Drive account
-                    </div>
-                  </div>
-                </div>
-                <div className="text-gray-400">
-                  →
-                </div>
-              </div>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Current Members Section */}
       <Card>
         <CardHeader>

@@ -372,7 +372,7 @@ export default function GoogleDriveIntegrationPage() {
                   variant="outline"
                   onClick={handleDisconnectClick}
                   disabled={disconnecting}
-                  className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 min-h-[44px] sm:min-h-0"
                 >
                   {disconnecting ? (
                     <>
@@ -405,7 +405,7 @@ export default function GoogleDriveIntegrationPage() {
                 <Button
                   onClick={handleConnect}
                   disabled={connecting}
-                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm min-h-[44px] sm:min-h-0"
                 >
                   {connecting ? (
                     <>
@@ -449,7 +449,7 @@ export default function GoogleDriveIntegrationPage() {
                     size="sm"
                     onClick={() => handleBrowseFolder('root')}
                     disabled={loadingBrowse['root']}
-                    className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                    className="border-blue-200 text-blue-700 hover:bg-blue-50 min-h-[44px] sm:min-h-0"
                   >
                     {loadingBrowse['root'] ? (
                       <>
@@ -559,10 +559,10 @@ export default function GoogleDriveIntegrationPage() {
                           variant={folder.sync_enabled ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => handleToggleSync(folder)}
-                          className={folder.sync_enabled 
+                          className={`min-h-[44px] sm:min-h-0 ${folder.sync_enabled 
                             ? 'bg-blue-600 hover:bg-blue-700' 
                             : 'border-gray-300'
-                          }
+                          }`}
                         >
                           {folder.sync_enabled ? (
                             <>
@@ -577,7 +577,7 @@ export default function GoogleDriveIntegrationPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveFolderClick(folder)}
-                          className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -689,7 +689,7 @@ function FolderTree({
                 variant="outline"
                 size="sm"
                 onClick={() => onSelectFolder(folder)}
-                className="flex-shrink-0 border-blue-200 text-blue-700 hover:bg-blue-100"
+                className="flex-shrink-0 border-blue-200 text-blue-700 hover:bg-blue-100 min-h-[44px] sm:min-h-0"
               >
                 <Check className="h-3 w-3 mr-1.5" />
                 Select

@@ -256,7 +256,7 @@ function SourcesCard() {
       </div>
 
       {/* Connection Status Badge */}
-      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+      <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-100">
         {loading ? (
           <div className="h-4 w-20 bg-slate-100 rounded animate-pulse" />
         ) : isConnected ? (

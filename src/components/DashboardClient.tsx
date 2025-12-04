@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import NoPrefetchLink from "@/components/NoPrefetchLink";
 import type { User } from "@/lib/auth"; // Adjust path if needed
 import { hasPermission } from "@/lib/roles";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { DashboardGreeting } from "@/components/dashboard/DashboardGreeting";
 import { DashboardMetricsStrip } from "@/components/dashboard/DashboardMetricsStrip";
-import { Rocket } from "lucide-react";
+import { Rocket, Link2, CheckCircle2, Cloud } from "lucide-react";
+import { listConnections } from "@/lib/api/storage";
 
 type DashboardClientProps = {
   user: User;
@@ -21,6 +23,12 @@ type Card = {
 };
 
 const BASE_CARDS: Card[] = [
+  {
+    key: "sources",
+    href: "/admin/sources",
+    title: "Data Sources",
+    desc: "Connect Google Drive and other sources to automatically sync documents",
+  },
   {
     key: "rag-classic",
     href: "/admin/rag",
@@ -84,6 +92,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
         case "inbox":
           return hasPermission(user.role, "canAccessInbox");
         case "docs":
+        case "sources":
           return hasPermission(user.role, "canAccessDocs");
         case "faqs":
           return hasPermission(user.role, "canAccessFAQs");
@@ -143,23 +152,29 @@ export default function DashboardClient({ user }: DashboardClientProps) {
         </h2>
         {hasCards ? (
           <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {cards.map((c) => (
-              <NoPrefetchLink
-                key={c.key}
-                href={c.href}
-                prefetch={false}
-                className="group relative rounded-xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5"
-              >
-                <div className="text-lg font-bold text-slate-900 mb-2 group-hover:text-slate-700 transition-colors">
-                  {c.title}
-                </div>
-                <div className="text-sm leading-relaxed text-slate-600 group-hover:text-slate-700 transition-colors">
-                  {c.desc}
-                </div>
-                {/* Subtle hover indicator */}
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-              </NoPrefetchLink>
-            ))}
+            {cards.map((c) => {
+              // Special handling for Sources card with connection status
+              if (c.key === "sources") {
+                return <SourcesCard key={c.key} />;
+              }
+              return (
+                <NoPrefetchLink
+                  key={c.key}
+                  href={c.href}
+                  prefetch={false}
+                  className="group relative rounded-xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5"
+                >
+                  <div className="text-lg font-bold text-slate-900 mb-2 group-hover:text-slate-700 transition-colors">
+                    {c.title}
+                  </div>
+                  <div className="text-sm leading-relaxed text-slate-600 group-hover:text-slate-700 transition-colors">
+                    {c.desc}
+                  </div>
+                  {/* Subtle hover indicator */}
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                </NoPrefetchLink>
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-slate-300/60 bg-gradient-to-br from-slate-50/50 to-white p-8 sm:p-10 text-center">
@@ -196,5 +211,72 @@ export default function DashboardClient({ user }: DashboardClientProps) {
         </section>
       )}
     </div>
+  );
+}
+
+// Sources Card Component with Connection Status
+function SourcesCard() {
+  const [connections, setConnections] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadConnections() {
+      try {
+        const response = await listConnections('gdrive');
+        setConnections(response.connections.length);
+      } catch (error) {
+        // Silently fail - card will show "Not Connected" state
+        console.error('Failed to load connections:', error);
+        setConnections(0);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadConnections();
+  }, []);
+
+  const isConnected = connections > 0;
+
+  return (
+    <NoPrefetchLink
+      href="/admin/sources"
+      prefetch={false}
+      className="group relative rounded-xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-sm hover:shadow-lg hover:border-slate-300/80 transition-all duration-200 hover:-translate-y-0.5"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="text-lg font-bold text-slate-900 group-hover:text-slate-700 transition-colors">
+          Data Sources
+        </div>
+        <Link2 className="h-5 w-5 text-slate-400 group-hover:text-slate-600 transition-colors flex-shrink-0" />
+      </div>
+      
+      <div className="text-sm leading-relaxed text-slate-600 group-hover:text-slate-700 transition-colors mb-3">
+        Connect Google Drive and other sources to automatically sync documents
+      </div>
+
+      {/* Connection Status Badge */}
+      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+        {loading ? (
+          <div className="h-4 w-20 bg-slate-100 rounded animate-pulse" />
+        ) : isConnected ? (
+          <>
+            <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+            <span className="text-xs font-medium text-green-700">
+              {connections} {connections === 1 ? 'source' : 'sources'} connected
+            </span>
+          </>
+        ) : (
+          <>
+            <Cloud className="h-4 w-4 text-slate-400 flex-shrink-0" />
+            <span className="text-xs font-medium text-slate-500">
+              Not connected
+            </span>
+          </>
+        )}
+      </div>
+
+      {/* Subtle hover indicator */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+    </NoPrefetchLink>
   );
 }

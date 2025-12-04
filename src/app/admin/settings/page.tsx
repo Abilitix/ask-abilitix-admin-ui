@@ -1092,6 +1092,27 @@ export default function SettingsPage() {
       {/* Context Management Section */}
       <ContextNavigationCard />
 
+      {/* Data Sources Link - Subtle reference */}
+      <Card className="border-slate-200/60">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium text-slate-900 mb-1">Data Sources</div>
+              <div className="text-xs text-slate-600">
+                Connect Google Drive and other sources to automatically sync documents
+              </div>
+            </div>
+            <Link
+              href="/admin/sources"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              Manage Sources
+              <LinkIcon className="h-4 w-4" />
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Current Members Section */}
       <Card>
         <CardHeader>

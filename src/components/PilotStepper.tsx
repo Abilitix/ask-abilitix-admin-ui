@@ -9,17 +9,19 @@ import type { UserRole } from "@/lib/roles";
 // Toggle visibility with env; default ON unless explicitly "0"
 const SHOW_STEPPER = process.env.NEXT_PUBLIC_SHOW_PILOT_STEPPER !== "0";
 
-type Step = { key: "docs" | "chat" | "approve" | "faqs" | "settings"; label: string; href: string };
+type Step = { key: "sources" | "docs" | "chat" | "approve" | "faqs" | "settings"; label: string; href: string };
 
 const STEPS: Step[] = [
-  { key: "docs",     label: "① Upload Docs",     href: "/admin/docs" },
-  { key: "chat",     label: "② AI Assistant",    href: "/admin/ai" },
-  { key: "approve",  label: "③ Review Answers",  href: "/admin/inbox" },
-  { key: "faqs",     label: "④ Manage FAQs",     href: "/admin/faqs" },
-  { key: "settings", label: "⑤ Settings",        href: "/admin/settings" },
+  { key: "sources",  label: "① Connect Sources", href: "/admin/sources" },
+  { key: "docs",     label: "② Upload Docs",     href: "/admin/docs" },
+  { key: "chat",     label: "③ AI Assistant",    href: "/admin/ai" },
+  { key: "approve",  label: "④ Review Answers",  href: "/admin/inbox" },
+  { key: "faqs",     label: "⑤ Manage FAQs",     href: "/admin/faqs" },
+  { key: "settings", label: "⑥ Settings",        href: "/admin/settings" },
 ];
 
 function getActive(path: string): Step["key"] | null {
+  if (path.startsWith("/admin/sources")) return "sources";
   if (path.startsWith("/admin/docs")) return "docs";
   if (path.startsWith("/admin/ai") || path.startsWith("/admin/rag")) return "chat";
   if (path.startsWith("/admin/inbox")) return "approve";

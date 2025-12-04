@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useDashboardSummary } from '@/hooks/useDashboardSummary';
 import { WelcomeSidebar } from './WelcomeSidebar';
-import { Upload, MessageSquare, CheckCircle2, Sparkles, FileText, Users, ArrowRight, X, Bell, BookOpen, Video, Rocket, Brain, Shield, Zap, TrendingUp, Settings } from 'lucide-react';
+import { Upload, MessageSquare, CheckCircle2, Sparkles, FileText, Users, ArrowRight, X, Bell, BookOpen, Video, Rocket, Brain, Shield, Zap, TrendingUp, Settings, Link2, Cloud } from 'lucide-react';
 import type { User } from '@/lib/auth';
 
 type WelcomePageClientProps = {
@@ -119,10 +119,18 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
             </div>
             <div className="space-y-4">
               <AnnouncementCard
-                title={isNewUser ? "Welcome to your Ask Abilitix workspace!" : "New: Enhanced FAQ Machine"}
+                title="New: Google Drive Integration Available"
+                date="Today"
+                description="Connect your Google Drive to automatically sync documents. No more manual uploads—your files stay in sync with Ask Abilitix. Select folders to sync and documents will be imported automatically."
+                unread={true}
+                href="/admin/sources/gdrive"
+                actionText="Connect Google Drive"
+              />
+              <AnnouncementCard
+                title={isNewUser ? "Welcome to your Ask Abilitix workspace!" : "Enhanced FAQ Machine"}
                 date={isNewUser ? "Today" : "2 days ago"}
                 description={isNewUser 
-                  ? "Congratulations on setting up your workspace. Ask Abilitix delivers cited answers, inbox-gated trust, and lightning-fast FAQ responses. Start by uploading documents, then generate FAQs, and approve answers in your inbox."
+                  ? "Congratulations on setting up your workspace. Ask Abilitix delivers cited answers, inbox-gated trust, and lightning-fast FAQ responses. Start by uploading documents or connecting sources, then generate FAQs, and approve answers in your inbox."
                   : "We've improved the FAQ generation engine for faster, more accurate results. Try generating FAQs from your documents to see the improvements."
                 }
                 unread={isNewUser}
@@ -147,6 +155,13 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
                 title="Upload Docs"
                 href="/admin/docs"
                 count={docsCount > 0 ? docsCount : undefined}
+                color="text-blue-600"
+                bgColor="bg-blue-50"
+              />
+              <QuickActionCard
+                icon={Link2}
+                title="Connect Sources"
+                href="/admin/sources"
                 color="text-blue-600"
                 bgColor="bg-blue-50"
               />
@@ -225,11 +240,13 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
               <StepCard
                 step={1}
                 title="Upload & Connect Sources"
-                description="Upload key PDFs, DOCX, or Markdown files to build your knowledge base"
+                description="Upload key PDFs, DOCX, or Markdown files manually, or connect Google Drive to automatically sync documents. Your choice—both build your knowledge base."
                 icon={Upload}
                 href="/admin/docs"
                 completed={step1Complete}
                 buttonText="Go to Docs"
+                secondaryHref="/admin/sources"
+                secondaryButtonText="Connect Sources"
               />
 
               {/* Step 2 */}
@@ -347,9 +364,11 @@ type StepCardProps = {
   href: string;
   completed: boolean;
   buttonText: string;
+  secondaryHref?: string;
+  secondaryButtonText?: string;
 };
 
-function StepCard({ step, title, description, icon: Icon, href, completed, buttonText }: StepCardProps) {
+function StepCard({ step, title, description, icon: Icon, href, completed, buttonText, secondaryHref, secondaryButtonText }: StepCardProps) {
   return (
     <div className={`relative rounded-xl border-2 p-6 sm:p-7 transition-all duration-200 flex flex-col ${
       completed
@@ -378,27 +397,38 @@ function StepCard({ step, title, description, icon: Icon, href, completed, butto
         <p className="text-sm sm:text-base text-gray-600 mb-6 leading-relaxed">{description}</p>
       </div>
 
-      {/* Button - always at bottom */}
-      <Link
-        href={href}
-        className={`inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 mt-auto ${
-          completed
-            ? 'bg-green-600 text-white hover:bg-green-700 shadow-[0_4px_10px_rgba(34,197,94,0.25)]'
-            : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_10px_rgba(62,44,195,0.25)]'
-        } hover:shadow-[0_4px_12px_rgba(62,44,195,0.3)] active:scale-[0.98] min-h-[48px]`}
-      >
-        {completed ? (
-          <>
-            <CheckCircle2 className="h-4 w-4" />
-            <span>Completed</span>
-          </>
-        ) : (
-          <>
-            <span>{buttonText}</span>
-            <ArrowRight className="h-4 w-4" />
-          </>
+      {/* Buttons - always at bottom */}
+      <div className="flex flex-col gap-2 mt-auto">
+        <Link
+          href={href}
+          className={`inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+            completed
+              ? 'bg-green-600 text-white hover:bg-green-700 shadow-[0_4px_10px_rgba(34,197,94,0.25)]'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_10px_rgba(62,44,195,0.25)]'
+          } hover:shadow-[0_4px_12px_rgba(62,44,195,0.3)] active:scale-[0.98] min-h-[48px]`}
+        >
+          {completed ? (
+            <>
+              <CheckCircle2 className="h-4 w-4" />
+              <span>Completed</span>
+            </>
+          ) : (
+            <>
+              <span>{buttonText}</span>
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
+        </Link>
+        {secondaryHref && secondaryButtonText && !completed && (
+          <Link
+            href={secondaryHref}
+            className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-medium text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all duration-200 active:scale-[0.98] min-h-[44px]"
+          >
+            <Link2 className="h-4 w-4" />
+            <span>{secondaryButtonText}</span>
+          </Link>
         )}
-      </Link>
+      </div>
     </div>
   );
 }
@@ -451,31 +481,45 @@ type AnnouncementCardProps = {
   date: string;
   description: string;
   unread?: boolean;
+  href?: string;
+  actionText?: string;
 };
 
-function AnnouncementCard({ title, date, description, unread = false }: AnnouncementCardProps) {
-  return (
+function AnnouncementCard({ title, date, description, unread = false, href, actionText }: AnnouncementCardProps) {
+  const cardContent = (
     <div className={`relative rounded-xl border-2 p-5 sm:p-6 transition-all duration-200 ${
       unread 
         ? 'border-indigo-200 bg-indigo-50/50 shadow-sm' 
         : 'border-gray-200 bg-white hover:border-gray-300'
-    }`}>
+    } ${href ? 'cursor-pointer hover:shadow-md' : ''}`}>
       {unread && (
         <div className="absolute top-4 right-4">
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-            Unread
+            New
           </span>
         </div>
       )}
-      <div className="pr-20">
+      <div className={href ? 'pr-20' : ''}>
         <div className="flex items-center gap-2 mb-2">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900">{title}</h3>
         </div>
         <p className="text-xs sm:text-sm text-gray-500 mb-2">{date}</p>
-        <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{description}</p>
+        <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-3">{description}</p>
+        {href && actionText && (
+          <div className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+            <span>{actionText}</span>
+            <ArrowRight className="h-4 w-4" />
+          </div>
+        )}
       </div>
     </div>
   );
+
+  if (href) {
+    return <Link href={href}>{cardContent}</Link>;
+  }
+
+  return cardContent;
 }
 
 type QuickActionCardProps = {

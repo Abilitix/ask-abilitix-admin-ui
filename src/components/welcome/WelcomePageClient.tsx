@@ -36,31 +36,10 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
   const isNewUser = !summary || (summary.metrics.docs_active === 0 && summary.metrics.faq_count === 0);
   const pendingReviews = summary?.metrics.pending_reviews || 0;
   
-  // Prefetch key routes to reduce latency when navigating
-  React.useEffect(() => {
-    // Prefetch dashboard route
-    const dashboardLink = document.createElement('link');
-    dashboardLink.rel = 'prefetch';
-    dashboardLink.href = '/';
-    document.head.appendChild(dashboardLink);
-
-    // Prefetch most common entry points (Upload Docs and Connect Sources)
-    const entryPoints = ['/admin/docs', '/admin/sources'];
-    entryPoints.forEach(route => {
-      const link = document.createElement('link');
-      link.rel = 'prefetch';
-      link.href = route;
-      document.head.appendChild(link);
-    });
-
-    // Conditionally prefetch inbox if there are pending reviews
-    if (pendingReviews > 0) {
-      const inboxLink = document.createElement('link');
-      inboxLink.rel = 'prefetch';
-      inboxLink.href = '/admin/inbox';
-      document.head.appendChild(inboxLink);
-    }
-  }, [pendingReviews]);
+  // Note: We don't manually prefetch protected routes to avoid 401 errors
+  // Next.js Link components automatically prefetch on hover/visible, which is smarter
+  // and respects authentication context. Manual prefetch can trigger SSR that requires
+  // authentication, causing 401 errors in logs.
   const docsCount = summary?.metrics.docs_active || 0;
   const faqCount = summary?.metrics.faq_count || 0;
 

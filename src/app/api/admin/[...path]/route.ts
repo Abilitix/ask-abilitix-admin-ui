@@ -60,24 +60,31 @@ async function handleRequest(
     const cookieHeader = request.headers.get('cookie') || '';
     
     // Get tenant context from user session (for X-Tenant-Id header)
+    // Skip for SuperAdmin endpoints (billing, governance, superadmin) - they don't need tenant_id
+    const isSuperAdminEndpoint = pathSegments[0] === 'billing' || 
+                                  pathSegments[0] === 'governance' || 
+                                  pathSegments[0] === 'superadmin';
+    
     let tenantId: string | undefined;
-    try {
-      const authResponse = await fetch(`${ADMIN_API}/auth/me`, {
-        headers: {
-          'Cookie': cookieHeader
-        },
-        cache: 'no-store',
-      });
+    if (!isSuperAdminEndpoint) {
+      try {
+        const authResponse = await fetch(`${ADMIN_API}/auth/me`, {
+          headers: {
+            'Cookie': cookieHeader
+          },
+          cache: 'no-store',
+        });
 
-      if (authResponse.ok) {
-        const userData = await authResponse.json();
-        tenantId = userData.tenant_id;
+        if (authResponse.ok) {
+          const userData = await authResponse.json();
+          tenantId = userData.tenant_id;
+        }
+        // If auth fails, continue without tenant_id (some endpoints may not need it)
+      } catch (authError) {
+        // If auth check fails, continue without tenant_id
+        // This allows endpoints that don't require authentication to still work
+        console.warn('Failed to get tenant_id for catch-all proxy:', authError);
       }
-      // If auth fails, continue without tenant_id (some endpoints may not need it)
-    } catch (authError) {
-      // If auth check fails, continue without tenant_id
-      // This allows endpoints that don't require authentication to still work
-      console.warn('Failed to get tenant_id for catch-all proxy:', authError);
     }
     
     const headers: Record<string, string> = {

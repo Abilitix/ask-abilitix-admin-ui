@@ -136,6 +136,7 @@ export function getVisibleNavItems(role: UserRole, isMobile: boolean = false, us
     if (isSuperAdmin) {
       navItems.push(
         { href: "/admin/governance", label: "Governance", permission: "canAccessSettings" as keyof RolePermissions, mobileVisible: false },
+        { href: "/admin/billing/plans", label: "Billing", permission: "canAccessSettings" as keyof RolePermissions, mobileVisible: false },
         { href: "/admin/superadmin", label: "Superadmin", permission: "canAccessSettings" as keyof RolePermissions, mobileVisible: false }
       );
     }

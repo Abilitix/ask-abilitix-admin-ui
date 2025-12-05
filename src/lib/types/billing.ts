@@ -175,6 +175,7 @@ export interface UpdateTenantStatusPayload {
 
 export interface UpdateEnforcementSettingsPayload {
   enforcement_mode: 'hard' | 'soft' | 'off';
+  payment_grace_period_days?: number;
 }
 
 export interface StandardErrorResponse {

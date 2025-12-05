@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminApiBase } from '@/lib/env';
+import { getAuthUser } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
@@ -66,6 +67,8 @@ async function handleRequest(
                                   pathSegments[0] === 'superadmin';
     
     let tenantId: string | undefined;
+    let isSuperAdmin = false;
+    
     if (!isSuperAdminEndpoint) {
       try {
         const authResponse = await fetch(`${ADMIN_API}/auth/me`, {
@@ -85,6 +88,25 @@ async function handleRequest(
         // This allows endpoints that don't require authentication to still work
         console.warn('Failed to get tenant_id for catch-all proxy:', authError);
       }
+    } else {
+      // For SuperAdmin endpoints, verify user is SuperAdmin and get ADMIN_API_TOKEN
+      // Create a Headers object from the request headers for getAuthUser
+      try {
+        const headers = new Headers();
+        if (cookieHeader) {
+          headers.set('cookie', cookieHeader);
+        }
+        const user = await getAuthUser(headers);
+        if (user) {
+          // Check if user email is in superadmin list (server-side)
+          const SUPERADMIN_EMAILS = process.env.NEXT_PUBLIC_SUPERADMIN_EMAILS?.split(',') ?? [];
+          isSuperAdmin = SUPERADMIN_EMAILS.includes(user.email);
+        }
+      } catch (authError) {
+        // If auth check fails, continue without SuperAdmin token
+        // The Admin API will return 401/403 if SuperAdmin access is required
+        console.warn('Failed to verify SuperAdmin status:', authError);
+      }
     }
     
     const headers: Record<string, string> = {
@@ -95,6 +117,14 @@ async function handleRequest(
     // Add X-Tenant-Id header if available (required for storage endpoints)
     if (tenantId) {
       headers['X-Tenant-Id'] = tenantId;
+    }
+
+    // Add ADMIN_API_TOKEN for SuperAdmin endpoints (required by Admin API)
+    if (isSuperAdminEndpoint && isSuperAdmin) {
+      const ADMIN_API_TOKEN = process.env.ADMIN_API_TOKEN;
+      if (ADMIN_API_TOKEN) {
+        headers['Authorization'] = `Bearer ${ADMIN_API_TOKEN}`;
+      }
     }
 
     const body = method !== 'GET' ? await request.text() : undefined;

@@ -178,6 +178,40 @@ export interface UpdateEnforcementSettingsPayload {
   payment_grace_period_days?: number;
 }
 
+// Tenant list response from GET /admin/billing/tenants
+export interface TenantBillingListItem {
+  tenant_id: string; // UUID
+  tenant_name: string;
+  tenant_slug: string;
+  tenant_status: 'active' | 'suspended' | 'inactive' | 'expired';
+  suspended_at?: string | null; // ISO 8601
+  suspended_reason?: string | null;
+  tenant_created_at: string; // ISO 8601
+  plan_id: string; // UUID
+  plan_code: string;
+  plan_name: string;
+  max_seats: number;
+  monthly_token_quota: number;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_subscription_status?: string | null;
+  payment_overdue_since?: string | null; // ISO 8601
+  tokens_used: number;
+  requests: number;
+  seats_used: number;
+}
+
+export interface TenantsListResponse {
+  ok: boolean;
+  tenants: TenantBillingListItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
+}
+
 export interface StandardErrorResponse {
   detail: {
     error: string;

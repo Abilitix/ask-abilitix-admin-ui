@@ -8,6 +8,8 @@ import type {
   PlanResponse,
   TenantBilling,
   TenantBillingResponse,
+  TenantBillingListItem,
+  TenantsListResponse,
   Usage,
   UsageResponse,
   Quota,
@@ -152,32 +154,32 @@ export async function updatePlanStatus(
 
 /**
  * List all tenants with billing information
- * Note: This endpoint may not be implemented yet in the backend.
- * Returns empty array if 404 (endpoint not found).
+ * @param page Page number (default: 1)
+ * @param limit Results per page (default: 50, max: 200)
+ * @param status Filter by tenant status (optional)
+ * @param planId Filter by plan ID (optional)
  */
-export async function listTenantsWithBilling(): Promise<TenantBilling[]> {
-  const response = await fetch('/api/admin/billing/tenants', {
+export async function listTenantsWithBilling(
+  page: number = 1,
+  limit: number = 50,
+  status?: 'active' | 'suspended' | 'inactive' | 'expired',
+  planId?: string
+): Promise<{ tenants: TenantBillingListItem[]; pagination: TenantsListResponse['pagination'] }> {
+  const params = new URLSearchParams();
+  params.set('page', page.toString());
+  params.set('limit', Math.min(limit, 200).toString());
+  if (status) params.set('status', status);
+  if (planId) params.set('plan_id', planId);
+
+  const response = await fetch(`/api/admin/billing/tenants?${params}`, {
     cache: 'no-store',
   });
 
-  if (!response.ok) {
-    // If 404, the endpoint doesn't exist yet - return empty array gracefully
-    if (response.status === 404) {
-      console.warn('GET /admin/billing/tenants endpoint not implemented yet. Backend endpoint needed.');
-      return [];
-    }
-    // For other errors, let handleResponse throw
-    const errorData = await response.json().catch(() => ({}));
-    const message = errorData.detail?.message || errorData.detail?.error || `Failed to load tenants: ${response.status}`;
-    throw new Error(message);
-  }
-
-  const data = await handleResponse<{ ok: boolean; tenants: TenantBilling[] }>(response);
-  // Handle both response structures: { ok, tenants } or direct array
-  if (Array.isArray(data)) {
-    return data;
-  }
-  return data.tenants || [];
+  const data = await handleResponse<TenantsListResponse>(response);
+  return {
+    tenants: data.tenants || [],
+    pagination: data.pagination,
+  };
 }
 
 /**

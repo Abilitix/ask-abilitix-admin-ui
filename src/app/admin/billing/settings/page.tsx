@@ -35,8 +35,8 @@ export default function EnforcementSettingsPage() {
       setLoading(true);
       const data = await getEnforcementSettings();
       setSettings(data);
-      setEnforcementMode(data.enforcement_mode);
-      setGracePeriodDays(data.payment_grace_period_days.toString());
+      setEnforcementMode(data.enforcement_mode || 'off');
+      setGracePeriodDays((data.payment_grace_period_days ?? 0).toString());
     } catch (error: any) {
       console.error('Failed to load enforcement settings:', error);
       // If 404 or settings don't exist, use defaults
@@ -283,7 +283,7 @@ export default function EnforcementSettingsPage() {
               </Badge>
             </div>
             <div className="text-sm text-gray-600">
-              Grace Period: <span className="font-medium">{settings.payment_grace_period_days} days</span>
+              Grace Period: <span className="font-medium">{settings.payment_grace_period_days ?? 0} days</span>
             </div>
           </div>
 

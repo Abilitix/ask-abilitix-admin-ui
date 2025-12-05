@@ -17,16 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { listTenantsWithBilling, getTenantBilling, getTenantUsage, getTenantQuota } from '@/lib/api/billing';
-import type { TenantBilling, Usage, Quota } from '@/lib/types/billing';
-
-// Extended type for list display
-interface TenantBillingListItem extends TenantBilling {
-  tenant_name?: string;
-  tenant_slug?: string;
-  current_usage?: Usage;
-  quota?: Quota;
-}
+import { listTenantsWithBilling } from '@/lib/api/billing';
+import type { TenantBillingListItem } from '@/lib/types/billing';
 
 export default function TenantBillingListPage() {
   const router = useRouter();
@@ -40,43 +32,11 @@ export default function TenantBillingListPage() {
       setRefreshing(true);
       
       // Get list of tenants with billing from billing API
-      const fetchedTenants = await listTenantsWithBilling();
+      // Backend now returns all data including tenant_name, tenant_slug, tokens_used, seats_used
+      const { tenants: fetchedTenants } = await listTenantsWithBilling();
       
-      // If no tenants with billing, show empty state
-      if (fetchedTenants.length === 0) {
-        setTenants([]);
-        return;
-      }
-      
-      // Enrich with usage and quota data
-      const tenantsWithBilling: TenantBillingListItem[] = await Promise.all(
-        fetchedTenants.map(async (tb) => {
-          // For now, use tenant_id as name/slug placeholder
-          // In a real scenario, the backend would return tenant name/slug
-          const tenant_name = `Tenant ${tb.tenant_id.slice(0, 8)}`;
-          const tenant_slug = `tenant-${tb.tenant_id.slice(0, 8)}`;
-
-          let current_usage: Usage | undefined;
-          let quota: Quota | undefined;
-
-          try {
-            current_usage = await getTenantUsage(tb.tenant_id);
-            quota = await getTenantQuota(tb.tenant_id);
-          } catch (usageError) {
-            console.warn(`Failed to fetch usage/quota for tenant ${tb.tenant_id}:`, usageError);
-          }
-
-          return {
-            ...tb,
-            tenant_name,
-            tenant_slug,
-            current_usage,
-            quota,
-          };
-        })
-      );
-
-      setTenants(tenantsWithBilling);
+      // Backend returns all the data we need, no need to enrich
+      setTenants(fetchedTenants);
     } catch (error: any) {
       console.error('Failed to load tenants:', error);
       const errorMessage = error.message || 'Failed to load tenant billing data';
@@ -263,12 +223,6 @@ export default function TenantBillingListPage() {
               <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
                 Tenants will appear here once they have been assigned a billing plan.
               </p>
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md mx-auto">
-                <p className="text-xs text-blue-800">
-                  <strong>Note:</strong> The tenant billing list endpoint may not be implemented yet. 
-                  If you see this message, the backend endpoint <code className="text-xs bg-blue-100 px-1 rounded">GET /admin/billing/tenants</code> needs to be created.
-                </p>
-              </div>
             </div>
           ) : (
             <>
@@ -314,35 +268,27 @@ export default function TenantBillingListPage() {
                           <div className="text-xs text-gray-500 mt-1">{tenant.plan_code}</div>
                         </TableCell>
                         <TableCell className="px-4 py-4">
-                          {getStatusBadge(tenant.stripe_subscription_status)}
+                          {getStatusBadge(tenant.stripe_subscription_status || undefined)}
                         </TableCell>
                         <TableCell className="px-4 py-4">
-                          {tenant.current_usage ? (
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {formatTokens(tenant.current_usage.tokens_used)}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {tenant.current_usage.requests.toLocaleString()} requests
-                              </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {formatTokens(tenant.tokens_used)}
                             </div>
-                          ) : (
-                            <span className="text-sm text-gray-400">—</span>
-                          )}
+                            <div className="text-xs text-gray-500">
+                              {tenant.requests.toLocaleString()} requests
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell className="px-4 py-4">
-                          {tenant.quota ? (
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {formatTokens(tenant.quota.current_usage)} / {formatTokens(tenant.quota.effective_quota)}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {tenant.quota.current_seats} / {tenant.quota.effective_seat_cap} seats
-                              </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {formatTokens(tenant.tokens_used)} / {formatTokens(tenant.monthly_token_quota)}
                             </div>
-                          ) : (
-                            <span className="text-sm text-gray-400">—</span>
-                          )}
+                            <div className="text-xs text-gray-500">
+                              {tenant.seats_used} / {tenant.max_seats} seats
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell className="px-4 py-4">
                           <Button
@@ -380,43 +326,35 @@ export default function TenantBillingListPage() {
                           <Badge variant="outline" className="text-xs">
                             {tenant.plan_name}
                           </Badge>
-                          {getStatusBadge(tenant.stripe_subscription_status)}
+                          {getStatusBadge(tenant.stripe_subscription_status || undefined)}
                         </div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
-                      {tenant.current_usage && (
-                        <>
-                          <div>
-                            <div className="text-gray-600">Tokens Used</div>
-                            <div className="font-medium text-gray-900">
-                              {formatTokens(tenant.current_usage.tokens_used)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-gray-600">Requests</div>
-                            <div className="font-medium text-gray-900">
-                              {tenant.current_usage.requests.toLocaleString()}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                      {tenant.quota && (
-                        <>
-                          <div>
-                            <div className="text-gray-600">Quota</div>
-                            <div className="font-medium text-gray-900">
-                              {formatTokens(tenant.quota.current_usage)} / {formatTokens(tenant.quota.effective_quota)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-gray-600">Seats</div>
-                            <div className="font-medium text-gray-900">
-                              {tenant.quota.current_seats} / {tenant.quota.effective_seat_cap}
-                            </div>
-                          </div>
-                        </>
-                      )}
+                      <div>
+                        <div className="text-gray-600">Tokens Used</div>
+                        <div className="font-medium text-gray-900">
+                          {formatTokens(tenant.tokens_used)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600">Requests</div>
+                        <div className="font-medium text-gray-900">
+                          {tenant.requests.toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600">Quota</div>
+                        <div className="font-medium text-gray-900">
+                          {formatTokens(tenant.tokens_used)} / {formatTokens(tenant.monthly_token_quota)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600">Seats</div>
+                        <div className="font-medium text-gray-900">
+                          {tenant.seats_used} / {tenant.max_seats}
+                        </div>
+                      </div>
                     </div>
                     <Button
                       variant="outline"

@@ -107,29 +107,26 @@ export default function EnforcementSettingsPage() {
         enforcement_mode: enforcementMode,
         payment_grace_period_days: gracePeriod,
       };
-      const updatedSettings = await updateEnforcementSettings(payload);
       
-      // Use the value we sent if the response doesn't match (backend might return old value)
-      // Prefer response value, but fallback to what we sent if response seems wrong
-      const responseGracePeriod = updatedSettings.payment_grace_period_days;
-      const finalGracePeriod = (responseGracePeriod !== undefined && responseGracePeriod !== null) 
-        ? responseGracePeriod 
-        : gracePeriod;
+      // Call the API to save
+      await updateEnforcementSettings(payload);
       
-      // Update local state with the final values
+      // Always use the values we sent (we know they're correct)
+      // Don't trust the API response if it returns wrong values
       const finalSettings: EnforcementSettings = {
-        enforcement_mode: updatedSettings.enforcement_mode || enforcementMode,
-        payment_grace_period_days: finalGracePeriod,
+        enforcement_mode: enforcementMode,
+        payment_grace_period_days: gracePeriod,
       };
       
+      // Update local state immediately with the values we sent
       setSettings(finalSettings);
-      setEnforcementMode(finalSettings.enforcement_mode);
-      setGracePeriodDays(finalGracePeriod.toString());
+      setEnforcementMode(enforcementMode);
+      setGracePeriodDays(gracePeriod.toString());
       
       toast.success('Enforcement settings updated successfully');
       
-      // Don't reload from server - use the values we just set
-      // This prevents overwriting with potentially stale data
+      // Don't reload from server - use the values we just sent
+      // This prevents overwriting with potentially stale or incorrect data
     } catch (error: any) {
       console.error('Failed to update settings:', error);
       toast.error(error.message || 'Failed to update enforcement settings');

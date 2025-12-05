@@ -262,9 +262,10 @@ export async function getEnforcementSettings(): Promise<EnforcementSettings> {
 
   const data = await handleResponse<EnforcementSettingsResponse>(response);
   // Extract fields from response (response has ok, enforcement_mode, payment_grace_period_days)
+  // Provide defaults if fields are missing
   return {
-    enforcement_mode: data.enforcement_mode,
-    payment_grace_period_days: data.payment_grace_period_days,
+    enforcement_mode: data.enforcement_mode ?? 'off',
+    payment_grace_period_days: data.payment_grace_period_days ?? 0,
   };
 }
 

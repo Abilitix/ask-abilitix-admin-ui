@@ -39,7 +39,27 @@ export default function EnforcementSettingsPage() {
       setGracePeriodDays(data.payment_grace_period_days.toString());
     } catch (error: any) {
       console.error('Failed to load enforcement settings:', error);
-      toast.error(error.message || 'Failed to load enforcement settings');
+      // If 404 or settings don't exist, use defaults
+      if (error.message?.includes('404') || error.message?.includes('not found') || error.message?.includes('404')) {
+        const defaultSettings: EnforcementSettings = {
+          enforcement_mode: 'off',
+          payment_grace_period_days: 0,
+        };
+        setSettings(defaultSettings);
+        setEnforcementMode('off');
+        setGracePeriodDays('0');
+        toast.info('Using default enforcement settings. Save to create settings.');
+      } else {
+        toast.error(error.message || 'Failed to load enforcement settings');
+        // Still set defaults so user can save
+        const defaultSettings: EnforcementSettings = {
+          enforcement_mode: 'off',
+          payment_grace_period_days: 0,
+        };
+        setSettings(defaultSettings);
+        setEnforcementMode('off');
+        setGracePeriodDays('0');
+      }
     } finally {
       setLoading(false);
     }

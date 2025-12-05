@@ -151,6 +151,33 @@ export async function updatePlanStatus(
 // ============================================================================
 
 /**
+ * List all tenants with billing information
+ */
+export async function listTenantsWithBilling(): Promise<TenantBilling[]> {
+  const response = await fetch('/api/admin/billing/tenants', {
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    // If 404 or empty, return empty array (no tenants with billing yet)
+    if (response.status === 404) {
+      return [];
+    }
+    // For other errors, let handleResponse throw
+    const errorData = await response.json().catch(() => ({}));
+    const message = errorData.detail?.message || errorData.detail?.error || `Failed to load tenants: ${response.status}`;
+    throw new Error(message);
+  }
+
+  const data = await handleResponse<{ ok: boolean; tenants: TenantBilling[] }>(response);
+  // Handle both response structures: { ok, tenants } or direct array
+  if (Array.isArray(data)) {
+    return data;
+  }
+  return data.tenants || [];
+}
+
+/**
  * Get tenant billing information
  */
 export async function getTenantBilling(tenantId: string): Promise<TenantBilling> {
@@ -282,7 +309,13 @@ export async function updateEnforcementSettings(
     cache: 'no-store',
   });
 
-  return handleResponse<EnforcementSettingsResponse>(response);
+  const data = await handleResponse<EnforcementSettingsResponse>(response);
+  // Extract fields from response (response has ok, enforcement_mode, payment_grace_period_days)
+  // Provide defaults if fields are missing
+  return {
+    enforcement_mode: data.enforcement_mode ?? 'off',
+    payment_grace_period_days: data.payment_grace_period_days ?? 0,
+  };
 }
 
 // ============================================================================

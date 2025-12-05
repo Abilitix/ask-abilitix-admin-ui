@@ -260,7 +260,12 @@ export async function getEnforcementSettings(): Promise<EnforcementSettings> {
     cache: 'no-store',
   });
 
-  return handleResponse<EnforcementSettingsResponse>(response);
+  const data = await handleResponse<EnforcementSettingsResponse>(response);
+  // Extract fields from response (response has ok, enforcement_mode, payment_grace_period_days)
+  return {
+    enforcement_mode: data.enforcement_mode,
+    payment_grace_period_days: data.payment_grace_period_days,
+  };
 }
 
 /**

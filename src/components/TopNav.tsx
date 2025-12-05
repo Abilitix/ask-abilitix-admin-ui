@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { type UserRole, getVisibleNavItems } from "@/lib/roles";
-import { X, LayoutDashboard, MessageSquare, Inbox, Upload, FileText, Settings, Target, LogOut, Rocket, Link2 } from "lucide-react";
+import { X, LayoutDashboard, MessageSquare, Inbox, Upload, FileText, Settings, Target, LogOut, Rocket, Link2, CreditCard, ShieldCheck } from "lucide-react";
 
 type Me = {
   ok: boolean;
@@ -298,6 +298,9 @@ export default function TopNav({ userEmail, tenantSlug, userRole }: TopNavProps)
                         case "/admin/faqs": return <FileText className="h-5 w-5" />;
                         case "/admin/sources": return <Link2 className="h-5 w-5" />;
                         case "/admin/settings": return <Settings className="h-5 w-5" />;
+                        case "/admin/governance": return <ShieldCheck className="h-5 w-5" />;
+                        case "/admin/billing/plans": return <CreditCard className="h-5 w-5" />;
+                        case "/admin/superadmin": return <ShieldCheck className="h-5 w-5" />;
                         case "/pilot": return <Target className="h-5 w-5" />;
                         default: return null;
                       }

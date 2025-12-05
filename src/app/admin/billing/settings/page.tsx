@@ -98,7 +98,8 @@ export default function EnforcementSettingsPage() {
       setSaving(true);
       const gracePeriod = parseInt(gracePeriodDays);
       if (isNaN(gracePeriod) || gracePeriod < 0) {
-        toast.error('Grace period must be a positive number');
+        toast.error('Grace period must be a positive number or zero.');
+        setSaving(false);
         return;
       }
 
@@ -106,9 +107,16 @@ export default function EnforcementSettingsPage() {
         enforcement_mode: enforcementMode,
         payment_grace_period_days: gracePeriod,
       };
-      await updateEnforcementSettings(payload);
+      const updatedSettings = await updateEnforcementSettings(payload);
+      
+      // Update local state immediately with the response
+      setSettings(updatedSettings);
+      setEnforcementMode(updatedSettings.enforcement_mode);
+      setGracePeriodDays(updatedSettings.payment_grace_period_days.toString());
       
       toast.success('Enforcement settings updated successfully');
+      
+      // Also reload from server to ensure we have the latest data
       await loadSettings();
     } catch (error: any) {
       console.error('Failed to update settings:', error);

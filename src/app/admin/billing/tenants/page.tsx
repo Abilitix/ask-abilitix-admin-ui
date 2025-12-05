@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, RefreshCw, ShieldCheck, ArrowRight, CreditCard } from 'lucide-react';
+import { Loader2, Users, RefreshCw, ShieldCheck, ArrowRight, CreditCard, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Table,
@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getTenantBilling, getTenantUsage, getTenantQuota } from '@/lib/api/billing';
+import { listTenantsWithBilling, getTenantBilling, getTenantUsage, getTenantQuota } from '@/lib/api/billing';
 import type { TenantBilling, Usage, Quota } from '@/lib/types/billing';
 
 // Extended type for list display
@@ -34,45 +34,55 @@ export default function TenantBillingListPage() {
   const [tenants, setTenants] = useState<TenantBillingListItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Load tenants - for now, we'll need to fetch from admin/tenants and enrich with billing
+  // Load tenants with billing information
   const loadTenants = useCallback(async () => {
     try {
       setRefreshing(true);
       
-      // First, get list of all tenants
-      const tenantsRes = await fetch('/api/admin/tenants', { cache: 'no-store' });
-      if (!tenantsRes.ok) {
-        throw new Error('Failed to load tenants');
-      }
-      const tenantsData = await tenantsRes.json();
-      const tenantList = tenantsData.items || [];
-
-      // Then, fetch billing info for each tenant
-      const tenantsWithBilling: TenantBillingListItem[] = [];
+      // Get list of tenants with billing from billing API
+      const fetchedTenants = await listTenantsWithBilling();
       
-      for (const tenant of tenantList) {
-        try {
-          const billing = await getTenantBilling(tenant.id);
-          const usage = await getTenantUsage(tenant.id).catch(() => null);
-          const quota = await getTenantQuota(tenant.id).catch(() => null);
-          
-          tenantsWithBilling.push({
-            ...billing,
-            tenant_name: tenant.name,
-            tenant_slug: tenant.slug,
-            current_usage: usage || undefined,
-            quota: quota || undefined,
-          });
-        } catch (error) {
-          // Tenant might not have billing setup yet - skip or add with default
-          console.warn(`No billing info for tenant ${tenant.id}:`, error);
-        }
+      // If no tenants with billing, show empty state
+      if (fetchedTenants.length === 0) {
+        setTenants([]);
+        return;
       }
+      
+      // Enrich with usage and quota data
+      const tenantsWithBilling: TenantBillingListItem[] = await Promise.all(
+        fetchedTenants.map(async (tb) => {
+          // For now, use tenant_id as name/slug placeholder
+          // In a real scenario, the backend would return tenant name/slug
+          const tenant_name = `Tenant ${tb.tenant_id.slice(0, 8)}`;
+          const tenant_slug = `tenant-${tb.tenant_id.slice(0, 8)}`;
+
+          let current_usage: Usage | undefined;
+          let quota: Quota | undefined;
+
+          try {
+            current_usage = await getTenantUsage(tb.tenant_id);
+            quota = await getTenantQuota(tb.tenant_id);
+          } catch (usageError) {
+            console.warn(`Failed to fetch usage/quota for tenant ${tb.tenant_id}:`, usageError);
+          }
+
+          return {
+            ...tb,
+            tenant_name,
+            tenant_slug,
+            current_usage,
+            quota,
+          };
+        })
+      );
 
       setTenants(tenantsWithBilling);
     } catch (error: any) {
       console.error('Failed to load tenants:', error);
-      toast.error(error.message || 'Failed to load tenant billing data');
+      const errorMessage = error.message || 'Failed to load tenant billing data';
+      toast.error(errorMessage);
+      // Set empty array on error so UI shows empty state instead of crashing
+      setTenants([]);
     } finally {
       setRefreshing(false);
     }
@@ -182,13 +192,24 @@ export default function TenantBillingListPage() {
           <Link
             href="/admin/billing/tenants"
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-              pathname === '/admin/billing/tenants'
+              pathname?.startsWith('/admin/billing/tenants') && !pathname.includes('/tenants/')
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
             <Users className="h-4 w-4 inline mr-2" />
             Tenants
+          </Link>
+          <Link
+            href="/admin/billing/settings"
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              pathname === '/admin/billing/settings'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+            <Settings className="h-4 w-4 inline mr-2" />
+            Settings
           </Link>
         </div>
       </div>

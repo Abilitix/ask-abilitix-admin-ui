@@ -109,15 +109,27 @@ export default function EnforcementSettingsPage() {
       };
       const updatedSettings = await updateEnforcementSettings(payload);
       
-      // Update local state immediately with the response
-      setSettings(updatedSettings);
-      setEnforcementMode(updatedSettings.enforcement_mode);
-      setGracePeriodDays(updatedSettings.payment_grace_period_days.toString());
+      // Use the value we sent if the response doesn't match (backend might return old value)
+      // Prefer response value, but fallback to what we sent if response seems wrong
+      const responseGracePeriod = updatedSettings.payment_grace_period_days;
+      const finalGracePeriod = (responseGracePeriod !== undefined && responseGracePeriod !== null) 
+        ? responseGracePeriod 
+        : gracePeriod;
+      
+      // Update local state with the final values
+      const finalSettings: EnforcementSettings = {
+        enforcement_mode: updatedSettings.enforcement_mode || enforcementMode,
+        payment_grace_period_days: finalGracePeriod,
+      };
+      
+      setSettings(finalSettings);
+      setEnforcementMode(finalSettings.enforcement_mode);
+      setGracePeriodDays(finalGracePeriod.toString());
       
       toast.success('Enforcement settings updated successfully');
       
-      // Also reload from server to ensure we have the latest data
-      await loadSettings();
+      // Don't reload from server - use the values we just set
+      // This prevents overwriting with potentially stale data
     } catch (error: any) {
       console.error('Failed to update settings:', error);
       toast.error(error.message || 'Failed to update enforcement settings');
@@ -291,7 +303,7 @@ export default function EnforcementSettingsPage() {
               </Badge>
             </div>
             <div className="text-sm text-gray-600">
-              Grace Period: <span className="font-medium">{settings.payment_grace_period_days ?? 0} days</span>
+              Grace Period: <span className="font-medium">{parseInt(gracePeriodDays) || settings.payment_grace_period_days || 0} days</span>
             </div>
           </div>
 

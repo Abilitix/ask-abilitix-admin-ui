@@ -263,6 +263,12 @@ export default function TenantBillingListPage() {
               <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
                 Tenants will appear here once they have been assigned a billing plan.
               </p>
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md mx-auto">
+                <p className="text-xs text-blue-800">
+                  <strong>Note:</strong> The tenant billing list endpoint may not be implemented yet. 
+                  If you see this message, the backend endpoint <code className="text-xs bg-blue-100 px-1 rounded">GET /admin/billing/tenants</code> needs to be created.
+                </p>
+              </div>
             </div>
           ) : (
             <>

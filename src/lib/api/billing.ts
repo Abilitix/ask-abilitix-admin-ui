@@ -152,6 +152,8 @@ export async function updatePlanStatus(
 
 /**
  * List all tenants with billing information
+ * Note: This endpoint may not be implemented yet in the backend.
+ * Returns empty array if 404 (endpoint not found).
  */
 export async function listTenantsWithBilling(): Promise<TenantBilling[]> {
   const response = await fetch('/api/admin/billing/tenants', {
@@ -159,8 +161,9 @@ export async function listTenantsWithBilling(): Promise<TenantBilling[]> {
   });
 
   if (!response.ok) {
-    // If 404 or empty, return empty array (no tenants with billing yet)
+    // If 404, the endpoint doesn't exist yet - return empty array gracefully
     if (response.status === 404) {
+      console.warn('GET /admin/billing/tenants endpoint not implemented yet. Backend endpoint needed.');
       return [];
     }
     // For other errors, let handleResponse throw

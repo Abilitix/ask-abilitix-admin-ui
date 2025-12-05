@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CreditCard, Plus, Edit, Archive, MoreVertical, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Loader2, CreditCard, Plus, Edit, Archive, MoreVertical, RefreshCw, ShieldCheck, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   listPlans,
@@ -170,6 +172,8 @@ export default function PlansPage() {
     return null; // Redirect will happen in useEffect
   }
 
+  const pathname = usePathname();
+
   return (
     <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto space-y-6">
       {/* Header - Best-in-class SaaS pattern */}
@@ -180,9 +184,9 @@ export default function PlansPage() {
               <CreditCard className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Plan Management</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Billing</h1>
               <p className="text-sm text-gray-500 mt-1">
-                Create and manage billing plans for your tenants
+                Manage billing plans and tenant subscriptions
               </p>
             </div>
           </div>
@@ -200,6 +204,40 @@ export default function PlansPage() {
             </Button>
           </div>
         </div>
+
+        {/* Tab Navigation */}
+        <div className="flex items-center gap-1 border-b border-gray-200 mt-6">
+          <Link
+            href="/admin/billing/plans"
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              pathname === '/admin/billing/plans'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+            <CreditCard className="h-4 w-4 inline mr-2" />
+            Plans
+          </Link>
+          <Link
+            href="/admin/billing/tenants"
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              pathname === '/admin/billing/tenants'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+            <Users className="h-4 w-4 inline mr-2" />
+            Tenants
+          </Link>
+        </div>
+      </div>
+
+      {/* Section Title */}
+      <div className="mb-4">
+        <h2 className="text-xl md:text-2xl font-bold text-gray-900">Plan Management</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Create and manage billing plans for your tenants
+        </p>
       </div>
 
       {/* Plans Table - World-class SaaS design */}

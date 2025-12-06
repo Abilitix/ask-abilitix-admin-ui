@@ -134,22 +134,16 @@ export async function archivePlan(planId: string): Promise<ArchivePlanResponse> 
 
 /**
  * Update plan status
- * Uses the main update endpoint with PUT method (same as updatePlan)
+ * Uses PATCH /admin/billing/plans/{plan_id}/status endpoint
  */
 export async function updatePlanStatus(
   planId: string,
   payload: UpdatePlanStatusPayload
 ): Promise<Plan> {
-  // Use the main update endpoint with PUT (same as updatePlan)
-  // Convert UpdatePlanStatusPayload to UpdatePlanPayload format
-  const updatePayload: UpdatePlanPayload = {
-    status: payload.status,
-  };
-  
-  const response = await fetch(`/api/admin/billing/plans/${planId}`, {
-    method: 'PUT',
+  const response = await fetch(`/api/admin/billing/plans/${planId}/status`, {
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updatePayload),
+    body: JSON.stringify(payload),
     cache: 'no-store',
   });
 

@@ -6,14 +6,17 @@ import { usePathname } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CreditCard, Plus, Edit, Archive, MoreVertical, RefreshCw, ShieldCheck, Users, Settings } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Loader2, CreditCard, Plus, Edit, Archive, MoreVertical, RefreshCw, ShieldCheck, Users, Settings, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   listPlans,
   archivePlan,
   updatePlanStatus,
+  createPlan,
 } from '@/lib/api/billing';
-import type { Plan } from '@/lib/types/billing';
+import type { Plan, CreatePlanPayload } from '@/lib/types/billing';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +43,22 @@ export default function PlansPage() {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [planToArchive, setPlanToArchive] = useState<Plan | null>(null);
   const [archiving, setArchiving] = useState(false);
+
+  // Create plan dialog state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [formData, setFormData] = useState<CreatePlanPayload>({
+    code: '',
+    name: '',
+    description: '',
+    max_seats: 1,
+    monthly_token_quota: 1000000,
+    features: {},
+    price_monthly_cents: 0,
+    price_annual_cents: 0,
+    display_order: 0,
+    is_popular: false,
+  });
 
   // Load plans function
   const loadPlans = async () => {
@@ -122,6 +141,56 @@ export default function PlansPage() {
     } catch (error: any) {
       console.error('Status update failed:', error);
       toast.error(error.message || 'Failed to update plan status');
+    }
+  };
+
+  // Handle create plan
+  const handleCreatePlan = async () => {
+    try {
+      setCreating(true);
+      
+      // Validate required fields
+      if (!formData.code || !formData.name) {
+        toast.error('Code and name are required');
+        return;
+      }
+      
+      if (formData.max_seats < 1) {
+        toast.error('Max seats must be at least 1');
+        return;
+      }
+      
+      if (formData.monthly_token_quota < 0) {
+        toast.error('Monthly token quota must be 0 or greater');
+        return;
+      }
+
+      // Create the plan
+      await createPlan(formData);
+      toast.success('Plan created successfully');
+      
+      // Reset form and close dialog
+      setFormData({
+        code: '',
+        name: '',
+        description: '',
+        max_seats: 1,
+        monthly_token_quota: 1000000,
+        features: {},
+        price_monthly_cents: 0,
+        price_annual_cents: 0,
+        display_order: 0,
+        is_popular: false,
+      });
+      setCreateDialogOpen(false);
+      
+      // Refresh plans list
+      await loadPlans();
+    } catch (error: any) {
+      console.error('Create plan failed:', error);
+      toast.error(error.message || 'Failed to create plan');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -293,8 +362,8 @@ export default function PlansPage() {
                 Create your first billing plan to start managing subscriptions for your tenants.
               </p>
               <Button 
-                onClick={() => toast.info('Create plan form coming soon')}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => setCreateDialogOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white min-h-[44px] sm:min-h-0"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Your First Plan
@@ -525,6 +594,234 @@ export default function PlansPage() {
         loading={archiving}
         loadingText="Archiving..."
       />
+
+      {/* Create Plan Dialog */}
+      {createDialogOpen && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in-0"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !creating) {
+              setCreateDialogOpen(false);
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <Card
+            className="w-full max-w-2xl mx-4 bg-white shadow-2xl border-0 animate-in zoom-in-95 fade-in-0 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader className="pb-4 border-b border-gray-100">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    Create New Plan
+                  </CardTitle>
+                  <CardDescription className="text-sm text-gray-600 mt-1">
+                    Create a new billing plan for your tenants
+                  </CardDescription>
+                </div>
+                {!creating && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setCreateDialogOpen(false)}
+                    className="h-8 w-8 rounded-full hover:bg-slate-100"
+                  >
+                    <X className="h-4 w-4 text-slate-500" />
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6 pb-6 space-y-6">
+              {/* Required Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="plan-code">Plan Code *</Label>
+                  <Input
+                    id="plan-code"
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    placeholder="e.g., starter, pro, enterprise"
+                    disabled={creating}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                  <p className="text-xs text-gray-500">Unique identifier (lowercase, no spaces)</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="plan-name">Plan Name *</Label>
+                  <Input
+                    id="plan-name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g., Starter Plan"
+                    disabled={creating}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="plan-description">Description</Label>
+                <Input
+                  id="plan-description"
+                  value={formData.description || ''}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Brief description of the plan"
+                  disabled={creating}
+                  className="min-h-[44px] sm:min-h-0"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="max-seats">Max Seats *</Label>
+                  <Input
+                    id="max-seats"
+                    type="number"
+                    min="1"
+                    value={formData.max_seats}
+                    onChange={(e) => setFormData({ ...formData, max_seats: parseInt(e.target.value) || 1 })}
+                    disabled={creating}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="token-quota">Monthly Token Quota *</Label>
+                  <Input
+                    id="token-quota"
+                    type="number"
+                    min="0"
+                    value={formData.monthly_token_quota}
+                    onChange={(e) => setFormData({ ...formData, monthly_token_quota: parseInt(e.target.value) || 0 })}
+                    disabled={creating}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                  <p className="text-xs text-gray-500">Tokens per month</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price-monthly">Monthly Price (cents)</Label>
+                  <Input
+                    id="price-monthly"
+                    type="number"
+                    min="0"
+                    value={formData.price_monthly_cents || 0}
+                    onChange={(e) => setFormData({ ...formData, price_monthly_cents: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                    disabled={creating}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                  <p className="text-xs text-gray-500">Price in cents (e.g., 9900 = $99.00)</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="price-annual">Annual Price (cents)</Label>
+                  <Input
+                    id="price-annual"
+                    type="number"
+                    min="0"
+                    value={formData.price_annual_cents || 0}
+                    onChange={(e) => setFormData({ ...formData, price_annual_cents: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                    disabled={creating}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                  <p className="text-xs text-gray-500">Price in cents (e.g., 99000 = $990.00)</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="display-order">Display Order</Label>
+                  <Input
+                    id="display-order"
+                    type="number"
+                    min="0"
+                    value={formData.display_order || 0}
+                    onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
+                    disabled={creating}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                  <p className="text-xs text-gray-500">Lower numbers appear first</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="is-popular">Popular Plan</Label>
+                  <div className="flex items-center space-x-2 pt-2">
+                    <input
+                      type="checkbox"
+                      id="is-popular"
+                      checked={formData.is_popular || false}
+                      onChange={(e) => setFormData({ ...formData, is_popular: e.target.checked })}
+                      disabled={creating}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="is-popular" className="text-sm text-gray-700">
+                      Mark as popular plan
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Features JSON Editor (Phase 1 - JSON only, toggles in Phase 3) */}
+              <div className="space-y-2">
+                <Label htmlFor="plan-features">Features (JSON)</Label>
+                <textarea
+                  id="plan-features"
+                  value={JSON.stringify(formData.features || {}, null, 2)}
+                  onChange={(e) => {
+                    try {
+                      const parsed = JSON.parse(e.target.value);
+                      setFormData({ ...formData, features: parsed });
+                    } catch {
+                      // Invalid JSON, keep as is
+                    }
+                  }}
+                  placeholder='{"feature1": true, "feature2": false}'
+                  rows={6}
+                  disabled={creating}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed font-mono"
+                />
+                <p className="text-xs text-gray-500">JSON object for plan features (toggles coming in Phase 3)</p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (!creating) {
+                      setCreateDialogOpen(false);
+                    }
+                  }}
+                  disabled={creating}
+                  className="min-h-[44px] sm:min-h-0"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreatePlan}
+                  disabled={creating || !formData.code || !formData.name}
+                  className="bg-blue-600 hover:bg-blue-700 text-white min-h-[44px] sm:min-h-0"
+                >
+                  {creating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Plan
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

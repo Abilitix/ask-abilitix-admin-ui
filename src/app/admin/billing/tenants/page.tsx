@@ -25,15 +25,38 @@ export default function TenantBillingListPage() {
   const [loading, setLoading] = useState(true);
   const [tenants, setTenants] = useState<TenantBillingListItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [limit] = useState(50); // Fixed limit per page
+  const [pagination, setPagination] = useState<{
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  }>({
+    page: 1,
+    limit: 50,
+    total: 0,
+    total_pages: 0,
+  });
 
   // Load tenants with billing information
-  const loadTenants = useCallback(async () => {
+  const loadTenants = useCallback(async (currentPage: number = page) => {
     try {
       setRefreshing(true);
       
       // Get list of tenants with billing from billing API
       // Backend now returns all data including tenant_name, tenant_slug, tokens_used, seats_used
-      const { tenants: fetchedTenants } = await listTenantsWithBilling();
+      const { tenants: fetchedTenants, pagination: paginationData } = await listTenantsWithBilling(
+        currentPage,
+        limit
+      );
+      
+      // Update pagination state
+      if (paginationData) {
+        setPagination(paginationData);
+      }
       
       // Validate and sanitize tenant data to prevent client-side errors
       const sanitizedTenants = (fetchedTenants || [])
@@ -69,7 +92,7 @@ export default function TenantBillingListPage() {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [page, limit]);
 
   // Check SuperAdmin auth
   useEffect(() => {
@@ -90,7 +113,7 @@ export default function TenantBillingListPage() {
           return;
         }
         
-        await loadTenants();
+        await loadTenants(1);
       } catch (error) {
         console.error('Auth check failed:', error);
         router.push('/signin');
@@ -212,13 +235,15 @@ export default function TenantBillingListPage() {
             <div>
               <CardTitle className="text-lg font-semibold text-gray-900">All Tenants</CardTitle>
               <CardDescription className="text-sm text-gray-600 mt-1">
-                {tenants.length} tenant{tenants.length !== 1 ? 's' : ''} with billing
+                {pagination.total > 0 
+                  ? `Showing ${((page - 1) * limit) + 1} to ${Math.min(page * limit, pagination.total)} of ${pagination.total} tenants`
+                  : `${tenants.length} tenant${tenants.length !== 1 ? 's' : ''} with billing`}
               </CardDescription>
             </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={loadTenants}
+              onClick={() => loadTenants(page)}
               disabled={refreshing}
               className="min-h-[44px] sm:min-h-0"
             >
@@ -410,6 +435,45 @@ export default function TenantBillingListPage() {
             </>
           )}
         </CardContent>
+
+        {/* Pagination Controls */}
+        {pagination.total_pages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-100">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-sm text-gray-600">
+                Page {pagination.page} of {pagination.total_pages}
+              </div>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newPage = page - 1;
+                    setPage(newPage);
+                    loadTenants(newPage);
+                  }}
+                  disabled={page === 1 || refreshing}
+                  className="min-h-[44px] flex-1 sm:flex-none"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newPage = page + 1;
+                    setPage(newPage);
+                    loadTenants(newPage);
+                  }}
+                  disabled={page >= pagination.total_pages || refreshing}
+                  className="min-h-[44px] flex-1 sm:flex-none"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

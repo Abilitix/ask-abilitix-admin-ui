@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle, Settings, Users, TestTube, Trash2, UserX, Link as LinkIcon, Info, CreditCard } from 'lucide-react';
+import { HelpCircle, Settings, Users, TestTube, Trash2, UserX, Info, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
@@ -1092,27 +1092,6 @@ export default function SettingsPage() {
 
       {/* Context Management Section */}
       <ContextNavigationCard />
-
-      {/* Data Sources Link - Subtle reference */}
-      <Card className="border-slate-200/60">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium text-slate-900 mb-1">Data Sources</div>
-              <div className="text-xs text-slate-600">
-                Connect Google Drive and other sources to automatically sync documents
-              </div>
-            </div>
-            <Link
-              href="/admin/sources"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-            >
-              Manage Sources
-              <LinkIcon className="h-4 w-4" />
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Billing & Plan Card - Owner/Admin only */}
       {currentUser && ['owner', 'admin'].includes(currentUser.role) && (

@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { CreditCard, Loader2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { getTenantBilling, getTenantUsage, getTenantQuota } from '@/lib/api/billing';
@@ -61,117 +60,57 @@ export function BillingPlanCard() {
     return Math.min(100, Math.round((used / total) * 100));
   };
 
+  const getDescription = () => {
+    if (loading) {
+      return 'Loading billing information...';
+    }
+    if (billing && usage && quota) {
+      return `${billing.plan_name || 'No plan'} • ${formatTokens(usage.tokens_used)} / ${formatTokens(quota.effective_quota)} tokens used this month`;
+    }
+    if (billing) {
+      return `${billing.plan_name || 'No plan'} • View usage and manage your subscription`;
+    }
+    return 'Manage your subscription, view usage, and upgrade your plan.';
+  };
+
   return (
-    <Card className="border-blue-200 bg-gradient-to-br from-blue-50/50 to-white">
+    <Card className="mb-8 hover:shadow-md transition-shadow border-blue-100">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CreditCard className="h-5 w-5 text-blue-600" />
-          Billing & Plan
-        </CardTitle>
-        <CardDescription>
-          Manage your subscription, view usage, and upgrade your plan.
-        </CardDescription>
+        <div className="flex items-start gap-4">
+          <div className="p-2.5 bg-blue-100 rounded-lg flex-shrink-0">
+            <CreditCard className="h-5 w-5 text-blue-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-lg font-semibold text-gray-900 mb-1">
+              Billing & Plan
+            </CardTitle>
+            <CardDescription className="text-sm text-gray-600 mt-1">
+              {getDescription()}
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-          </div>
-        ) : billing ? (
-          <div className="space-y-4">
-            {/* Current Plan */}
-            <div>
-              <div className="text-sm text-gray-600 mb-1">Current Plan</div>
-              <div className="flex items-center gap-2">
-                <div className="text-lg font-semibold text-gray-900">
-                  {billing.plan_name || 'No Plan'}
-                </div>
-                {billing.stripe_subscription_status && (
-                  <Badge
-                    variant={
-                      billing.stripe_subscription_status === 'active'
-                        ? 'default'
-                        : billing.stripe_subscription_status === 'past_due'
-                        ? 'destructive'
-                        : 'outline'
-                    }
-                    className="text-xs"
-                  >
-                    {billing.stripe_subscription_status}
-                  </Badge>
-                )}
-              </div>
-              {billing.plan_code && (
-                <div className="text-xs text-gray-500 mt-1">{billing.plan_code}</div>
-              )}
-            </div>
-
-            {/* Usage Summary */}
-            {usage && quota && (
-              <div>
-                <div className="text-sm text-gray-600 mb-2">Usage This Month</div>
-                <div className="space-y-2">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-700">Tokens</span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {formatTokens(usage.tokens_used)} / {formatTokens(quota.effective_quota)}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all ${
-                          getUsagePercentage(usage.tokens_used, quota.effective_quota) >= 90
-                            ? 'bg-red-500'
-                            : getUsagePercentage(usage.tokens_used, quota.effective_quota) >= 75
-                            ? 'bg-yellow-500'
-                            : 'bg-blue-500'
-                        }`}
-                        style={{
-                          width: `${getUsagePercentage(usage.tokens_used, quota.effective_quota)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 pt-2">
-                    <div>
-                      <div className="text-xs text-gray-600">Requests</div>
-                      <div className="text-sm font-semibold text-gray-900">
-                        {(usage.requests ?? 0).toLocaleString()}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-600">Seats Used</div>
-                      <div className="text-sm font-semibold text-gray-900">
-                        {quota.current_seats ?? 0} / {quota.effective_seat_cap ?? 0}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Manage Billing Button */}
-            <Button asChild className="w-full min-h-[44px] sm:min-h-0 bg-blue-600 hover:bg-blue-700">
-              <Link href="/admin/settings/billing">
+        <Link href="/admin/settings/billing">
+          <Button 
+            variant="default" 
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white min-h-[44px]"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>
                 Manage Billing
                 <ArrowRight className="h-4 w-4 ml-2" />
-              </Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="text-center py-4">
-            <p className="text-sm text-gray-600 mb-4">Unable to load billing information</p>
-            <Button asChild variant="outline" className="min-h-[44px] sm:min-h-0">
-              <Link href="/admin/settings/billing">
-                View Billing
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Link>
-            </Button>
-          </div>
-        )}
+              </>
+            )}
+          </Button>
+        </Link>
       </CardContent>
     </Card>
   );
 }
-

@@ -168,13 +168,28 @@ export default function TenantBillingDetailPage() {
         suspended_reason: reason,
       });
       toast.success(`Tenant status updated to ${newStatus}`);
+      
+      // Optimistically update status in UI (no full page refresh needed)
       setTenantStatus(newStatus);
       setShowSuspendDialog(false);
       setSuspendedReason('');
-      await loadData(); // Refresh all data
+      
+      // Only refresh tenant status from list (lightweight)
+      try {
+        const tenantsData = await listTenantsWithBilling(1, 200);
+        const tenant = tenantsData.tenants.find(t => t.tenant_id === tenantId);
+        if (tenant) {
+          setTenantStatus(tenant.tenant_status);
+        }
+      } catch (statusError) {
+        console.warn('Failed to refresh tenant status:', statusError);
+        // Status already updated optimistically, so continue
+      }
     } catch (error: any) {
       console.error('Failed to update tenant status:', error);
       toast.error(error.message || 'Failed to update tenant status');
+      // Revert optimistic update on error
+      await loadData();
     } finally {
       setUpdatingStatus(false);
     }
@@ -875,6 +890,11 @@ export default function TenantBillingDetailPage() {
                   <CardTitle className="text-lg font-semibold text-red-900">
                     Delete Tenant
                   </CardTitle>
+                  {tenantName && (
+                    <CardDescription className="text-sm text-red-700 mt-1">
+                      {tenantName}
+                    </CardDescription>
+                  )}
                 </div>
                 {!isDeleting && (
                   <Button
@@ -894,7 +914,7 @@ export default function TenantBillingDetailPage() {
             </CardHeader>
             <CardContent className="pt-6 pb-6">
               <p className="text-sm text-slate-600 leading-relaxed mb-6">
-                ⚠️ This action cannot be undone. All tenant data will be permanently deleted.
+                ⚠️ This action cannot be undone. All tenant data for <strong className="font-semibold text-slate-900">{tenantName || `tenant ${tenantId?.slice(0, 8)}`}</strong> will be permanently deleted.
               </p>
 
               {/* Delete Documents Checkbox */}

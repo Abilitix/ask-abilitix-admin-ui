@@ -158,8 +158,8 @@ function SignInForm() {
   }
 
   return (
-    <div className="h-screen h-[100dvh] overflow-y-auto sm:overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 py-8 sm:py-12">
+      <div className="max-w-md w-full my-auto">
         {/* Header with Logo - Fade-in animation */}
         <div className="text-center mb-4 sm:mb-5 md:mb-6">
           <div className="flex justify-center mb-6 sm:mb-7 md:mb-8">
@@ -400,7 +400,7 @@ function SignInForm() {
                </div>
 
         {/* Link to Signup */}
-        <div className="mt-8 sm:mt-10 md:mt-12 text-center">
+        <div className="mt-6 sm:mt-8 text-center pb-4">
           <p className="text-sm text-gray-600 mb-2">
             <span className="font-bold">New to Ask AbilitiX?</span>
           </p>
@@ -421,7 +421,7 @@ function SignInForm() {
 export default function SignInPage() {
   return (
     <Suspense fallback={
-      <div className="h-screen h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 py-8 sm:py-12">
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6">
             <svg className="animate-spin w-8 h-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

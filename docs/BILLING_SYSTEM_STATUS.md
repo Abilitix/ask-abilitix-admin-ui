@@ -43,6 +43,15 @@
 - ✅ Mobile responsive
 - ✅ **FIXED:** Removed wrong `/admin/tenants` endpoint call (was causing 422 error)
 - ✅ **FIXED:** Now uses correct SuperAdmin billing endpoints only
+- ✅ **NEW:** Tenant deletion functionality
+  - ✅ Delete button in "Danger Zone" section
+  - ✅ Custom confirmation dialog with warnings
+  - ✅ Optional document deletion checkbox
+  - ✅ Optional deletion reason textarea
+  - ✅ API integration with proper error handling
+  - ✅ Success/error toast notifications
+  - ✅ Redirect to tenant list on success
+  - ⚠️ **Note:** Backend does not delete billing data (follow-up PR needed)
 
 #### 4. Enforcement Settings (`/admin/billing/settings`)
 - ✅ Enforcement mode selection (hard, soft, off)
@@ -160,6 +169,16 @@
 ---
 
 ## 📋 Pending Work
+
+### Phase 1.5: Tenant Management (IN PROGRESS)
+- [x] Tenant deletion functionality
+  - [x] Delete button in Danger Zone section
+  - [x] Confirmation dialog with warnings
+  - [x] Optional document deletion checkbox
+  - [x] Optional deletion reason textarea
+  - [x] API integration with proper error handling
+  - [x] Redirect to tenant list on success
+  - [ ] **TODO:** Add billing data cleanup to backend (follow-up PR)
 
 ### Phase 2: Tenant Self-Serve Billing (NOT STARTED)
 - [ ] Create `/admin/settings/billing` page

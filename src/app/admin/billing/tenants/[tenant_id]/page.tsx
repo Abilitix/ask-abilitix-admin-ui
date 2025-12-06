@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { Loader2, Users, RefreshCw, ShieldCheck, ArrowLeft, CreditCard, X, CheckCircle2, AlertCircle, TrendingUp } from 'lucide-react';
+import { Loader2, Users, RefreshCw, ShieldCheck, ArrowLeft, CreditCard, X, CheckCircle2, AlertCircle, TrendingUp, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getTenantBilling,
@@ -20,6 +20,7 @@ import {
   setTenantOverrides,
   listPlans,
   updateTenantStatus,
+  deleteTenant,
 } from '@/lib/api/billing';
 import type { TenantBilling, Usage, Quota, Plan } from '@/lib/types/billing';
 
@@ -41,6 +42,12 @@ export default function TenantBillingDetailPage() {
   const [seatsOverride, setSeatsOverride] = useState<string>('');
   const [quotaOverride, setQuotaOverride] = useState<string>('');
   const [saving, setSaving] = useState(false);
+
+  // Delete tenant states
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteDocuments, setDeleteDocuments] = useState(false);
+  const [deletionReason, setDeletionReason] = useState('');
 
   // Load all data (optimized with parallel requests)
   const loadData = useCallback(async () => {
@@ -202,6 +209,30 @@ export default function TenantBillingDetailPage() {
     const totalValue = total ?? 0;
     if (totalValue === 0) return 0;
     return Math.min((usedValue / totalValue) * 100, 100);
+  };
+
+  // Handle tenant deletion
+  const handleDeleteTenant = async () => {
+    if (!tenantId) return;
+
+    setIsDeleting(true);
+    try {
+      const result = await deleteTenant(tenantId, {
+        delete_documents: deleteDocuments,
+        reason: deletionReason || undefined,
+      });
+
+      toast.success(result.message || 'Tenant deleted successfully');
+      
+      // Redirect to tenant list after successful deletion
+      router.push('/admin/billing/tenants');
+    } catch (error: any) {
+      console.error('Failed to delete tenant:', error);
+      toast.error(error.message || 'Failed to delete tenant');
+      // Don't close dialog on error - let user try again or cancel
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (loading) {
@@ -546,6 +577,164 @@ export default function TenantBillingDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Danger Zone - Delete Tenant */}
+      <Card className="bg-white rounded-xl border-2 border-red-200 shadow-md">
+        <CardHeader className="border-b border-red-100">
+          <CardTitle className="text-lg font-semibold text-red-900 flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            Danger Zone
+          </CardTitle>
+          <CardDescription className="text-sm text-red-700">
+            Irreversible and destructive actions
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-base font-semibold text-gray-900 mb-2">Delete Tenant</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Permanently delete this tenant and all associated data. This action cannot be undone.
+              </p>
+              <Button
+                variant="destructive"
+                onClick={() => setShowDeleteDialog(true)}
+                className="min-h-[44px] sm:min-h-0"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Tenant
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Delete Tenant Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in-0"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isDeleting) {
+              setShowDeleteDialog(false);
+              setDeleteDocuments(false);
+              setDeletionReason('');
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <Card
+            className="w-full max-w-md mx-4 bg-white shadow-2xl border-2 border-red-200 animate-in zoom-in-95 fade-in-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader className="pb-4 border-b border-red-100">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-red-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-lg font-semibold text-red-900">
+                    Delete Tenant
+                  </CardTitle>
+                </div>
+                {!isDeleting && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowDeleteDialog(false);
+                      setDeleteDocuments(false);
+                      setDeletionReason('');
+                    }}
+                    className="h-8 w-8 rounded-full hover:bg-slate-100"
+                  >
+                    <X className="h-4 w-4 text-slate-500" />
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6 pb-6">
+              <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                ⚠️ This action cannot be undone. All tenant data will be permanently deleted.
+              </p>
+
+              {/* Delete Documents Checkbox */}
+              <div className="mb-4">
+                <div className="flex items-start space-x-3">
+                  <input
+                    type="checkbox"
+                    id="delete-documents"
+                    checked={deleteDocuments}
+                    onChange={(e) => setDeleteDocuments(e.target.checked)}
+                    disabled={isDeleting}
+                    className="mt-1 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                  />
+                  <label
+                    htmlFor="delete-documents"
+                    className="text-sm text-gray-700 cursor-pointer"
+                  >
+                    <span className="font-medium">Also delete all documents</span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      This will permanently remove all uploaded documents and files associated with this tenant.
+                    </p>
+                  </label>
+                </div>
+              </div>
+
+              {/* Deletion Reason Textarea */}
+              <div className="mb-6">
+                <label
+                  htmlFor="deletion-reason"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Reason for deletion (optional)
+                </label>
+                <textarea
+                  id="deletion-reason"
+                  value={deletionReason}
+                  onChange={(e) => setDeletionReason(e.target.value)}
+                  placeholder="e.g., Customer requested account closure"
+                  disabled={isDeleting}
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (!isDeleting) {
+                      setShowDeleteDialog(false);
+                      setDeleteDocuments(false);
+                      setDeletionReason('');
+                    }
+                  }}
+                  disabled={isDeleting}
+                  className="min-w-[80px] min-h-[44px] sm:min-h-0"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleDeleteTenant}
+                  disabled={isDeleting}
+                  className="min-w-[80px] bg-red-600 hover:bg-red-700 text-white min-h-[44px] sm:min-h-0"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete Tenant'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

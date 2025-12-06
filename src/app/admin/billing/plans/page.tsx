@@ -143,12 +143,32 @@ export default function PlansPage() {
   // Handle status toggle
   const handleToggleStatus = async (plan: Plan, newStatus: 'active' | 'archived' | 'draft') => {
     try {
-      await updatePlanStatus(plan.id, { status: newStatus });
+      // Optimistically update the plan in local state
+      setPlans(prevPlans => 
+        prevPlans.map(p => 
+          p.id === plan.id ? { ...p, status: newStatus } : p
+        )
+      );
+      
+      // Update via API
+      const updatedPlan = await updatePlanStatus(plan.id, { status: newStatus });
+      
+      // Update with the actual response from API (in case backend has additional changes)
+      setPlans(prevPlans => 
+        prevPlans.map(p => 
+          p.id === plan.id ? updatedPlan : p
+        )
+      );
+      
       toast.success(`Plan status updated to ${newStatus}`);
-      await loadPlans(); // Refresh list
+      
+      // Also refresh the full list to ensure consistency
+      await loadPlans();
     } catch (error: any) {
       console.error('Status update failed:', error);
       toast.error(error.message || 'Failed to update plan status');
+      // Revert optimistic update on error
+      await loadPlans();
     }
   };
 

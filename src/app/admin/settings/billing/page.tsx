@@ -17,6 +17,7 @@ import {
   createPortalSession,
 } from '@/lib/api/billing';
 import type { TenantBilling, Usage, Quota, Plan } from '@/lib/types/billing';
+import { UsageCharts } from '@/components/billing/UsageCharts';
 
 export default function BillingPage() {
   const router = useRouter();
@@ -307,6 +308,14 @@ export default function BillingPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Usage Analytics Charts */}
+          {tenantId && (
+            <UsageCharts 
+              tenantId={tenantId} 
+              quota={quota?.effective_quota}
+            />
+          )}
         </div>
 
         {/* Right Column: Available Plans */}

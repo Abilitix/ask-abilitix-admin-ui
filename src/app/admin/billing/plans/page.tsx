@@ -15,8 +15,10 @@ import {
   archivePlan,
   updatePlanStatus,
   createPlan,
+  updatePlan,
+  getPlan,
 } from '@/lib/api/billing';
-import type { Plan, CreatePlanPayload } from '@/lib/types/billing';
+import type { Plan, CreatePlanPayload, UpdatePlanPayload } from '@/lib/types/billing';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,6 +61,12 @@ export default function PlansPage() {
     display_order: 0,
     is_popular: false,
   });
+
+  // Edit plan dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [planToEdit, setPlanToEdit] = useState<Plan | null>(null);
+  const [editFormData, setEditFormData] = useState<UpdatePlanPayload>({});
 
   // Load plans function
   const loadPlans = async () => {
@@ -191,6 +199,73 @@ export default function PlansPage() {
       toast.error(error.message || 'Failed to create plan');
     } finally {
       setCreating(false);
+    }
+  };
+
+  // Handle open edit dialog
+  const handleOpenEditDialog = async (plan: Plan) => {
+    try {
+      // Load full plan data (in case we need latest info)
+      const fullPlan = await getPlan(plan.id);
+      setPlanToEdit(fullPlan);
+      
+      // Pre-fill form with plan data
+      setEditFormData({
+        name: fullPlan.name,
+        description: fullPlan.description || '',
+        max_seats: fullPlan.max_seats,
+        monthly_token_quota: fullPlan.monthly_token_quota,
+        features: fullPlan.features || {},
+        stripe_product_id: fullPlan.stripe_product_id || '',
+        stripe_price_id_monthly: fullPlan.stripe_price_id_monthly || '',
+        stripe_price_id_annual: fullPlan.stripe_price_id_annual || '',
+        price_monthly_cents: fullPlan.price_monthly_cents || 0,
+        price_annual_cents: fullPlan.price_annual_cents || 0,
+        display_order: fullPlan.display_order,
+        is_popular: fullPlan.is_popular,
+      });
+      
+      setEditDialogOpen(true);
+    } catch (error: any) {
+      console.error('Failed to load plan for editing:', error);
+      toast.error(error.message || 'Failed to load plan details');
+    }
+  };
+
+  // Handle update plan
+  const handleUpdatePlan = async () => {
+    if (!planToEdit) return;
+
+    try {
+      setEditing(true);
+      
+      // Validate required fields if they're being updated
+      if (editFormData.max_seats !== undefined && editFormData.max_seats < 1) {
+        toast.error('Max seats must be at least 1');
+        return;
+      }
+      
+      if (editFormData.monthly_token_quota !== undefined && editFormData.monthly_token_quota < 0) {
+        toast.error('Monthly token quota must be 0 or greater');
+        return;
+      }
+
+      // Update the plan
+      await updatePlan(planToEdit.id, editFormData);
+      toast.success('Plan updated successfully');
+      
+      // Close dialog
+      setEditDialogOpen(false);
+      setPlanToEdit(null);
+      setEditFormData({});
+      
+      // Refresh plans list
+      await loadPlans();
+    } catch (error: any) {
+      console.error('Update plan failed:', error);
+      toast.error(error.message || 'Failed to update plan');
+    } finally {
+      setEditing(false);
     }
   };
 
@@ -443,8 +518,8 @@ export default function PlansPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toast.info('Edit plan form coming soon')}
-                              className="h-8 w-8 p-0"
+                              onClick={() => handleOpenEditDialog(plan)}
+                              className="h-8 w-8 p-0 min-h-[44px] sm:min-h-0"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -532,7 +607,7 @@ export default function PlansPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => toast.info('Edit plan form coming soon')}
+                        onClick={() => handleOpenEditDialog(plan)}
                         className="flex-1 min-h-[44px]"
                       >
                         <Edit className="h-4 w-4 mr-2" />
@@ -814,6 +889,278 @@ export default function PlansPage() {
                     <>
                       <Plus className="w-4 h-4 mr-2" />
                       Create Plan
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Plan Dialog */}
+      {editDialogOpen && planToEdit && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in-0"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !editing) {
+              setEditDialogOpen(false);
+              setPlanToEdit(null);
+              setEditFormData({});
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <Card
+            className="w-full max-w-2xl mx-4 bg-white shadow-2xl border-0 animate-in zoom-in-95 fade-in-0 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader className="pb-4 border-b border-gray-100">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    Edit Plan: {planToEdit.name}
+                  </CardTitle>
+                  <CardDescription className="text-sm text-gray-600 mt-1">
+                    Update billing plan details (Code cannot be changed)
+                  </CardDescription>
+                </div>
+                {!editing && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setEditDialogOpen(false);
+                      setPlanToEdit(null);
+                      setEditFormData({});
+                    }}
+                    className="h-8 w-8 rounded-full hover:bg-slate-100"
+                  >
+                    <X className="h-4 w-4 text-slate-500" />
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6 pb-6 space-y-6">
+              {/* Plan Code (read-only) */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-plan-code">Plan Code</Label>
+                <Input
+                  id="edit-plan-code"
+                  value={planToEdit.code}
+                  disabled
+                  className="min-h-[44px] sm:min-h-0 bg-gray-50"
+                />
+                <p className="text-xs text-gray-500">Plan code cannot be changed after creation</p>
+              </div>
+
+              {/* Required Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-plan-name">Plan Name</Label>
+                  <Input
+                    id="edit-plan-name"
+                    value={editFormData.name || planToEdit.name}
+                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    placeholder="e.g., Starter Plan"
+                    disabled={editing}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-plan-description">Description</Label>
+                  <Input
+                    id="edit-plan-description"
+                    value={editFormData.description !== undefined ? editFormData.description : (planToEdit.description || '')}
+                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    placeholder="Brief description of the plan"
+                    disabled={editing}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-max-seats">Max Seats</Label>
+                  <Input
+                    id="edit-max-seats"
+                    type="number"
+                    min="1"
+                    value={editFormData.max_seats !== undefined ? editFormData.max_seats : planToEdit.max_seats}
+                    onChange={(e) => setEditFormData({ ...editFormData, max_seats: parseInt(e.target.value) || 1 })}
+                    disabled={editing}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-token-quota">Monthly Token Quota</Label>
+                  <Input
+                    id="edit-token-quota"
+                    type="number"
+                    min="0"
+                    value={editFormData.monthly_token_quota !== undefined ? editFormData.monthly_token_quota : planToEdit.monthly_token_quota}
+                    onChange={(e) => setEditFormData({ ...editFormData, monthly_token_quota: parseInt(e.target.value) || 0 })}
+                    disabled={editing}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                  <p className="text-xs text-gray-500">Tokens per month</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-price-monthly">Monthly Price (cents)</Label>
+                  <Input
+                    id="edit-price-monthly"
+                    type="number"
+                    min="0"
+                    value={editFormData.price_monthly_cents !== undefined ? editFormData.price_monthly_cents : (planToEdit.price_monthly_cents || 0)}
+                    onChange={(e) => setEditFormData({ ...editFormData, price_monthly_cents: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                    disabled={editing}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                  <p className="text-xs text-gray-500">Price in cents (e.g., 9900 = $99.00)</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-price-annual">Annual Price (cents)</Label>
+                  <Input
+                    id="edit-price-annual"
+                    type="number"
+                    min="0"
+                    value={editFormData.price_annual_cents !== undefined ? editFormData.price_annual_cents : (planToEdit.price_annual_cents || 0)}
+                    onChange={(e) => setEditFormData({ ...editFormData, price_annual_cents: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                    disabled={editing}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                  <p className="text-xs text-gray-500">Price in cents (e.g., 99000 = $990.00)</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-display-order">Display Order</Label>
+                  <Input
+                    id="edit-display-order"
+                    type="number"
+                    min="0"
+                    value={editFormData.display_order !== undefined ? editFormData.display_order : planToEdit.display_order}
+                    onChange={(e) => setEditFormData({ ...editFormData, display_order: parseInt(e.target.value) || 0 })}
+                    disabled={editing}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                  <p className="text-xs text-gray-500">Lower numbers appear first</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-is-popular">Popular Plan</Label>
+                  <div className="flex items-center space-x-2 pt-2">
+                    <input
+                      type="checkbox"
+                      id="edit-is-popular"
+                      checked={editFormData.is_popular !== undefined ? editFormData.is_popular : planToEdit.is_popular}
+                      onChange={(e) => setEditFormData({ ...editFormData, is_popular: e.target.checked })}
+                      disabled={editing}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="edit-is-popular" className="text-sm text-gray-700">
+                      Mark as popular plan
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stripe Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-stripe-product-id">Stripe Product ID</Label>
+                  <Input
+                    id="edit-stripe-product-id"
+                    value={editFormData.stripe_product_id !== undefined ? editFormData.stripe_product_id : (planToEdit.stripe_product_id || '')}
+                    onChange={(e) => setEditFormData({ ...editFormData, stripe_product_id: e.target.value || undefined })}
+                    placeholder="prod_..."
+                    disabled={editing}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-stripe-price-monthly">Stripe Monthly Price ID</Label>
+                  <Input
+                    id="edit-stripe-price-monthly"
+                    value={editFormData.stripe_price_id_monthly !== undefined ? editFormData.stripe_price_id_monthly : (planToEdit.stripe_price_id_monthly || '')}
+                    onChange={(e) => setEditFormData({ ...editFormData, stripe_price_id_monthly: e.target.value || undefined })}
+                    placeholder="price_..."
+                    disabled={editing}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-stripe-price-annual">Stripe Annual Price ID</Label>
+                  <Input
+                    id="edit-stripe-price-annual"
+                    value={editFormData.stripe_price_id_annual !== undefined ? editFormData.stripe_price_id_annual : (planToEdit.stripe_price_id_annual || '')}
+                    onChange={(e) => setEditFormData({ ...editFormData, stripe_price_id_annual: e.target.value || undefined })}
+                    placeholder="price_..."
+                    disabled={editing}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                </div>
+              </div>
+
+              {/* Features JSON Editor (Phase 1 - JSON only, toggles in Phase 3) */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-plan-features">Features (JSON)</Label>
+                <textarea
+                  id="edit-plan-features"
+                  value={JSON.stringify(editFormData.features !== undefined ? editFormData.features : (planToEdit.features || {}), null, 2)}
+                  onChange={(e) => {
+                    try {
+                      const parsed = JSON.parse(e.target.value);
+                      setEditFormData({ ...editFormData, features: parsed });
+                    } catch {
+                      // Invalid JSON, keep as is
+                    }
+                  }}
+                  placeholder='{"feature1": true, "feature2": false}'
+                  rows={6}
+                  disabled={editing}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed font-mono"
+                />
+                <p className="text-xs text-gray-500">JSON object for plan features (toggles coming in Phase 3)</p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (!editing) {
+                      setEditDialogOpen(false);
+                      setPlanToEdit(null);
+                      setEditFormData({});
+                    }
+                  }}
+                  disabled={editing}
+                  className="min-h-[44px] sm:min-h-0"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUpdatePlan}
+                  disabled={editing}
+                  className="bg-blue-600 hover:bg-blue-700 text-white min-h-[44px] sm:min-h-0"
+                >
+                  {editing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Update Plan
                     </>
                   )}
                 </Button>

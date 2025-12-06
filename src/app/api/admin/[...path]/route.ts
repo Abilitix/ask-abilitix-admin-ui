@@ -61,10 +61,12 @@ async function handleRequest(
     const cookieHeader = request.headers.get('cookie') || '';
     
     // Get tenant context from user session (for X-Tenant-Id header)
-    // Skip for SuperAdmin endpoints (billing, governance, superadmin) - they don't need tenant_id
+    // Skip for SuperAdmin endpoints (billing, governance, superadmin, tenants DELETE) - they don't need tenant_id
+    // DELETE /admin/tenants/{tenant_id} is SuperAdmin-only (tenant deletion)
     const isSuperAdminEndpoint = pathSegments[0] === 'billing' || 
                                   pathSegments[0] === 'governance' || 
-                                  pathSegments[0] === 'superadmin';
+                                  pathSegments[0] === 'superadmin' ||
+                                  (pathSegments[0] === 'tenants' && method === 'DELETE' && pathSegments.length === 2);
     
     let tenantId: string | undefined;
     let isSuperAdmin = false;

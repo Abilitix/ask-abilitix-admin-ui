@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CreditCard, Loader2, CheckCircle2, TrendingUp, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CreditCard, Loader2, CheckCircle2, TrendingUp, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getTenantBilling,
@@ -311,10 +311,27 @@ export default function BillingPage() {
 
           {/* Usage Analytics Charts */}
           {tenantId && (
-            <UsageCharts 
-              tenantId={tenantId} 
-              quota={quota?.effective_quota}
-            />
+            <>
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-blue-900 mb-1">
+                        Usage Analytics Under Development
+                      </div>
+                      <div className="text-sm text-blue-700">
+                        Historical usage charts and analytics are currently being built. You can view your current month usage above. Full analytics with historical data will be available soon.
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <UsageCharts 
+                tenantId={tenantId} 
+                quota={quota?.effective_quota}
+              />
+            </>
           )}
         </div>
 

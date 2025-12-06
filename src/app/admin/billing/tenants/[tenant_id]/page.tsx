@@ -70,7 +70,7 @@ export default function TenantBillingDetailPage() {
       setQuota(quotaData);
 
       // Set tenant name (use tenant_id as fallback)
-      setTenantName(`Tenant ${tenantId.slice(0, 8)}`);
+      setTenantName(`Tenant ${tenantId?.slice(0, 8) || 'Unknown'}`);
     } catch (error: any) {
       console.error('Failed to load tenant billing:', error);
       toast.error(error.message || 'Failed to load tenant billing data');
@@ -165,8 +165,9 @@ export default function TenantBillingDetailPage() {
     }
   };
 
-  // Format tokens
-  const formatTokens = (tokens: number) => {
+  // Format tokens (handle null/undefined)
+  const formatTokens = (tokens: number | null | undefined) => {
+    if (tokens == null || isNaN(tokens)) return '0';
     if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
     if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
     return tokens.toLocaleString();
@@ -189,10 +190,12 @@ export default function TenantBillingDetailPage() {
     }
   };
 
-  // Calculate usage percentage
-  const getUsagePercentage = (used: number, total: number) => {
-    if (total === 0) return 0;
-    return Math.min((used / total) * 100, 100);
+  // Calculate usage percentage (handle null/undefined)
+  const getUsagePercentage = (used: number | null | undefined, total: number | null | undefined) => {
+    const usedValue = used ?? 0;
+    const totalValue = total ?? 0;
+    if (totalValue === 0) return 0;
+    return Math.min((usedValue / totalValue) * 100, 100);
   };
 
   if (loading) {
@@ -305,7 +308,7 @@ export default function TenantBillingDetailPage() {
             <div className="flex items-end">
               <Button
                 onClick={handleAssignPlan}
-                disabled={saving || selectedPlanId === billing.plan_id}
+                disabled={saving || selectedPlanId === billing?.plan_id || !billing}
                 className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white min-h-[44px] sm:min-h-0"
               >
                 {saving ? (
@@ -322,15 +325,15 @@ export default function TenantBillingDetailPage() {
               </Button>
             </div>
           </div>
-          {billing.plan_name && (
+          {billing?.plan_name && (
             <div className="pt-4 border-t border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm text-gray-600">Current Plan</div>
-                  <div className="font-semibold text-gray-900">{billing.plan_name}</div>
-                  <div className="text-xs text-gray-500 mt-1">{billing.plan_code}</div>
+                  <div className="font-semibold text-gray-900">{billing?.plan_name}</div>
+                  <div className="text-xs text-gray-500 mt-1">{billing?.plan_code}</div>
                 </div>
-                {getStatusBadge(billing.stripe_subscription_status)}
+                {getStatusBadge(billing?.stripe_subscription_status)}
               </div>
             </div>
           )}
@@ -355,7 +358,7 @@ export default function TenantBillingDetailPage() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-gray-600">Tokens Used</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      {formatTokens(usage.tokens_used)}
+                      {formatTokens(usage?.tokens_used)}
                     </span>
                   </div>
                   {quota && (
@@ -364,12 +367,12 @@ export default function TenantBillingDetailPage() {
                         <div
                           className="bg-blue-600 h-2 rounded-full transition-all"
                           style={{
-                            width: `${getUsagePercentage(usage.tokens_used, quota.effective_quota)}%`,
+                            width: `${getUsagePercentage(usage?.tokens_used, quota?.effective_quota)}%`,
                           }}
                         />
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {formatTokens(usage.tokens_used)} of {formatTokens(quota.effective_quota)} tokens
+                        {formatTokens(usage?.tokens_used)} of {formatTokens(quota?.effective_quota)} tokens
                       </div>
                     </>
                   )}
@@ -378,13 +381,13 @@ export default function TenantBillingDetailPage() {
                   <div>
                     <div className="text-xs text-gray-600">Requests</div>
                     <div className="text-lg font-semibold text-gray-900">
-                      {usage.requests.toLocaleString()}
+                      {(usage.requests ?? 0).toLocaleString()}
                     </div>
                   </div>
                   <div>
                     <div className="text-xs text-gray-600">Invites Sent</div>
                     <div className="text-lg font-semibold text-gray-900">
-                      {usage.invites_sent.toLocaleString()}
+                      {(usage.invites_sent ?? 0).toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -413,30 +416,30 @@ export default function TenantBillingDetailPage() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-gray-600">Token Quota</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      {formatTokens(quota.effective_quota)}
+                      {formatTokens(quota?.effective_quota)}
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-green-600 h-2 rounded-full transition-all"
                       style={{
-                        width: `${getUsagePercentage(quota.current_usage, quota.effective_quota)}%`,
+                        width: `${getUsagePercentage(quota?.current_usage, quota?.effective_quota)}%`,
                       }}
                     />
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    {formatTokens(quota.current_usage)} used • {formatTokens(quota.remaining_tokens)} remaining
+                    {formatTokens(quota?.current_usage)} used • {formatTokens(quota?.remaining_tokens)} remaining
                   </div>
                 </div>
                 <div className="pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-gray-600">Seat Limit</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      {quota.effective_seat_cap}
+                      {quota?.effective_seat_cap ?? 0}
                     </span>
                   </div>
                   <div className="text-xs text-gray-500">
-                    {quota.current_seats} used • {quota.remaining_seats} remaining
+                    {quota?.current_seats ?? 0} used • {quota?.remaining_seats ?? 0} remaining
                   </div>
                 </div>
               </div>
@@ -481,7 +484,7 @@ export default function TenantBillingDetailPage() {
                   </Button>
                 )}
               </div>
-              {billing.max_seats_override && (
+              {billing?.max_seats_override && (
                 <p className="text-xs text-gray-500 mt-1">
                   Current: {billing.max_seats_override} seats
                 </p>
@@ -509,7 +512,7 @@ export default function TenantBillingDetailPage() {
                   </Button>
                 )}
               </div>
-              {billing.monthly_token_quota_override && (
+              {billing?.monthly_token_quota_override && (
                 <p className="text-xs text-gray-500 mt-1">
                   Current: {formatTokens(billing.monthly_token_quota_override)}
                 </p>

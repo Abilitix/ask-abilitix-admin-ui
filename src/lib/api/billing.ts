@@ -176,9 +176,19 @@ export async function listTenantsWithBilling(
   });
 
   const data = await handleResponse<TenantsListResponse>(response);
+  
+  // Defensive: Ensure we have valid data structure
+  if (!data || typeof data !== 'object') {
+    console.error('Invalid response structure from /admin/billing/tenants:', data);
+    return {
+      tenants: [],
+      pagination: { page: 1, limit: 50, total: 0, total_pages: 0 },
+    };
+  }
+  
   return {
-    tenants: data.tenants || [],
-    pagination: data.pagination,
+    tenants: Array.isArray(data.tenants) ? data.tenants : [],
+    pagination: data.pagination || { page: 1, limit: 50, total: 0, total_pages: 0 },
   };
 }
 
@@ -293,6 +303,11 @@ export async function getEnforcementSettings(): Promise<EnforcementSettings> {
   });
 
   const data = await handleResponse<EnforcementSettingsResponse>(response);
+  
+  // Debug: Log the actual response to see what we're getting
+  console.log('getEnforcementSettings response:', data);
+  console.log('payment_grace_period_days from API:', data.payment_grace_period_days);
+  
   // Extract fields from response (response has ok, enforcement_mode, payment_grace_period_days)
   // Provide defaults if fields are missing
   return {

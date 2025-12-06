@@ -201,6 +201,10 @@ export async function getTenantBilling(tenantId: string): Promise<TenantBilling>
   });
 
   const data = await handleResponse<TenantBillingResponse>(response);
+  // Ensure we always return a valid TenantBilling object
+  if (!data.tenant_billing) {
+    throw new Error('Tenant billing data not found in response');
+  }
   return data.tenant_billing;
 }
 
@@ -257,7 +261,15 @@ export async function getTenantUsage(
   });
 
   const data = await handleResponse<UsageResponse>(response);
-  return data.usage;
+  // Ensure we always return a valid Usage object, even if response structure is unexpected
+  return data.usage || {
+    tenant_id: tenantId,
+    month: month || new Date().toISOString().slice(0, 7),
+    tokens_used: 0,
+    requests: 0,
+    invites_sent: 0,
+    last_updated_at: new Date().toISOString(),
+  };
 }
 
 /**
@@ -269,7 +281,16 @@ export async function getTenantQuota(tenantId: string): Promise<Quota> {
   });
 
   const data = await handleResponse<QuotaResponse>(response);
-  return data.quota;
+  // Ensure we always return a valid Quota object, even if response structure is unexpected
+  return data.quota || {
+    tenant_id: tenantId,
+    effective_quota: 0,
+    effective_seat_cap: 0,
+    current_usage: 0,
+    remaining_tokens: 0,
+    current_seats: 0,
+    remaining_seats: 0,
+  };
 }
 
 /**

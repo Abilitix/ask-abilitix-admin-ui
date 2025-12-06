@@ -71,13 +71,20 @@ async function handleRequest(
     // Get tenant context from user session (for X-Tenant-Id header)
     // Skip for SuperAdmin endpoints (billing, governance, superadmin, tenants DELETE) - they don't need tenant_id
     // DELETE /admin/tenants/{tenant_id} is SuperAdmin-only (tenant deletion)
-    const isSuperAdminEndpoint = pathSegments[0] === 'billing' || 
+    // Exception: /admin/billing/tenants/{tenant_id}/usage is allowed for tenants accessing their own data
+    const isTenantSelfServeUsage = pathSegments[0] === 'billing' && 
+                                    pathSegments[1] === 'tenants' && 
+                                    pathSegments[3] === 'usage' &&
+                                    pathSegments.length === 4;
+    
+    const isSuperAdminEndpoint = (pathSegments[0] === 'billing' && !isTenantSelfServeUsage) || 
                                   pathSegments[0] === 'governance' || 
                                   pathSegments[0] === 'superadmin' ||
                                   (pathSegments[0] === 'tenants' && method === 'DELETE' && pathSegments.length === 2);
     
     let tenantId: string | undefined;
     let isSuperAdmin = false;
+    let requestTenantId: string | undefined;
     
     if (!isSuperAdminEndpoint) {
       try {
@@ -93,6 +100,18 @@ async function handleRequest(
           tenantId = userData.tenant_id;
         }
         // If auth fails, continue without tenant_id (some endpoints may not need it)
+        
+        // For tenant self-serve usage endpoint, verify the tenant_id in path matches the user's tenant_id
+        if (isTenantSelfServeUsage && tenantId) {
+          requestTenantId = pathSegments[2]; // Extract tenant_id from path
+          if (requestTenantId !== tenantId) {
+            // Tenant trying to access another tenant's data - deny access
+            return NextResponse.json(
+              { error: 'Forbidden', details: 'You can only access your own usage data' },
+              { status: 403 }
+            );
+          }
+        }
       } catch (authError) {
         // If auth check fails, continue without tenant_id
         // This allows endpoints that don't require authentication to still work

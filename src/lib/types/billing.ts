@@ -212,6 +212,24 @@ export interface TenantsListResponse {
   };
 }
 
+// Tenant Deletion Types
+export interface DeleteTenantRequest {
+  delete_documents?: boolean;
+  reason?: string | null;
+}
+
+export interface DeleteTenantResponse {
+  success: boolean;
+  message: string;
+  actions_taken: string[];
+  summary: {
+    documents_deleted: number;
+    users_offboarded: number;
+    sessions_revoked: number;
+    tokens_invalidated: number;
+  };
+}
+
 export interface StandardErrorResponse {
   detail: {
     error: string;

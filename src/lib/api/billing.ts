@@ -29,6 +29,8 @@ import type {
   UpdateTenantStatusPayload,
   UpdateEnforcementSettingsPayload,
   StandardErrorResponse,
+  DeleteTenantRequest,
+  DeleteTenantResponse,
 } from '@/lib/types/billing';
 
 // Helper to parse error responses
@@ -422,6 +424,38 @@ export async function createPortalSession(
   }
 
   return handleResponse<StripePortalResponse>(response);
+}
+
+// ============================================================================
+// Tenant Deletion (SuperAdmin Only)
+// ============================================================================
+
+/**
+ * Delete a tenant completely (SuperAdmin only)
+ * @param tenantId Tenant ID to delete
+ * @param options Deletion options (delete_documents, reason)
+ */
+export async function deleteTenant(
+  tenantId: string,
+  options: DeleteTenantRequest = {}
+): Promise<DeleteTenantResponse> {
+  const response = await fetch(`/api/admin/tenants/${tenantId}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      delete_documents: options.delete_documents || false,
+      reason: options.reason || null,
+    }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({})) as StandardErrorResponse;
+    const message = errorData.detail?.message || errorData.detail?.error || `Delete failed: ${response.status}`;
+    throw new Error(message);
+  }
+
+  return handleResponse<DeleteTenantResponse>(response);
 }
 
 // ============================================================================

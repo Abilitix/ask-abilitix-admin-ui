@@ -144,7 +144,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 py-8 sm:py-12">
-      <div className="max-w-md w-full">
+      <div className="max-w-md w-full my-auto">
         {/* Header with Logo */}
         <div className="text-center mb-4 sm:mb-5 md:mb-6">
           <div className="flex justify-center mb-6 sm:mb-7 md:mb-8">
@@ -401,7 +401,7 @@ export default function SignupPage() {
         </div>
 
         {/* Link to Signin */}
-        <div className="mt-8 sm:mt-10 md:mt-12 text-center">
+        <div className="mt-6 sm:mt-8 text-center pb-4">
           <p className="text-sm text-gray-600 mb-2">
             Already have a workspace?
           </p>

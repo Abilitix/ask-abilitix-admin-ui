@@ -265,7 +265,7 @@ export default function PlansPage() {
               Superadmin
             </Badge>
             <Button 
-              onClick={() => toast.info('Create plan form coming soon')}
+              onClick={() => setCreateDialogOpen(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
             >
               <Plus className="h-4 w-4 mr-2" />

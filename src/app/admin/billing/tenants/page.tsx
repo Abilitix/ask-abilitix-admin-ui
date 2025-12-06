@@ -35,10 +35,33 @@ export default function TenantBillingListPage() {
       // Backend now returns all data including tenant_name, tenant_slug, tokens_used, seats_used
       const { tenants: fetchedTenants } = await listTenantsWithBilling();
       
-      // Backend returns all the data we need, no need to enrich
-      setTenants(fetchedTenants);
+      // Validate and sanitize tenant data to prevent client-side errors
+      const sanitizedTenants = (fetchedTenants || [])
+        .filter((tenant) => tenant && tenant.tenant_id) // Filter out invalid entries
+        .map((tenant) => ({
+          ...tenant,
+          // Ensure all required fields have defaults
+          tenant_name: tenant.tenant_name || `Tenant ${tenant.tenant_id?.slice(0, 8) || 'Unknown'}`,
+          tenant_slug: tenant.tenant_slug || `tenant-${tenant.tenant_id?.slice(0, 8) || 'unknown'}`,
+          plan_name: tenant.plan_name || 'No Plan',
+          plan_code: tenant.plan_code || 'N/A',
+          tokens_used: tenant.tokens_used ?? 0,
+          requests: tenant.requests ?? 0,
+          seats_used: tenant.seats_used ?? 0,
+          max_seats: tenant.max_seats ?? 0,
+          monthly_token_quota: tenant.monthly_token_quota ?? 0,
+          stripe_subscription_status: tenant.stripe_subscription_status || null,
+        }));
+      
+      console.log('Sanitized tenants:', sanitizedTenants);
+      setTenants(sanitizedTenants);
     } catch (error: any) {
       console.error('Failed to load tenants:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response,
+      });
       const errorMessage = error.message || 'Failed to load tenant billing data';
       toast.error(errorMessage);
       // Set empty array on error so UI shows empty state instead of crashing
@@ -252,7 +275,14 @@ export default function TenantBillingListPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tenants.map((tenant, index) => (
+                    {tenants.map((tenant, index) => {
+                      // Safety check: ensure tenant has required fields
+                      if (!tenant || !tenant.tenant_id) {
+                        console.warn('Invalid tenant data:', tenant);
+                        return null;
+                      }
+                      
+                      return (
                       <TableRow
                         key={tenant.tenant_id}
                         className={`border-b border-gray-100 transition-colors ${
@@ -302,14 +332,22 @@ export default function TenantBillingListPage() {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
 
               {/* Mobile Card View */}
               <div className="md:hidden divide-y divide-gray-100">
-                {tenants.map((tenant) => (
+                {tenants.map((tenant) => {
+                  // Safety check: ensure tenant has required fields
+                  if (!tenant || !tenant.tenant_id) {
+                    console.warn('Invalid tenant data:', tenant);
+                    return null;
+                  }
+                  
+                  return (
                   <div
                     key={tenant.tenant_id}
                     className="p-4 hover:bg-gray-50 transition-colors"
@@ -366,7 +404,8 @@ export default function TenantBillingListPage() {
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}

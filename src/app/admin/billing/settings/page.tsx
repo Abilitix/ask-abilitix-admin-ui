@@ -34,9 +34,18 @@ export default function EnforcementSettingsPage() {
     try {
       setLoading(true);
       const data = await getEnforcementSettings();
+      
+      // Debug: Log what we received
+      console.log('Loaded settings from API:', data);
+      console.log('Grace period from API:', data.payment_grace_period_days);
+      
       setSettings(data);
       setEnforcementMode(data.enforcement_mode || 'off');
-      setGracePeriodDays((data.payment_grace_period_days ?? 0).toString());
+      // Ensure we use the actual value from API, not default 0
+      const gracePeriod = data.payment_grace_period_days ?? 0;
+      setGracePeriodDays(gracePeriod.toString());
+      
+      console.log('Set grace period days to:', gracePeriod.toString());
     } catch (error: any) {
       console.error('Failed to load enforcement settings:', error);
       // If 404 or settings don't exist, use defaults

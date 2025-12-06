@@ -7,13 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle, Settings, Users, TestTube, Trash2, UserX, Link as LinkIcon, Info } from 'lucide-react';
+import { HelpCircle, Settings, Users, TestTube, Trash2, UserX, Link as LinkIcon, Info, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
 import { ApiErrorCode } from '@/types/errors';
 import { WidgetSettingsSection } from '@/components/widget/WidgetSettingsSection';
 import { ContextNavigationCard } from '@/components/context/ContextNavigationCard';
+import { BillingPlanCard } from '@/components/billing/BillingPlanCard';
 
 type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; LLM_MAX_OUTPUT_TOKENS?: number; PROMPT_TOPK?: number; LLM_MAX_OUTPUT_TOKENS_CEILING?: number; };
 type SettingsResp = { effective: Eff; overrides: Partial<Eff>; tenant_id?: string; tenant_slug?: string; tenant_name?: string; };
@@ -1112,6 +1113,11 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Billing & Plan Card - Owner/Admin only */}
+      {currentUser && ['owner', 'admin'].includes(currentUser.role) && (
+        <BillingPlanCard />
+      )}
 
       {/* Current Members Section */}
       <Card>

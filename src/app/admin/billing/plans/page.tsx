@@ -150,10 +150,10 @@ export default function PlansPage() {
         )
       );
       
-      // Update via API
+      // Update via API using PATCH /status endpoint
       const updatedPlan = await updatePlanStatus(plan.id, { status: newStatus });
       
-      // Update with the actual response from API (in case backend has additional changes)
+      // Update with the actual response from API
       setPlans(prevPlans => 
         prevPlans.map(p => 
           p.id === plan.id ? updatedPlan : p
@@ -162,7 +162,7 @@ export default function PlansPage() {
       
       toast.success(`Plan status updated to ${newStatus}`);
       
-      // Also refresh the full list to ensure consistency
+      // Refresh the full list to ensure consistency
       await loadPlans();
     } catch (error: any) {
       console.error('Status update failed:', error);

@@ -153,7 +153,6 @@ export interface UpdatePlanPayload {
   price_annual_cents?: number;
   display_order?: number;
   is_popular?: boolean;
-  status?: 'active' | 'archived' | 'draft';
 }
 
 export interface UpdatePlanStatusPayload {

@@ -867,6 +867,43 @@ export default function PlansPage() {
                 disabled={creating}
               />
 
+              {/* Stripe Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="stripe-product-id">Stripe Product ID</Label>
+                  <Input
+                    id="stripe-product-id"
+                    value={formData.stripe_product_id || ''}
+                    onChange={(e) => setFormData({ ...formData, stripe_product_id: e.target.value || undefined })}
+                    placeholder="prod_..."
+                    disabled={creating}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stripe-price-monthly">Stripe Monthly Price ID</Label>
+                  <Input
+                    id="stripe-price-monthly"
+                    value={formData.stripe_price_id_monthly || ''}
+                    onChange={(e) => setFormData({ ...formData, stripe_price_id_monthly: e.target.value || undefined })}
+                    placeholder="price_..."
+                    disabled={creating}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stripe-price-annual">Stripe Annual Price ID</Label>
+                  <Input
+                    id="stripe-price-annual"
+                    value={formData.stripe_price_id_annual || ''}
+                    onChange={(e) => setFormData({ ...formData, stripe_price_id_annual: e.target.value || undefined })}
+                    placeholder="price_..."
+                    disabled={creating}
+                    className="min-h-[44px] sm:min-h-0"
+                  />
+                </div>
+              </div>
+
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                 <Button

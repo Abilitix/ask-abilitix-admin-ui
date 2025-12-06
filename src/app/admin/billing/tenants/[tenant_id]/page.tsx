@@ -42,7 +42,7 @@ export default function TenantBillingDetailPage() {
   const [quotaOverride, setQuotaOverride] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
-  // Load all data
+  // Load all data (optimized with parallel requests)
   const loadData = useCallback(async () => {
     if (!tenantId) return;
 
@@ -50,23 +50,29 @@ export default function TenantBillingDetailPage() {
       setLoading(true);
       
       // Load active plans for dropdown
-      const plansData = await listPlans('active');
-      setPlans(plansData);
+      const plansPromise = listPlans('active');
+      
+      // Load tenant billing, usage, and quota in parallel
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+      const billingPromise = getTenantBilling(tenantId);
+      const usagePromise = getTenantUsage(tenantId, currentMonth).catch(() => null);
+      const quotaPromise = getTenantQuota(tenantId).catch(() => null);
 
-      // Load tenant billing
-      const billingData = await getTenantBilling(tenantId);
+      // Wait for all requests in parallel
+      const [plansData, billingData, usageData, quotaData] = await Promise.all([
+        plansPromise,
+        billingPromise,
+        usagePromise,
+        quotaPromise,
+      ]);
+
+      // Update state
+      setPlans(plansData);
       setBilling(billingData);
       setSelectedPlanId(billingData.plan_id);
       setSeatsOverride(billingData.max_seats_override?.toString() || '');
       setQuotaOverride(billingData.monthly_token_quota_override?.toString() || '');
-
-      // Load usage (current month)
-      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-      const usageData = await getTenantUsage(tenantId, currentMonth).catch(() => null);
       setUsage(usageData);
-
-      // Load quota
-      const quotaData = await getTenantQuota(tenantId).catch(() => null);
       setQuota(quotaData);
 
       // Set tenant name (use tenant_id as fallback)

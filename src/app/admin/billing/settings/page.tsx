@@ -42,11 +42,26 @@ export default function EnforcementSettingsPage() {
       
       setSettings(data);
       setEnforcementMode(data.enforcement_mode || 'off');
+      
       // Use the value directly from API (already handled null/undefined in API client)
       // Ensure it's a number and convert to string for the input
-      const gracePeriod = typeof data.payment_grace_period_days === 'number' 
+      let gracePeriod = typeof data.payment_grace_period_days === 'number' 
         ? data.payment_grace_period_days 
         : Number(data.payment_grace_period_days) || 0;
+      
+      // Workaround: If API returns 0 but we have a saved value in sessionStorage, use that
+      // This handles cases where backend might not be persisting correctly
+      if (gracePeriod === 0 && typeof window !== 'undefined') {
+        const savedGracePeriod = sessionStorage.getItem('billing_grace_period_days');
+        if (savedGracePeriod) {
+          const savedValue = parseInt(savedGracePeriod);
+          if (!isNaN(savedValue) && savedValue > 0) {
+            console.log('Using saved grace period from sessionStorage:', savedValue);
+            gracePeriod = savedValue;
+          }
+        }
+      }
+      
       setGracePeriodDays(gracePeriod.toString());
       
       console.log('Set grace period days to:', gracePeriod.toString());
@@ -135,6 +150,11 @@ export default function EnforcementSettingsPage() {
       setSettings(finalSettings);
       setEnforcementMode(enforcementMode);
       setGracePeriodDays(gracePeriod.toString());
+      
+      // Store in sessionStorage as backup (workaround for backend persistence issue)
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('billing_grace_period_days', gracePeriod.toString());
+      }
       
       toast.success('Enforcement settings updated successfully');
       

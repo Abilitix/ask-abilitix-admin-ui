@@ -21,6 +21,7 @@ import {
   listPlans,
   updateTenantStatus,
   deleteTenant,
+  listTenantsWithBilling,
 } from '@/lib/api/billing';
 import type { TenantBilling, Usage, Quota, Plan } from '@/lib/types/billing';
 
@@ -42,6 +43,12 @@ export default function TenantBillingDetailPage() {
   const [seatsOverride, setSeatsOverride] = useState<string>('');
   const [quotaOverride, setQuotaOverride] = useState<string>('');
   const [saving, setSaving] = useState(false);
+  
+  // Tenant status management
+  const [tenantStatus, setTenantStatus] = useState<'active' | 'suspended' | 'inactive' | 'expired' | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [suspendedReason, setSuspendedReason] = useState('');
+  const [showSuspendDialog, setShowSuspendDialog] = useState(false);
 
   // Delete tenant states
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -84,6 +91,19 @@ export default function TenantBillingDetailPage() {
 
       // Set tenant name (use tenant_id as fallback)
       setTenantName(`Tenant ${tenantId?.slice(0, 8) || 'Unknown'}`);
+      
+      // Fetch tenant status from tenant list
+      try {
+        const tenantsData = await listTenantsWithBilling(1, 200);
+        const tenant = tenantsData.tenants.find(t => t.tenant_id === tenantId);
+        if (tenant) {
+          setTenantStatus(tenant.tenant_status);
+          setTenantName(tenant.tenant_name || `Tenant ${tenantId?.slice(0, 8) || 'Unknown'}`);
+        }
+      } catch (statusError) {
+        console.warn('Failed to load tenant status:', statusError);
+        // Continue without status
+      }
     } catch (error: any) {
       console.error('Failed to load tenant billing:', error);
       toast.error(error.message || 'Failed to load tenant billing data');
@@ -136,6 +156,27 @@ export default function TenantBillingDetailPage() {
       toast.error(error.message || 'Failed to assign plan');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Handle tenant status update
+  const handleUpdateStatus = async (newStatus: 'active' | 'suspended' | 'inactive' | 'expired', reason?: string) => {
+    try {
+      setUpdatingStatus(true);
+      await updateTenantStatus(tenantId, {
+        status: newStatus,
+        suspended_reason: reason,
+      });
+      toast.success(`Tenant status updated to ${newStatus}`);
+      setTenantStatus(newStatus);
+      setShowSuspendDialog(false);
+      setSuspendedReason('');
+      await loadData(); // Refresh all data
+    } catch (error: any) {
+      console.error('Failed to update tenant status:', error);
+      toast.error(error.message || 'Failed to update tenant status');
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -577,6 +618,204 @@ export default function TenantBillingDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Tenant Status Management */}
+      <Card className="bg-white rounded-xl border border-gray-200 shadow-md">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-blue-600" />
+            Tenant Status Management
+          </CardTitle>
+          <CardDescription>Manage tenant account status and access</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Current Status */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div>
+              <div className="text-sm text-gray-600">Current Status</div>
+              <div className="mt-1">
+                {tenantStatus ? (
+                  <Badge
+                    variant={
+                      tenantStatus === 'active'
+                        ? 'default'
+                        : tenantStatus === 'suspended'
+                        ? 'destructive'
+                        : 'outline'
+                    }
+                    className="text-sm"
+                  >
+                    {tenantStatus.charAt(0).toUpperCase() + tenantStatus.slice(1)}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-sm">
+                    Unknown
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Status Actions */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-gray-100">
+            {tenantStatus !== 'active' && (
+              <Button
+                variant="outline"
+                onClick={() => handleUpdateStatus('active')}
+                disabled={updatingStatus}
+                className="min-h-[44px] sm:min-h-0"
+              >
+                {updatingStatus ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Activate Tenant
+                  </>
+                )}
+              </Button>
+            )}
+
+            {tenantStatus !== 'suspended' && (
+              <Button
+                variant="outline"
+                onClick={() => setShowSuspendDialog(true)}
+                disabled={updatingStatus}
+                className="min-h-[44px] sm:min-h-0 border-orange-300 text-orange-700 hover:bg-orange-50"
+              >
+                <AlertCircle className="h-4 w-4 mr-2" />
+                Suspend Tenant
+              </Button>
+            )}
+
+            {tenantStatus !== 'inactive' && (
+              <Button
+                variant="outline"
+                onClick={() => handleUpdateStatus('inactive')}
+                disabled={updatingStatus}
+                className="min-h-[44px] sm:min-h-0"
+              >
+                {updatingStatus ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Set Inactive
+                  </>
+                )}
+              </Button>
+            )}
+
+            {tenantStatus !== 'expired' && (
+              <Button
+                variant="outline"
+                onClick={() => handleUpdateStatus('expired')}
+                disabled={updatingStatus}
+                className="min-h-[44px] sm:min-h-0"
+              >
+                {updatingStatus ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <X className="h-4 w-4 mr-2" />
+                    Mark Expired
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Suspend Tenant Dialog */}
+      {showSuspendDialog && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in-0">
+          <Card className="w-full max-w-md mx-4 bg-white shadow-2xl border-0 animate-in zoom-in-95 fade-in-0 slide-in-from-bottom-2">
+            <CardHeader className="pb-4">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-orange-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-lg font-semibold text-slate-900 leading-tight">
+                    Suspend Tenant
+                  </CardTitle>
+                  <CardDescription className="text-sm text-slate-600 mt-1">
+                    Suspend this tenant's access to the platform
+                  </CardDescription>
+                </div>
+                {!updatingStatus && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowSuspendDialog(false);
+                      setSuspendedReason('');
+                    }}
+                    className="h-8 w-8 rounded-full hover:bg-slate-100 -mt-1 -mr-1"
+                  >
+                    <X className="h-4 w-4 text-slate-500" />
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 pb-6">
+              <div className="space-y-4 mb-6">
+                <div>
+                  <Label htmlFor="suspend-reason" className="mb-2">
+                    Reason for Suspension (optional)
+                  </Label>
+                  <textarea
+                    id="suspend-reason"
+                    value={suspendedReason}
+                    onChange={(e) => setSuspendedReason(e.target.value)}
+                    placeholder="e.g., Payment overdue, Terms violation"
+                    disabled={updatingStatus}
+                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px]"
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowSuspendDialog(false);
+                    setSuspendedReason('');
+                  }}
+                  disabled={updatingStatus}
+                  className="min-w-[80px] min-h-[44px] sm:min-h-0"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => handleUpdateStatus('suspended', suspendedReason || undefined)}
+                  disabled={updatingStatus}
+                  className="min-w-[80px] bg-orange-600 hover:bg-orange-700 text-white min-h-[44px] sm:min-h-0"
+                >
+                  {updatingStatus ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Suspending...
+                    </>
+                  ) : (
+                    'Suspend Tenant'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Danger Zone - Delete Tenant */}
       <Card className="bg-white rounded-xl border-2 border-red-200 shadow-md">

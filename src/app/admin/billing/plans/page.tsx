@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { FeaturesEditor } from '@/components/billing/FeaturesEditor';
 
 export default function PlansPage() {
   const [loading, setLoading] = useState(true);
@@ -859,27 +860,12 @@ export default function PlansPage() {
                 </div>
               </div>
 
-              {/* Features JSON Editor (Phase 1 - JSON only, toggles in Phase 3) */}
-              <div className="space-y-2">
-                <Label htmlFor="plan-features">Features (JSON)</Label>
-                <textarea
-                  id="plan-features"
-                  value={JSON.stringify(formData.features || {}, null, 2)}
-                  onChange={(e) => {
-                    try {
-                      const parsed = JSON.parse(e.target.value);
-                      setFormData({ ...formData, features: parsed });
-                    } catch {
-                      // Invalid JSON, keep as is
-                    }
-                  }}
-                  placeholder='{"feature1": true, "feature2": false}'
-                  rows={6}
-                  disabled={creating}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed font-mono"
-                />
-                <p className="text-xs text-gray-500">JSON object for plan features (toggles coming in Phase 3)</p>
-              </div>
+              {/* Features Editor with Toggles */}
+              <FeaturesEditor
+                features={formData.features || {}}
+                onChange={(features) => setFormData({ ...formData, features })}
+                disabled={creating}
+              />
 
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
@@ -1129,27 +1115,12 @@ export default function PlansPage() {
                 </div>
               </div>
 
-              {/* Features JSON Editor (Phase 1 - JSON only, toggles in Phase 3) */}
-              <div className="space-y-2">
-                <Label htmlFor="edit-plan-features">Features (JSON)</Label>
-                <textarea
-                  id="edit-plan-features"
-                  value={JSON.stringify(editFormData.features !== undefined ? editFormData.features : (planToEdit.features || {}), null, 2)}
-                  onChange={(e) => {
-                    try {
-                      const parsed = JSON.parse(e.target.value);
-                      setEditFormData({ ...editFormData, features: parsed });
-                    } catch {
-                      // Invalid JSON, keep as is
-                    }
-                  }}
-                  placeholder='{"feature1": true, "feature2": false}'
-                  rows={6}
-                  disabled={editing}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed font-mono"
-                />
-                <p className="text-xs text-gray-500">JSON object for plan features (toggles coming in Phase 3)</p>
-              </div>
+              {/* Features Editor with Toggles */}
+              <FeaturesEditor
+                features={editFormData.features !== undefined ? editFormData.features : (planToEdit?.features || {})}
+                onChange={(features) => setEditFormData({ ...editFormData, features })}
+                disabled={editing}
+              />
 
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">

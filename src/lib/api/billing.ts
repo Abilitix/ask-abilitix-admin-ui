@@ -305,14 +305,20 @@ export async function getEnforcementSettings(): Promise<EnforcementSettings> {
   const data = await handleResponse<EnforcementSettingsResponse>(response);
   
   // Debug: Log the actual response to see what we're getting
-  console.log('getEnforcementSettings response:', data);
-  console.log('payment_grace_period_days from API:', data.payment_grace_period_days);
+  console.log('getEnforcementSettings raw response:', JSON.stringify(data, null, 2));
+  console.log('payment_grace_period_days type:', typeof data.payment_grace_period_days);
+  console.log('payment_grace_period_days value:', data.payment_grace_period_days);
   
   // Extract fields from response (response has ok, enforcement_mode, payment_grace_period_days)
-  // Provide defaults if fields are missing
+  // Handle both null/undefined and ensure we preserve 0 as a valid value
+  const gracePeriod = data.payment_grace_period_days;
+  const gracePeriodValue = (gracePeriod === null || gracePeriod === undefined) ? 0 : Number(gracePeriod);
+  
+  console.log('Final grace period value:', gracePeriodValue);
+  
   return {
     enforcement_mode: data.enforcement_mode ?? 'off',
-    payment_grace_period_days: data.payment_grace_period_days ?? 0,
+    payment_grace_period_days: gracePeriodValue,
   };
 }
 
@@ -330,11 +336,24 @@ export async function updateEnforcementSettings(
   });
 
   const data = await handleResponse<EnforcementSettingsResponse>(response);
+  
+  // Debug: Log the actual response to see what we're getting back after save
+  console.log('updateEnforcementSettings raw response:', JSON.stringify(data, null, 2));
+  console.log('payment_grace_period_days after save:', data.payment_grace_period_days);
+  
   // Extract fields from response (response has ok, enforcement_mode, payment_grace_period_days)
-  // Provide defaults if fields are missing
+  // Handle both null/undefined and ensure we preserve 0 as a valid value
+  // If API returns null/undefined, use the value we sent (it should have been saved)
+  const gracePeriod = data.payment_grace_period_days;
+  const gracePeriodValue = (gracePeriod === null || gracePeriod === undefined) 
+    ? payload.payment_grace_period_days ?? 0 
+    : Number(gracePeriod);
+  
+  console.log('Final grace period value after save:', gracePeriodValue);
+  
   return {
-    enforcement_mode: data.enforcement_mode ?? 'off',
-    payment_grace_period_days: data.payment_grace_period_days ?? 0,
+    enforcement_mode: data.enforcement_mode ?? payload.enforcement_mode ?? 'off',
+    payment_grace_period_days: gracePeriodValue,
   };
 }
 

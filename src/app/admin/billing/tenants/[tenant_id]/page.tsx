@@ -42,22 +42,6 @@ export default function TenantBillingDetailPage() {
   const [quotaOverride, setQuotaOverride] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
-  // Load tenant info
-  const loadTenantInfo = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/tenants', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        const tenant = data.items?.find((t: any) => t.id === tenantId);
-        if (tenant) {
-          setTenantName(tenant.name || tenant.slug || 'Unknown');
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load tenant name:', error);
-    }
-  }, [tenantId]);
-
   // Load all data
   const loadData = useCallback(async () => {
     if (!tenantId) return;
@@ -85,15 +69,15 @@ export default function TenantBillingDetailPage() {
       const quotaData = await getTenantQuota(tenantId).catch(() => null);
       setQuota(quotaData);
 
-      // Load tenant name
-      await loadTenantInfo();
+      // Set tenant name (use tenant_id as fallback)
+      setTenantName(`Tenant ${tenantId.slice(0, 8)}`);
     } catch (error: any) {
       console.error('Failed to load tenant billing:', error);
       toast.error(error.message || 'Failed to load tenant billing data');
     } finally {
       setLoading(false);
     }
-  }, [tenantId, loadTenantInfo]);
+  }, [tenantId]);
 
   // Check SuperAdmin auth
   useEffect(() => {

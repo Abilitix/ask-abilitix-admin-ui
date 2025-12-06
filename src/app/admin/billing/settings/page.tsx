@@ -38,11 +38,15 @@ export default function EnforcementSettingsPage() {
       // Debug: Log what we received
       console.log('Loaded settings from API:', data);
       console.log('Grace period from API:', data.payment_grace_period_days);
+      console.log('Grace period type:', typeof data.payment_grace_period_days);
       
       setSettings(data);
       setEnforcementMode(data.enforcement_mode || 'off');
-      // Ensure we use the actual value from API, not default 0
-      const gracePeriod = data.payment_grace_period_days ?? 0;
+      // Use the value directly from API (already handled null/undefined in API client)
+      // Ensure it's a number and convert to string for the input
+      const gracePeriod = typeof data.payment_grace_period_days === 'number' 
+        ? data.payment_grace_period_days 
+        : Number(data.payment_grace_period_days) || 0;
       setGracePeriodDays(gracePeriod.toString());
       
       console.log('Set grace period days to:', gracePeriod.toString());

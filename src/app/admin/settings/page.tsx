@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle, Settings, Users, TestTube, Trash2, UserX, Info, CreditCard } from 'lucide-react';
+import { HelpCircle, Settings, Users, TestTube, Trash2, UserX, Info, CreditCard, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
@@ -15,6 +15,7 @@ import { ApiErrorCode } from '@/types/errors';
 import { WidgetSettingsSection } from '@/components/widget/WidgetSettingsSection';
 import { ContextNavigationCard } from '@/components/context/ContextNavigationCard';
 import { BillingPlanCard } from '@/components/billing/BillingPlanCard';
+import { DeleteAccountDialog } from '@/components/account/DeleteAccountDialog';
 
 type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; LLM_MAX_OUTPUT_TOKENS?: number; PROMPT_TOPK?: number; LLM_MAX_OUTPUT_TOKENS_CEILING?: number; };
 type SettingsResp = { effective: Eff; overrides: Partial<Eff>; tenant_id?: string; tenant_slug?: string; tenant_name?: string; };
@@ -124,6 +125,9 @@ export default function SettingsPage() {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [offboardingUsers, setOffboardingUsers] = useState<Set<string>>(new Set());
   const [currentUser, setCurrentUser] = useState<{ id: string; role: string } | null>(null);
+
+  // Delete account state
+  const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false);
 
   // Helper functions to map between presets and technical values
   function getPresetKey(category: keyof typeof PRESETS, value: number): string {
@@ -1292,6 +1296,43 @@ export default function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Danger Zone - Delete Account */}
+      <Card className="border-red-200 bg-red-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-900">
+            <AlertTriangle className="h-5 w-5" />
+            Danger Zone
+          </CardTitle>
+          <CardDescription className="text-red-700">
+            Irreversible and destructive actions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex-1">
+              <div className="text-sm font-medium text-slate-900 mb-1">Delete My Account</div>
+              <div className="text-xs text-slate-600">
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </div>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={() => setDeleteAccountDialogOpen(true)}
+              className="min-h-[44px] sm:min-h-0 whitespace-nowrap"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Account
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Delete Account Dialog */}
+      <DeleteAccountDialog
+        open={deleteAccountDialogOpen}
+        onClose={() => setDeleteAccountDialogOpen(false)}
+      />
       </div>
     </TooltipProvider>
   );

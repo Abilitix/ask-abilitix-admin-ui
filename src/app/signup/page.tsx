@@ -15,6 +15,18 @@ export default function SignupPage() {
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState<string|null>(null);
   const [loading, setLoading] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+
+  // Password validation (real-time)
+  const passwordValidation = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    numbers: /[0-9]/.test(password),
+    symbols: /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password),
+  };
+
+  const isPasswordValid = Object.values(passwordValidation).every(Boolean);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); 
@@ -31,10 +43,26 @@ export default function SignupPage() {
     }
 
     // Password validation (if password method)
-    if (method === 'password' && !password) {
-      setErr('Please enter a password.');
-      setLoading(false);
-      return;
+    if (method === 'password') {
+      if (!password) {
+        setErr('Please enter a password.');
+        setLoading(false);
+        return;
+      }
+      
+      // Client-side password validation
+      if (!isPasswordValid) {
+        const missingRequirements = [];
+        if (!passwordValidation.length) missingRequirements.push('at least 8 characters');
+        if (!passwordValidation.uppercase) missingRequirements.push('one uppercase letter');
+        if (!passwordValidation.lowercase) missingRequirements.push('one lowercase letter');
+        if (!passwordValidation.numbers) missingRequirements.push('one number');
+        if (!passwordValidation.symbols) missingRequirements.push('one symbol');
+        
+        setErr(`Password must contain ${missingRequirements.join(', ')}.`);
+        setLoading(false);
+        return;
+      }
     }
     
     try {
@@ -57,13 +85,53 @@ export default function SignupPage() {
       if (r.status === 409) {
         const data = await r.json();
         setErr(data.message || 'An account with this email address already exists. Please sign in instead.');
+        setLoading(false);
         return;
       }
       
-      if (!r.ok) { 
-        const errorData = await r.json();
-        setErr(errorData.error || errorData.message || 'Signup failed'); 
-        return; 
+      if (!r.ok) {
+        const errorData = await r.json().catch(() => ({}));
+        
+        // Parse backend validation errors (common formats)
+        let errorMessage = 'Signup failed. Please check your information and try again.';
+        
+        // Handle structured validation errors (FastAPI/422 format)
+        if (errorData.detail) {
+          if (Array.isArray(errorData.detail)) {
+            // FastAPI validation errors: [{loc: ["password"], msg: "..."}, ...]
+            const passwordErrors = errorData.detail
+              .filter((err: any) => err.loc && Array.isArray(err.loc) && err.loc.includes('password'))
+              .map((err: any) => err.msg);
+            
+            if (passwordErrors.length > 0) {
+              errorMessage = `Password: ${passwordErrors.join(', ')}`;
+            } else {
+              // Other field errors
+              const messages = errorData.detail.map((err: any) => err.msg || JSON.stringify(err)).join(', ');
+              errorMessage = messages;
+            }
+          } else if (typeof errorData.detail === 'string') {
+            errorMessage = errorData.detail;
+          } else if (errorData.detail.password) {
+            // Nested password error
+            const passwordErr = Array.isArray(errorData.detail.password) 
+              ? errorData.detail.password.join(', ')
+              : errorData.detail.password;
+            errorMessage = `Password: ${passwordErr}`;
+          } else if (errorData.detail.message) {
+            errorMessage = errorData.detail.message;
+          }
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
+        
+        setErr(errorMessage);
+        setLoading(false);
+        return;
       }
       
       setSent(true);
@@ -75,7 +143,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="h-screen h-[100dvh] overflow-y-auto sm:overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 py-8 sm:py-12">
       <div className="max-w-md w-full">
         {/* Header with Logo */}
         <div className="text-center mb-4 sm:mb-5 md:mb-6">
@@ -169,6 +237,8 @@ export default function SignupPage() {
                           setPassword(e.target.value);
                           if (err) setErr(null);
                         }}
+                        onFocus={() => setPasswordFocused(true)}
+                        onBlur={() => setPasswordFocused(false)}
                         placeholder="Create a strong password"
                         className="w-full px-4 py-3 pr-12 sm:pr-11 text-base sm:text-sm bg-[#F8F9FC] border border-[#D0D5DD] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                         required={method === 'password'}
@@ -189,12 +259,39 @@ export default function SignupPage() {
                         )}
                       </button>
                     </div>
+
+                    {/* Password Requirements - Best-in-class SaaS UI */}
+                    {(password || passwordFocused) && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3.5 space-y-1.5">
+                        <div className="text-xs font-semibold text-gray-700 mb-2">Password requirements:</div>
+                        <div className={`flex items-center transition-colors ${passwordValidation.length ? 'text-green-600' : 'text-gray-500'}`}>
+                          <span className="mr-2.5 text-base font-medium">{passwordValidation.length ? '✓' : '○'}</span>
+                          <span className={`text-sm ${passwordValidation.length ? 'font-medium' : ''}`}>At least 8 characters</span>
+                        </div>
+                        <div className={`flex items-center transition-colors ${passwordValidation.uppercase ? 'text-green-600' : 'text-gray-500'}`}>
+                          <span className="mr-2.5 text-base font-medium">{passwordValidation.uppercase ? '✓' : '○'}</span>
+                          <span className={`text-sm ${passwordValidation.uppercase ? 'font-medium' : ''}`}>One uppercase letter</span>
+                        </div>
+                        <div className={`flex items-center transition-colors ${passwordValidation.lowercase ? 'text-green-600' : 'text-gray-500'}`}>
+                          <span className="mr-2.5 text-base font-medium">{passwordValidation.lowercase ? '✓' : '○'}</span>
+                          <span className={`text-sm ${passwordValidation.lowercase ? 'font-medium' : ''}`}>One lowercase letter</span>
+                        </div>
+                        <div className={`flex items-center transition-colors ${passwordValidation.numbers ? 'text-green-600' : 'text-gray-500'}`}>
+                          <span className="mr-2.5 text-base font-medium">{passwordValidation.numbers ? '✓' : '○'}</span>
+                          <span className={`text-sm ${passwordValidation.numbers ? 'font-medium' : ''}`}>One number</span>
+                        </div>
+                        <div className={`flex items-center transition-colors ${passwordValidation.symbols ? 'text-green-600' : 'text-gray-500'}`}>
+                          <span className="mr-2.5 text-base font-medium">{passwordValidation.symbols ? '✓' : '○'}</span>
+                          <span className={`text-sm ${passwordValidation.symbols ? 'font-medium' : ''}`}>One symbol (!@#$%^&*...)</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               
                 <button
                   type="submit"
-                  disabled={loading || !company || !email || (method === 'password' && !password) || !isEmailValid(normalizeEmail(email))}
+                  disabled={loading || !company || !email || (method === 'password' && (!password || !isPasswordValid)) || !isEmailValid(normalizeEmail(email))}
                   className={`w-full bg-indigo-600 text-white py-3.5 sm:py-3 px-4 rounded-xl font-semibold text-base sm:text-sm shadow-[0_4px_10px_rgba(62,44,195,0.25)] hover:bg-indigo-700 hover:shadow-[0_4px_12px_rgba(62,44,195,0.3)] active:bg-indigo-800 active:scale-[0.98] focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation min-h-[48px] ${loading ? 'animate-pulse' : ''}`}
                 >
                   {loading ? (
@@ -213,14 +310,23 @@ export default function SignupPage() {
                   )}
                 </button>
 
-              {/* Error Message */}
+              {/* Error Message - Enhanced with better UX */}
               {err && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg" role="alert" aria-live="assertive">
                   <div className="flex">
-                    <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-5 h-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
-                    <div className="text-sm text-red-700">{err}</div>
+                    <div className="text-sm text-red-700">
+                      <div className="font-medium mb-1">{err}</div>
+                      {err.includes('already exists') && (
+                        <div className="mt-2 text-xs text-gray-600">
+                          <Link href="/signin" className="text-indigo-600 hover:text-indigo-500 font-medium underline">
+                            Sign in to your account
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

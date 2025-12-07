@@ -4,8 +4,10 @@ import Script from "next/script";
 import ConditionalTopNav from "@/components/ConditionalTopNav";
 import { TenantProvider } from "@/components/TenantContext";
 import { getAuthUser } from "@/lib/auth";
-import SiteFooter from "@/components/SiteFooter";
+import ConditionalSiteFooter from "@/components/ConditionalSiteFooter";
 import { Toaster } from "@/components/ui/sonner";
+import ConditionalMainWrapper from "@/components/ConditionalMainWrapper";
+import AuthPageBodyOverflow from "@/components/AuthPageBodyOverflow";
 
 export const metadata: Metadata = { title: "Ask AbilitiX Admin" };
 
@@ -26,11 +28,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-slate-50 text-slate-900">
         <TenantProvider>
+          <AuthPageBodyOverflow />
           <ConditionalTopNav />
-          <main className="mx-auto max-w-6xl px-4 py-8 sm:pt-16">
+          <ConditionalMainWrapper>
             {children}
-          </main>
-          <SiteFooter />
+          </ConditionalMainWrapper>
+          <ConditionalSiteFooter />
           <Toaster />
         </TenantProvider>
       </body>

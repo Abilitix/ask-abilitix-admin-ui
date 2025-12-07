@@ -18,6 +18,7 @@ import {
 } from '@/lib/api/billing';
 import type { TenantBilling, Usage, Quota, Plan } from '@/lib/types/billing';
 import { UsageCharts } from '@/components/billing/UsageCharts';
+import { ContactSupportModal } from '@/components/billing/ContactSupportModal';
 
 export default function BillingPage() {
   const router = useRouter();
@@ -29,6 +30,9 @@ export default function BillingPage() {
   const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [processingCheckout, setProcessingCheckout] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [tenantName, setTenantName] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     loadData();
@@ -109,8 +113,9 @@ export default function BillingPage() {
         setProcessingCheckout(false);
       }
     } else {
-      // Manual plan - show contact message
-      toast.info('This plan requires manual setup. Please contact support to upgrade.');
+      // Manual plan - open contact modal
+      setSelectedPlan(plan);
+      setContactModalOpen(true);
     }
   };
 
@@ -428,6 +433,17 @@ export default function BillingPage() {
           </Card>
         </div>
       </div>
+
+      {/* Contact Support Modal */}
+      <ContactSupportModal
+        open={contactModalOpen}
+        onClose={() => {
+          setContactModalOpen(false);
+          setSelectedPlan(null);
+        }}
+        plan={selectedPlan}
+        tenantName={tenantName}
+      />
     </div>
   );
 }

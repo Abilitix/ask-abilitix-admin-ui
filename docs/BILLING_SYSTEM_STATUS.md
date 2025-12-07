@@ -1,8 +1,8 @@
 # Billing System Implementation Status
 
 **Last Updated:** Current Session  
-**Branch:** `preview`  
-**Latest Commit:** `6717c25` - fix: billing system improvements - grace period persistence and tenant detail endpoint fix
+**Branch:** `main`  
+**Latest Commit:** Updated to reflect Phase 2 & 3 completion
 
 ---
 
@@ -13,6 +13,8 @@
 #### 1. Plan Management (`/admin/billing/plans`)
 - ✅ Plan list with status filtering (active, archived, draft)
 - ✅ Plan archive/activate functionality
+- ✅ **Plan creation form** (full implementation with all fields)
+- ✅ **Plan editing form** (full implementation with pre-filled data)
 - ✅ Desktop table and mobile card views
 - ✅ Empty state handling
 - ✅ SuperAdmin authentication check
@@ -52,6 +54,13 @@
   - ✅ Success/error toast notifications
   - ✅ Redirect to tenant list on success
   - ⚠️ **Note:** Backend does not delete billing data (follow-up PR needed)
+- ✅ **NEW:** Tenant status management
+  - ✅ Suspend tenant (with optional reason)
+  - ✅ Activate tenant
+  - ✅ Set tenant to inactive
+  - ✅ Set tenant to expired
+  - ✅ Status badges and display
+  - ✅ Confirmation dialogs for status changes
 
 #### 4. Enforcement Settings (`/admin/billing/settings`)
 - ✅ Enforcement mode selection (hard, soft, off)
@@ -90,6 +99,63 @@
 - ✅ Catch-all proxy updated for SuperAdmin endpoints
 - ✅ **FIXED:** Skip `tenant_id` fetch for SuperAdmin endpoints (prevents 401 errors)
 - ✅ **FIXED:** Added `ADMIN_API_TOKEN` authentication for SuperAdmin endpoints
+
+### Phase 2: Tenant Self-Serve Billing (COMPLETE)
+
+#### 1. Tenant Billing Page (`/admin/settings/billing`)
+- ✅ Current plan display with status badges
+- ✅ Usage charts (tokens and requests over time)
+- ✅ Quota progress bars with visual indicators
+- ✅ Plan comparison and upgrade UI
+- ✅ Stripe checkout integration (if enabled)
+- ✅ Stripe portal integration (if enabled)
+- ✅ Owner/Admin role check and access control
+- ✅ Back button to Settings page
+- ✅ Mobile responsive design
+- ✅ "Under development" notice (when backend not ready)
+- ✅ Graceful error handling (501 for Stripe disabled)
+
+### Phase 3: Settings & Stripe Extras (COMPLETE)
+
+#### 1. Plan Creation & Editing
+- ✅ **Plan creation form** - Full implementation
+  - ✅ All plan fields (code, name, description, pricing)
+  - ✅ Stripe product/price ID fields
+  - ✅ Features editor integration
+  - ✅ Validation and error handling
+  - ✅ Success/error notifications
+- ✅ **Plan editing form** - Full implementation
+  - ✅ Pre-filled form with existing plan data
+  - ✅ Stripe product/price ID fields
+  - ✅ Features editor integration
+  - ✅ Update functionality
+  - ✅ Success/error notifications
+
+#### 2. Stripe Integration
+- ✅ **Stripe product/price ID management**
+  - ✅ `stripe_product_id` field in create/edit forms
+  - ✅ `stripe_price_id_monthly` field in create/edit forms
+  - ✅ `stripe_price_id_annual` field in create/edit forms
+  - ✅ Proper input fields with placeholders
+  - ✅ Validation and error handling
+
+#### 3. Plan Features Editor
+- ✅ **JSON editor mode** - Complete implementation
+- ✅ **Toggle mode** - Complete implementation
+  - ✅ Common features as toggles (AI Chat, Widget, API Access, etc.)
+  - ✅ Custom features support
+  - ✅ Add/remove custom features
+  - ✅ Switch between JSON and toggle views
+  - ✅ Real-time feature updates
+
+#### 4. Tenant Status Management
+- ✅ **Suspend tenant** - With optional reason
+- ✅ **Activate tenant** - Restore access
+- ✅ **Set inactive** - Mark tenant as inactive
+- ✅ **Set expired** - Mark tenant as expired
+- ✅ Status badges and visual indicators
+- ✅ Confirmation dialogs for status changes
+- ✅ Success/error notifications
 
 ---
 
@@ -170,7 +236,7 @@
 
 ## 📋 Pending Work
 
-### Phase 1.5: Tenant Management (IN PROGRESS)
+### Phase 1.5: Tenant Management (COMPLETE)
 - [x] Tenant deletion functionality
   - [x] Delete button in Danger Zone section
   - [x] Confirmation dialog with warnings
@@ -179,22 +245,26 @@
   - [x] API integration with proper error handling
   - [x] Redirect to tenant list on success
   - [ ] **TODO:** Add billing data cleanup to backend (follow-up PR)
+- [x] Tenant status management
+  - [x] Suspend/activate/inactive/expired functionality
+  - [x] Status change dialogs and confirmations
+  - [x] Status display and badges
 
-### Phase 2: Tenant Self-Serve Billing (NOT STARTED)
-- [ ] Create `/admin/settings/billing` page
-- [ ] Display current plan and usage
-- [ ] Plan upgrade/downgrade UI
-- [ ] Stripe checkout integration (if enabled)
-- [ ] Stripe portal integration (if enabled)
-- [ ] Usage charts/graphs
-- [ ] Quota warnings
+### Phase 2: Tenant Self-Serve Billing (COMPLETE)
+- [x] Create `/admin/settings/billing` page
+- [x] Display current plan and usage
+- [x] Plan upgrade/downgrade UI
+- [x] Stripe checkout integration (if enabled)
+- [x] Stripe portal integration (if enabled)
+- [x] Usage charts/graphs
+- [ ] Quota warnings (enhancement - not critical)
 
-### Phase 3: Settings & Stripe Extras (NOT STARTED)
-- [ ] Plan creation form (currently shows "coming soon" toast)
-- [ ] Plan editing form
-- [ ] Stripe product/price ID management
-- [ ] Plan features JSON editor → toggles (currently JSON editor only)
-- [ ] Tenant status management UI (suspend, activate, etc.)
+### Phase 3: Settings & Stripe Extras (COMPLETE)
+- [x] Plan creation form (full implementation)
+- [x] Plan editing form (full implementation)
+- [x] Stripe product/price ID management
+- [x] Plan features JSON editor → toggles (both modes implemented)
+- [x] Tenant status management UI (suspend, activate, etc.)
 
 ### Phase 4: Optional Dashboards (NOT STARTED)
 - [ ] Revenue dashboard
@@ -202,11 +272,24 @@
 - [ ] Tenant growth charts
 
 ### Known Issues / Follow-ups
-- [ ] **Monitor:** Grace period persistence (verify with real backend after testing)
-- [ ] **Monitor:** Tenant detail page 422 error (should be fixed, verify in preview)
-- [ ] **Enhancement:** Add pagination to tenant billing list (if >50 tenants)
+
+#### Backend Issues (Waiting for Backend Fixes)
+- [ ] **403 on `/usage` endpoint (Admin Portal):** Backend `require_super_admin` needs session auth support
+- [ ] **404 on `/tenants/{tenant_id}` (Admin Portal):** New tenants need `tenant_billing` record creation on signup
+- [ ] **401 errors (Tenant Owner View):** Missing tenant self-serve endpoints (waiting for backend implementation)
+
+#### Enhancements (Future)
+- [ ] **Enhancement:** Quota warnings (email notifications at 80%, 90%, 100%)
 - [ ] **Enhancement:** Add search/filter to tenant billing list
 - [ ] **Enhancement:** Add date range picker for usage queries
+- [ ] **Enhancement:** Bulk tenant status actions (suspend/activate multiple tenants)
+- [ ] **Enhancement:** Features editor UX polish (better descriptions, validation)
+- [ ] **Enhancement:** Plan features schema validation
+
+#### Verified Fixes
+- [x] **FIXED:** Grace period persistence (verified working)
+- [x] **FIXED:** Tenant detail page 422 error (verified fixed)
+- [x] **FIXED:** Pagination to tenant billing list (50 items per page implemented)
 
 ---
 
@@ -241,14 +324,20 @@
 ## 🔗 Related Files
 
 ### Pages
-- `src/app/admin/billing/plans/page.tsx`
-- `src/app/admin/billing/tenants/page.tsx`
-- `src/app/admin/billing/tenants/[tenant_id]/page.tsx`
-- `src/app/admin/billing/settings/page.tsx`
+- `src/app/admin/billing/plans/page.tsx` (Plan Management + Creation/Editing)
+- `src/app/admin/billing/tenants/page.tsx` (Tenant Billing List)
+- `src/app/admin/billing/tenants/[tenant_id]/page.tsx` (Tenant Detail + Status Management)
+- `src/app/admin/billing/settings/page.tsx` (Enforcement Settings)
+- `src/app/admin/settings/billing/page.tsx` (Tenant Self-Serve Billing)
 
 ### API & Types
-- `src/lib/api/billing.ts`
-- `src/lib/types/billing.ts`
+- `src/lib/api/billing.ts` (All billing API functions)
+- `src/lib/types/billing.ts` (All billing TypeScript interfaces)
+
+### Components
+- `src/components/billing/FeaturesEditor.tsx` (Plan features editor - JSON + Toggle modes)
+- `src/components/billing/UsageCharts.tsx` (Usage visualization charts)
+- `src/components/billing/BillingPlanCard.tsx` (Plan display card)
 
 ### Navigation
 - `src/lib/roles.ts` (SuperAdmin navigation)

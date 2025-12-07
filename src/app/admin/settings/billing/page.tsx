@@ -9,9 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, CreditCard, Loader2, CheckCircle2, TrendingUp, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  getTenantBilling,
-  getTenantUsage,
-  getTenantQuota,
+  getMyBilling,
+  getMyUsage,
+  getMyQuota,
   listPlans,
   createCheckoutSession,
   createPortalSession,
@@ -65,11 +65,12 @@ export default function BillingPage() {
       }
 
       // Fetch billing, usage, quota, and plans in parallel
+      // Use tenant self-serve endpoints (session-based auth, no tenant_id parameter)
       const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
       const [billingData, usageData, quotaData, plansData] = await Promise.all([
-        getTenantBilling(tId).catch(() => null),
-        getTenantUsage(tId, currentMonth).catch(() => null),
-        getTenantQuota(tId).catch(() => null),
+        getMyBilling().catch(() => null),
+        getMyUsage(currentMonth).catch(() => null),
+        getMyQuota().catch(() => null),
         listPlans('active').catch(() => []),
       ]);
 
@@ -328,7 +329,6 @@ export default function BillingPage() {
                 </CardContent>
               </Card>
               <UsageCharts 
-                tenantId={tenantId} 
                 quota={quota?.effective_quota}
               />
             </>

@@ -13,6 +13,7 @@ export function BillingPlanCard() {
   const [billing, setBilling] = useState<TenantBilling | null>(null);
   const [usage, setUsage] = useState<Usage | null>(null);
   const [quota, setQuota] = useState<Quota | null>(null);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     loadBillingData();
@@ -30,20 +31,43 @@ export function BillingPlanCard() {
       const tenantId = authData.tenant_id;
       if (!tenantId) return;
 
+      // Reset error state
+      setHasError(false);
+
       // Fetch billing, usage, and quota in parallel
       // Use tenant self-serve endpoints (session-based auth, no tenant_id parameter)
       const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-      const [billingData, usageData, quotaData] = await Promise.all([
-        getMyBilling().catch(() => null),
-        getMyUsage(currentMonth).catch(() => null),
-        getMyQuota().catch(() => null),
+      const [billingResult, usageResult, quotaResult] = await Promise.allSettled([
+        getMyBilling(),
+        getMyUsage(currentMonth),
+        getMyQuota(),
       ]);
 
-      setBilling(billingData);
-      setUsage(usageData);
-      setQuota(quotaData);
+      // Handle results
+      if (billingResult.status === 'fulfilled') {
+        setBilling(billingResult.value);
+      } else {
+        console.error('Failed to load billing data:', billingResult.reason);
+        setBilling(null);
+        setHasError(true);
+      }
+
+      if (usageResult.status === 'fulfilled') {
+        setUsage(usageResult.value);
+      } else {
+        console.error('Failed to load usage data:', usageResult.reason);
+        setUsage(null);
+      }
+
+      if (quotaResult.status === 'fulfilled') {
+        setQuota(quotaResult.value);
+      } else {
+        console.error('Failed to load quota data:', quotaResult.reason);
+        setQuota(null);
+      }
     } catch (error) {
       console.error('Failed to load billing data:', error);
+      setHasError(true);
     } finally {
       setLoading(false);
     }
@@ -64,6 +88,9 @@ export function BillingPlanCard() {
   const getDescription = () => {
     if (loading) {
       return 'Loading billing information...';
+    }
+    if (hasError) {
+      return 'Unable to load billing information. Please contact support if this persists.';
     }
     if (billing && usage && quota) {
       return `${billing.plan_name || 'No plan'} • ${formatTokens(usage.tokens_used)} / ${formatTokens(quota.effective_quota)} tokens used this month`;

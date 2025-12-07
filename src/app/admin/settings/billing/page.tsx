@@ -33,6 +33,9 @@ export default function BillingPage() {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [tenantName, setTenantName] = useState<string | undefined>(undefined);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  const [usageError, setUsageError] = useState<string | null>(null);
+  const [quotaError, setQuotaError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -68,23 +71,59 @@ export default function BillingPage() {
         return;
       }
 
+      // Reset error states
+      setBillingError(null);
+      setUsageError(null);
+      setQuotaError(null);
+
       // Fetch billing, usage, quota, and plans in parallel
       // Use tenant self-serve endpoints (session-based auth, no tenant_id parameter)
       const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-      const [billingData, usageData, quotaData, plansData] = await Promise.all([
-        getMyBilling().catch(() => null),
-        getMyUsage(currentMonth).catch(() => null),
-        getMyQuota().catch(() => null),
-        getMyPlans().catch(() => []),
+      const [billingResult, usageResult, quotaResult, plansResult] = await Promise.allSettled([
+        getMyBilling(),
+        getMyUsage(currentMonth),
+        getMyQuota(),
+        getMyPlans(),
       ]);
 
-      setBilling(billingData);
-      setUsage(usageData);
-      setQuota(quotaData);
-      setPlans(plansData);
+      // Handle billing data
+      if (billingResult.status === 'fulfilled') {
+        setBilling(billingResult.value);
+      } else {
+        console.error('Failed to load billing data:', billingResult.reason);
+        setBillingError('Unable to load billing information. Please contact support if this persists.');
+        setBilling(null);
+      }
+
+      // Handle usage data
+      if (usageResult.status === 'fulfilled') {
+        setUsage(usageResult.value);
+      } else {
+        console.error('Failed to load usage data:', usageResult.reason);
+        setUsageError('Unable to load usage data.');
+        setUsage(null);
+      }
+
+      // Handle quota data
+      if (quotaResult.status === 'fulfilled') {
+        setQuota(quotaResult.value);
+      } else {
+        console.error('Failed to load quota data:', quotaResult.reason);
+        setQuotaError('Unable to load quota information.');
+        setQuota(null);
+      }
+
+      // Handle plans data
+      if (plansResult.status === 'fulfilled') {
+        setPlans(plansResult.value);
+      } else {
+        console.error('Failed to load plans:', plansResult.reason);
+        setPlans([]);
+        // Don't show error toast for plans - it's not critical
+      }
     } catch (error: any) {
       console.error('Failed to load billing data:', error);
-      toast.error('Failed to load billing information');
+      toast.error('Failed to load billing information. Please refresh the page.');
     } finally {
       setLoading(false);
     }
@@ -196,7 +235,19 @@ export default function BillingPage() {
               <CardDescription>Your active subscription and billing details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {billing ? (
+              {billingError ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-amber-900 mb-1">
+                        Billing Information Unavailable
+                      </div>
+                      <div className="text-sm text-amber-700">{billingError}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : billing ? (
                 <>
                   <div>
                     <div className="text-sm text-gray-600 mb-1">Plan Name</div>
@@ -265,7 +316,21 @@ export default function BillingPage() {
               <CardDescription>Token and request usage for the current billing period</CardDescription>
             </CardHeader>
             <CardContent>
-              {usage && quota ? (
+              {usageError || quotaError ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-amber-900 mb-1">
+                        Usage Data Unavailable
+                      </div>
+                      <div className="text-sm text-amber-700">
+                        {usageError || quotaError || 'Unable to load usage information.'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : usage && quota ? (
                 <div className="space-y-4">
                   <div>
                     <div className="flex items-center justify-between mb-2">

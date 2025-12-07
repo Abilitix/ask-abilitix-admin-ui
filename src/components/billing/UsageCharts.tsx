@@ -6,18 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Loader2, Download, TrendingUp, BarChart3, Calendar } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getTenantUsage } from '@/lib/api/billing';
+import { getMyUsage } from '@/lib/api/billing';
 import type { Usage } from '@/lib/types/billing';
 import { toast } from 'sonner';
 
 type DateRange = '6months' | '12months' | 'custom';
 
 interface UsageChartsProps {
-  tenantId: string;
   quota?: number;
 }
 
-export function UsageCharts({ tenantId, quota }: UsageChartsProps) {
+export function UsageCharts({ quota }: UsageChartsProps) {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('6months');
   const [usageData, setUsageData] = useState<Usage[]>([]);
@@ -29,15 +28,16 @@ export function UsageCharts({ tenantId, quota }: UsageChartsProps) {
 
   useEffect(() => {
     loadUsageData();
-  }, [tenantId, dateRange]);
+  }, [dateRange]);
 
   const loadUsageData = async () => {
     try {
       setLoading(true);
       
       const months = getMonthsForRange(dateRange);
+      // Use tenant self-serve endpoint (session-based auth, no tenant_id parameter)
       const usagePromises = months.map(month => 
-        getTenantUsage(tenantId, month).catch(() => null)
+        getMyUsage(month).catch(() => null)
       );
       
       const results = await Promise.all(usagePromises);

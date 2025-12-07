@@ -315,6 +315,79 @@ export async function updateTenantStatus(
 }
 
 // ============================================================================
+// Tenant Self-Serve Endpoints (Session-based auth, no tenant_id parameter)
+// ============================================================================
+
+/**
+ * Get current tenant's billing information (tenant self-serve)
+ * Uses session-based authentication - tenant_id comes from session
+ */
+export async function getMyBilling(): Promise<TenantBilling> {
+  const response = await fetch(`/api/admin/billing/me`, {
+    cache: 'no-store',
+  });
+
+  const data = await handleResponse<TenantBillingResponse>(response);
+  // Ensure we always return a valid TenantBilling object
+  if (!data.tenant_billing) {
+    throw new Error('Tenant billing data not found in response');
+  }
+  return data.tenant_billing;
+}
+
+/**
+ * Get current tenant's usage for a specific month (tenant self-serve)
+ * Uses session-based authentication - tenant_id comes from session
+ * @param month Month in YYYY-MM format (defaults to current month)
+ * @param includeHistory Optional: include historical data
+ */
+export async function getMyUsage(
+  month?: string,
+  includeHistory?: boolean
+): Promise<Usage> {
+  const params = new URLSearchParams();
+  if (month) params.set('month', month);
+  if (includeHistory !== undefined) params.set('include_history', includeHistory.toString());
+
+  const response = await fetch(`/api/admin/billing/me/usage?${params}`, {
+    cache: 'no-store',
+  });
+
+  const data = await handleResponse<UsageResponse>(response);
+  // Ensure we always return a valid Usage object, even if response structure is unexpected
+  return data.usage || {
+    tenant_id: '', // Will be populated from session
+    month: month || new Date().toISOString().slice(0, 7),
+    tokens_used: 0,
+    requests: 0,
+    invites_sent: 0,
+    last_updated_at: new Date().toISOString(),
+  };
+}
+
+/**
+ * Get current tenant's quota information (tenant self-serve)
+ * Uses session-based authentication - tenant_id comes from session
+ */
+export async function getMyQuota(): Promise<Quota> {
+  const response = await fetch(`/api/admin/billing/me/quota`, {
+    cache: 'no-store',
+  });
+
+  const data = await handleResponse<QuotaResponse>(response);
+  // Ensure we always return a valid Quota object, even if response structure is unexpected
+  return data.quota || {
+    tenant_id: '', // Will be populated from session
+    effective_quota: 0,
+    effective_seat_cap: 0,
+    current_usage: 0,
+    remaining_tokens: 0,
+    current_seats: 0,
+    remaining_seats: 0,
+  };
+}
+
+// ============================================================================
 // Enforcement Settings (SuperAdmin Only)
 // ============================================================================
 
@@ -459,32 +532,4 @@ export async function deleteTenant(
   return handleResponse<DeleteTenantResponse>(response);
 }
 
-// ============================================================================
-// Tenant Self-Serve Functions (use with session tenant_id)
-// ============================================================================
-
-/**
- * Get current tenant's billing information
- * @param tenantId Current tenant ID from session
- */
-export async function getMyBilling(tenantId: string): Promise<TenantBilling> {
-  return getTenantBilling(tenantId);
-}
-
-/**
- * Get current tenant's usage
- * @param tenantId Current tenant ID from session
- * @param month Month in YYYY-MM format (defaults to current month)
- */
-export async function getMyUsage(tenantId: string, month?: string): Promise<Usage> {
-  return getTenantUsage(tenantId, month);
-}
-
-/**
- * Get current tenant's quota
- * @param tenantId Current tenant ID from session
- */
-export async function getMyQuota(tenantId: string): Promise<Quota> {
-  return getTenantQuota(tenantId);
-}
 

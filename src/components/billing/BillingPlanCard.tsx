@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { CreditCard, Loader2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { getTenantBilling, getTenantUsage, getTenantQuota } from '@/lib/api/billing';
+import { getMyBilling, getMyUsage, getMyQuota } from '@/lib/api/billing';
 import type { TenantBilling, Usage, Quota } from '@/lib/types/billing';
 
 export function BillingPlanCard() {
@@ -31,11 +31,12 @@ export function BillingPlanCard() {
       if (!tenantId) return;
 
       // Fetch billing, usage, and quota in parallel
+      // Use tenant self-serve endpoints (session-based auth, no tenant_id parameter)
       const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
       const [billingData, usageData, quotaData] = await Promise.all([
-        getTenantBilling(tenantId).catch(() => null),
-        getTenantUsage(tenantId, currentMonth).catch(() => null),
-        getTenantQuota(tenantId).catch(() => null),
+        getMyBilling().catch(() => null),
+        getMyUsage(currentMonth).catch(() => null),
+        getMyQuota().catch(() => null),
       ]);
 
       setBilling(billingData);

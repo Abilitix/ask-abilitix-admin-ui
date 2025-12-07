@@ -387,6 +387,20 @@ export async function getMyQuota(): Promise<Quota> {
   };
 }
 
+/**
+ * Get current tenant's available plans for upgrade (tenant self-serve)
+ * Uses session-based authentication - tenant_id comes from session
+ * Returns only active plans
+ */
+export async function getMyPlans(): Promise<Plan[]> {
+  const response = await fetch(`/api/admin/billing/me/plans`, {
+    cache: 'no-store',
+  });
+
+  const data = await handleResponse<PlanListResponse>(response);
+  return data.plans || [];
+}
+
 // ============================================================================
 // Enforcement Settings (SuperAdmin Only)
 // ============================================================================

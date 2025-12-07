@@ -72,12 +72,16 @@ async function handleRequest(
     // Skip for SuperAdmin endpoints (billing, governance, superadmin, tenants DELETE) - they don't need tenant_id
     // DELETE /admin/tenants/{tenant_id} is SuperAdmin-only (tenant deletion)
     // Exception: /admin/billing/tenants/{tenant_id}/usage is allowed for tenants accessing their own data
+    // Exception: /admin/billing/me/* are tenant self-serve endpoints (session-based auth)
     const isTenantSelfServeUsage = pathSegments[0] === 'billing' && 
                                     pathSegments[1] === 'tenants' && 
                                     pathSegments[3] === 'usage' &&
                                     pathSegments.length === 4;
     
-    const isSuperAdminEndpoint = (pathSegments[0] === 'billing' && !isTenantSelfServeUsage) || 
+    const isTenantSelfServeMe = pathSegments[0] === 'billing' && 
+                                 pathSegments[1] === 'me';
+    
+    const isSuperAdminEndpoint = (pathSegments[0] === 'billing' && !isTenantSelfServeUsage && !isTenantSelfServeMe) || 
                                   pathSegments[0] === 'governance' || 
                                   pathSegments[0] === 'superadmin' ||
                                   (pathSegments[0] === 'tenants' && method === 'DELETE' && pathSegments.length === 2);

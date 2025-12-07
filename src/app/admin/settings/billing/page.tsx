@@ -12,7 +12,7 @@ import {
   getMyBilling,
   getMyUsage,
   getMyQuota,
-  listPlans,
+  getMyPlans,
   createCheckoutSession,
   createPortalSession,
 } from '@/lib/api/billing';
@@ -71,7 +71,7 @@ export default function BillingPage() {
         getMyBilling().catch(() => null),
         getMyUsage(currentMonth).catch(() => null),
         getMyQuota().catch(() => null),
-        listPlans('active').catch(() => []),
+        getMyPlans().catch(() => []),
       ]);
 
       setBilling(billingData);

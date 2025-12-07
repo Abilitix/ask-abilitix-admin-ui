@@ -174,26 +174,26 @@ function SignInForm() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-start justify-center p-4 pt-8 sm:pt-12">
-      <div className="max-w-md w-full">
+    <div className="h-screen h-[100dvh] overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full max-h-full overflow-y-auto pb-2">
         {/* Header with Logo - Compact spacing */}
-        <div className="text-center mb-4">
-          <div className="flex justify-center mb-3">
+        <div className="text-center mb-3">
+          <div className="flex justify-center mb-2">
             <Image
               src="/abilitix-logo.png"
               alt="Abilitix"
-              width={64}
-              height={64}
+              width={56}
+              height={56}
               priority
               className="rounded-lg"
             />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Welcome back</h1>
-          <p className="text-sm sm:text-base text-gray-600">Sign in to your workspace</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-0.5">Welcome back</h1>
+          <p className="text-xs sm:text-sm text-gray-600">Sign in to your workspace</p>
         </div>
 
                {/* Sign-in Form - Enhanced shadow with glass effect */}
-               <div className="relative bg-white rounded-[20px] shadow-xl p-5 sm:p-6 overflow-hidden">
+               <div className="relative bg-white rounded-[20px] shadow-xl p-4 sm:p-5 overflow-hidden">
                  {/* Glass reflection overlay */}
                  <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                  <div className="relative">
@@ -212,7 +212,7 @@ function SignInForm() {
                  ) : !sent ? (
                    <div className="relative z-10">
                      {/* Authentication Method Toggle - Segmented Control */}
-                     <div className={`mb-4 sm:mb-5 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
+                     <div className={`mb-3 sm:mb-4 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
                       <SegmentedControl
                         options={[
                           { value: 'password', label: 'Password' },
@@ -231,7 +231,7 @@ function SignInForm() {
                      </div>
                      
                      {/* Sign-in Form */}
-                     <form onSubmit={submit} className={`space-y-3.5 sm:space-y-4 md:space-y-5 transition-opacity duration-200 ${(loading || redirecting) ? 'opacity-90' : 'opacity-100'}`}>
+                     <form onSubmit={submit} className={`space-y-3 sm:space-y-3.5 transition-opacity duration-200 ${(loading || redirecting) ? 'opacity-90' : 'opacity-100'}`}>
                        <div>
                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                            Email Address
@@ -411,7 +411,7 @@ function SignInForm() {
           )}
 
           {/* Terms and Privacy */}
-          <div className="mt-3 text-center text-xs text-gray-500 relative z-10">
+          <div className="mt-2 text-center text-xs text-gray-500 relative z-10">
             <p>
               By continuing, you confirm that you have read and agree to our{' '}
               <a 
@@ -438,16 +438,16 @@ function SignInForm() {
                </div>
 
         {/* Link to Signup */}
-        <div className="mt-3 text-center">
-          <p className="text-sm text-gray-600 mb-1.5">
+        <div className="mt-2 mb-2 text-center">
+          <p className="text-xs sm:text-sm text-gray-600 mb-1">
             <span className="font-bold">New to Ask AbilitiX?</span>
           </p>
           <Link 
             href="/signup" 
-            className="inline-flex items-center gap-1.5 text-[#6941C6] hover:text-indigo-700 font-semibold text-sm transition-colors group"
+            className="inline-flex items-center gap-1.5 text-[#6941C6] hover:text-indigo-700 font-semibold text-xs sm:text-sm transition-colors group"
           >
             Create your workspace
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
 
@@ -459,7 +459,7 @@ function SignInForm() {
 export default function SignInPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-start justify-center p-4 pt-8 sm:pt-12">
+      <div className="h-screen h-[100dvh] overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6">
             <svg className="animate-spin w-8 h-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

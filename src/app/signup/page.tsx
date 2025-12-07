@@ -193,33 +193,33 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-start justify-center p-4 pt-8 sm:pt-12">
-      <div className="max-w-md w-full">
+    <div className="h-screen h-[100dvh] overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full max-h-full overflow-y-auto pb-2">
         {/* Header with Logo - Compact spacing */}
-        <div className="text-center mb-4">
-          <div className="flex justify-center mb-3">
+        <div className="text-center mb-3">
+          <div className="flex justify-center mb-2">
             <Image
               src="/abilitix-logo.png"
               alt="Abilitix"
-              width={64}
-              height={64}
+              width={56}
+              height={56}
               priority
               className="rounded-lg"
             />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Welcome to Ask Abilitix</h1>
-          <p className="text-sm sm:text-base text-gray-600">Create your AI-powered workspace</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-0.5">Welcome to Ask Abilitix</h1>
+          <p className="text-xs sm:text-sm text-gray-600">Create your AI-powered workspace</p>
         </div>
 
         {/* Signup Form - Enhanced shadow with glass effect */}
-        <div className="relative bg-white rounded-[20px] shadow-xl p-5 sm:p-6 overflow-hidden">
+        <div className="relative bg-white rounded-[20px] shadow-xl p-4 sm:p-5 overflow-hidden">
           {/* Glass reflection overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
           <div className="relative">
           {!sent ? (
             <div className="relative z-10">
               {/* Authentication Method Toggle - Segmented Control */}
-              <div className={`mb-4 sm:mb-5 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
+              <div className={`mb-3 sm:mb-4 ${loading ? 'opacity-90 pointer-events-none' : ''}`}>
                 <SegmentedControl
                   options={[
                     { value: 'password', label: 'Password' },
@@ -231,7 +231,7 @@ export default function SignupPage() {
                 />
               </div>
 
-              <form onSubmit={submit} className={`space-y-3.5 sm:space-y-4 md:space-y-5 transition-opacity duration-200 ${loading ? 'opacity-90' : 'opacity-100'}`}>
+              <form onSubmit={submit} className={`space-y-3 sm:space-y-3.5 transition-opacity duration-200 ${loading ? 'opacity-90' : 'opacity-100'}`}>
                 <div>
                   <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
                     Company Name
@@ -435,7 +435,7 @@ export default function SignupPage() {
           )}
 
           {/* Terms and Privacy */}
-          <div className="mt-3 text-center text-xs text-gray-500 relative z-10">
+          <div className="mt-2 text-center text-xs text-gray-500 relative z-10">
             <p>
               By continuing, you confirm that you have read and agree to our{' '}
               <a 
@@ -462,8 +462,8 @@ export default function SignupPage() {
         </div>
 
         {/* Link to Signin */}
-        <div className="mt-3 text-center">
-          <p className="text-sm text-gray-600 mb-2">
+        <div className="mt-2 mb-2 text-center">
+          <p className="text-xs sm:text-sm text-gray-600 mb-1">
             Already have a workspace?
           </p>
           <Link 

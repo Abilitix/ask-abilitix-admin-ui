@@ -15,6 +15,8 @@ function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [signupUrl, setSignupUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [tokenLoading, setTokenLoading] = useState(false);
@@ -60,7 +62,9 @@ function SignInForm() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); 
-    setErr(null); 
+    setErr(null);
+    setInfo(null);
+    setSignupUrl(null);
     setSent(false);
     setLoading(true);
     
@@ -101,50 +105,62 @@ function SignInForm() {
       
       const data = await r.json().catch(() => ({}));
 
-      if (!r.ok || !data.ok) {
-        // Handle specific error codes
-        if (r.status === 404 && method === 'password') {
-          setErr('Password login is not available. Please use magic link.');
-        } else if (r.status === 401) {
-          setErr('Invalid email or password.');
-        } else if (r.status === 403 && data.detail?.code === 'EMAIL_NOT_VERIFIED') {
-          setErr('Please verify your email address first.');
-        } else if (r.status === 403 && data.detail?.code === 'NO_TENANT_ACCESS') {
-          setErr('Account has no workspace access. Please contact your administrator.');
-        } else if (r.status === 429) {
-          setErr('Too many attempts. Please try again later.');
-        } else if (data.status === 'user_not_found') {
-          setErr(data.message || 'No account found with this email address.');
-        } else {
-          setErr(data.message || data.detail?.message || 'An error occurred. Please try again.');
-        }
-        return; 
-      }
-
-      // Success handling
+      // Handle password login (may still use HTTP status codes)
       if (method === 'password') {
-        // Password login: Backend has set aa_sess cookie automatically
-        // Show "Redirecting..." message and keep loading state active (no gap)
+        // Password login: Check HTTP status codes (different endpoint behavior)
+        if (!r.ok) {
+          if (r.status === 404) {
+            setErr('Password login is not available. Please use magic link.');
+          } else if (r.status === 401) {
+            setErr('Invalid email or password.');
+          } else if (r.status === 403 && data.detail?.code === 'EMAIL_NOT_VERIFIED') {
+            setErr('Please verify your email address first.');
+          } else if (r.status === 403 && data.detail?.code === 'NO_TENANT_ACCESS') {
+            setErr('Account has no workspace access. Please contact your administrator.');
+          } else if (r.status === 429) {
+            setErr('Too many attempts. Please try again later.');
+          } else {
+            setErr(data.message || data.detail?.message || 'An error occurred. Please try again.');
+          }
+          setLoading(false);
+          return;
+        }
+        
+        // Password login success: Backend has set aa_sess cookie automatically
         passwordLoginSuccess = true;
         setRedirecting(true);
-        // Use window.location.replace() for faster redirect (matches Stripe/Notion pattern)
-        // Small delay to show "Redirecting..." message
         setTimeout(() => {
           window.location.replace('/admin');
         }, 100);
-        // Don't set loading = false - page will unload anyway
+        return;
+      }
+
+      // Magic link: Backend ALWAYS returns 200 OK - check data.status field
+      // Backend requirement: Always check status field, not HTTP status code
+      if (data.status === 'email_sent') {
+        // Success: Email sent
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('last_signin_email', normalizedEmail);
+        }
+        setSent(true);
+        setLoading(false);
+        return;
+      } else if (data.status === 'user_not_found') {
+        // User not found: Show as INFO, not error (per backend requirements)
+        setInfo(data.message || 'No account found with this email address.');
+        setSignupUrl(data.signup_url || '/signup');
+        setLoading(false);
+        return;
+      } else if (data.status === 'error' || !data.ok) {
+        // Error: Server error or invalid request
+        setErr(data.message || 'Unable to process sign-in request. Please try again.');
+        setLoading(false);
         return;
       } else {
-        // Magic link: Show success state
-        if (data.status === 'email_sent') {
-          // Store email in localStorage for recovery functionality
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('last_signin_email', normalizedEmail);
-          }
-          setSent(true);  // Show success state
-        } else {
-          setErr('Unexpected response from server');
-        }
+        // Unknown status: Fallback
+        setErr(data.message || 'Unexpected response. Please try again.');
+        setLoading(false);
+        return;
       }
     } catch (error) {
       setErr('Unable to connect. Please check your internet connection and try again.');
@@ -158,26 +174,26 @@ function SignInForm() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 py-8 sm:py-12">
-      <div className="max-w-md w-full my-auto">
-        {/* Header with Logo - Fade-in animation */}
-        <div className="text-center mb-4 sm:mb-5 md:mb-6">
-          <div className="flex justify-center mb-6 sm:mb-7 md:mb-8">
+    <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-blue-50 to-indigo-100 flex items-start justify-center p-4 pt-8 sm:pt-12 pb-4">
+      <div className="max-w-md w-full">
+        {/* Header with Logo - Compact spacing */}
+        <div className="text-center mb-4">
+          <div className="flex justify-center mb-3">
             <Image
               src="/abilitix-logo.png"
               alt="Abilitix"
-              width={88}
-              height={88}
+              width={64}
+              height={64}
               priority
               className="rounded-lg"
             />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-1.5">Welcome back</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Welcome back</h1>
           <p className="text-sm sm:text-base text-gray-600">Sign in to your workspace</p>
         </div>
 
                {/* Sign-in Form - Enhanced shadow with glass effect */}
-               <div className="relative bg-white rounded-[20px] shadow-xl p-5 sm:p-6 md:p-8 overflow-hidden">
+               <div className="relative bg-white rounded-[20px] shadow-xl p-5 sm:p-6 overflow-hidden">
                  {/* Glass reflection overlay */}
                  <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                  <div className="relative">
@@ -203,7 +219,13 @@ function SignInForm() {
                           { value: 'magic_link', label: 'Magic Link' },
                         ]}
                          value={method}
-                         onChange={(value) => setMethod(value as 'magic_link' | 'password')}
+                         onChange={(value) => {
+                           setMethod(value as 'magic_link' | 'password');
+                           // Clear messages when switching methods
+                           setErr(null);
+                           setInfo(null);
+                           setSignupUrl(null);
+                         }}
                          disabled={loading}
                        />
                      </div>
@@ -218,11 +240,12 @@ function SignInForm() {
                            id="email"
                            type="email"
                            value={email}
-                           onChange={e => {
-                             setEmail(e.target.value);
-                             // Clear error when user starts typing
-                             if (err) setErr(null);
-                           }}
+                          onChange={e => {
+                            setEmail(e.target.value);
+                            // Clear error and info when user starts typing
+                            if (err) setErr(null);
+                            if (info) setInfo(null);
+                          }}
                            placeholder="Enter your registered email address"
                            className="w-full px-4 py-3 text-base sm:text-sm bg-[#F8F9FC] border border-[#D0D5DD] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                            aria-invalid={!!err}
@@ -246,8 +269,9 @@ function SignInForm() {
                                type={showPassword ? 'text' : 'password'}
                                value={password}
                                onChange={(e) => {
-                                 setPassword(e.target.value);
-                                 if (err) setErr(null);
+                                setPassword(e.target.value);
+                                if (err) setErr(null);
+                                if (info) setInfo(null);
                                }}
                                placeholder="Enter your password"
                                className="w-full px-4 py-3 pr-12 sm:pr-11 text-base sm:text-sm bg-[#F8F9FC] border border-[#D0D5DD] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -314,6 +338,28 @@ function SignInForm() {
                          </div>
                        )}
 
+                       {/* Info Message - User not found (shown as info, not error) */}
+                       {info && (
+                         <div id="email-info" role="alert" aria-live="polite" className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                           <div className="flex">
+                             <svg className="w-5 h-5 text-blue-400 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                             </svg>
+                             <div className="text-sm text-blue-700">
+                               <div className="font-medium mb-1">{info}</div>
+                               {signupUrl && (
+                                 <div className="mt-2">
+                                   <Link href={signupUrl} className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 font-medium underline">
+                                     Create your workspace
+                                     <ArrowRight className="h-3.5 w-3.5" />
+                                   </Link>
+                                 </div>
+                               )}
+                             </div>
+                           </div>
+                         </div>
+                       )}
+
                        {/* Error Message - Enhanced with better UX */}
                        {err && (
                          <div id="email-error" role="alert" aria-live="assertive" className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -323,13 +369,6 @@ function SignInForm() {
                              </svg>
                              <div className="text-sm text-red-700">
                                <div className="font-medium mb-1">{err}</div>
-                               {err.includes('No account found') && (
-                                 <div className="mt-2 text-xs text-gray-600">
-                                   <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 font-medium underline">
-                                     Create your workspace
-                                   </Link>
-                                 </div>
-                               )}
                              </div>
                            </div>
                          </div>
@@ -372,7 +411,7 @@ function SignInForm() {
           )}
 
           {/* Terms and Privacy */}
-          <div className="mt-3 sm:mt-4 md:mt-6 text-center text-xs text-gray-500 relative z-10">
+          <div className="mt-3 text-center text-xs text-gray-500 relative z-10">
             <p>
               By continuing, you confirm that you have read and agree to our{' '}
               <a 
@@ -399,7 +438,7 @@ function SignInForm() {
                </div>
 
         {/* Link to Signup */}
-        <div className="mt-6 sm:mt-8 text-center pb-4">
+        <div className="mt-4 text-center">
           <p className="text-sm text-gray-600 mb-2">
             <span className="font-bold">New to Ask AbilitiX?</span>
           </p>
@@ -420,7 +459,7 @@ function SignInForm() {
 export default function SignInPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 py-8 sm:py-12">
+      <div className="min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-start justify-center p-4 pt-8 sm:pt-12 pb-4">
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6">
             <svg className="animate-spin w-8 h-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

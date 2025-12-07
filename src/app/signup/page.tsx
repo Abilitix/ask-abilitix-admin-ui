@@ -14,6 +14,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState<string|null>(null);
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
@@ -30,7 +31,8 @@ export default function SignupPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); 
-    setErr(null); 
+    setErr(null);
+    setPasswordErrors([]);
     setSent(false);
     setLoading(true);
     
@@ -82,9 +84,11 @@ export default function SignupPage() {
         body: JSON.stringify(body),
       });
       
+      // Handle specific HTTP status codes per validation document
       if (r.status === 409) {
+        // Email already exists
         const data = await r.json();
-        setErr(data.message || 'An account with this email address already exists. Please sign in instead.');
+        setErr(data.detail?.message || data.message || 'An account with this email address already exists. Please sign in instead.');
         setLoading(false);
         return;
       }
@@ -92,44 +96,90 @@ export default function SignupPage() {
       if (!r.ok) {
         const errorData = await r.json().catch(() => ({}));
         
-        // Parse backend validation errors (common formats)
-        let errorMessage = 'Signup failed. Please check your information and try again.';
-        
-        // Handle structured validation errors (FastAPI/422 format)
-        if (errorData.detail) {
-          if (Array.isArray(errorData.detail)) {
-            // FastAPI validation errors: [{loc: ["password"], msg: "..."}, ...]
-            const passwordErrors = errorData.detail
-              .filter((err: any) => err.loc && Array.isArray(err.loc) && err.loc.includes('password'))
-              .map((err: any) => err.msg);
-            
-            if (passwordErrors.length > 0) {
-              errorMessage = `Password: ${passwordErrors.join(', ')}`;
-            } else {
-              // Other field errors
-              const messages = errorData.detail.map((err: any) => err.msg || JSON.stringify(err)).join(', ');
-              errorMessage = messages;
+        // Handle specific error codes per validation document
+        if (r.status === 400) {
+          // 400 Bad Request - Validation errors
+          if (errorData.detail?.error === 'invalid_password') {
+            // Invalid password with errors array
+            const errorsArray = errorData.detail.errors || [];
+            setErr(errorData.detail.message || 'Password does not meet requirements');
+            if (errorsArray.length > 0) {
+              setPasswordErrors(errorsArray);
             }
-          } else if (typeof errorData.detail === 'string') {
-            errorMessage = errorData.detail;
-          } else if (errorData.detail.password) {
-            // Nested password error
-            const passwordErr = Array.isArray(errorData.detail.password) 
-              ? errorData.detail.password.join(', ')
-              : errorData.detail.password;
-            errorMessage = `Password: ${passwordErr}`;
-          } else if (errorData.detail.message) {
-            errorMessage = errorData.detail.message;
+          } else if (errorData.detail?.error === 'invalid_request') {
+            // Invalid email format or empty company name
+            // Check which field is invalid based on error context
+            if (errorData.detail.message) {
+              setErr(errorData.detail.message);
+            } else {
+              // Generic validation error - check field names in detail
+              const fieldErrors = Array.isArray(errorData.detail) 
+                ? errorData.detail.filter((err: any) => err.loc && Array.isArray(err.loc))
+                : [];
+              
+              const emailError = fieldErrors.find((err: any) => err.loc?.includes('email'));
+              const companyError = fieldErrors.find((err: any) => err.loc?.includes('company_name') || err.loc?.includes('company'));
+              
+              if (emailError) {
+                setErr('Please enter a valid email address');
+              } else if (companyError) {
+                setErr('Company name is required');
+              } else {
+                setErr('Please check your input and try again');
+              }
+            }
+          } else {
+            // Other 400 errors - try to parse
+            if (errorData.detail?.message) {
+              setErr(errorData.detail.message);
+            } else if (Array.isArray(errorData.detail)) {
+              // FastAPI validation errors array
+              const emailError = errorData.detail.find((err: any) => err.loc?.includes('email'));
+              const companyError = errorData.detail.find((err: any) => err.loc?.includes('company_name') || err.loc?.includes('company'));
+              const passwordError = errorData.detail.find((err: any) => err.loc?.includes('password'));
+              
+              if (emailError) {
+                setErr('Please enter a valid email address');
+              } else if (companyError) {
+                setErr('Company name is required');
+              } else if (passwordError) {
+                setErr(`Password: ${passwordError.msg || 'does not meet requirements'}`);
+              } else {
+                const messages = errorData.detail.map((err: any) => err.msg || JSON.stringify(err)).join(', ');
+                setErr(messages || 'Please check your input and try again');
+              }
+            } else {
+              setErr('Please check your input and try again');
+            }
           }
-        } else if (errorData.error) {
-          errorMessage = errorData.error;
-        } else if (errorData.message) {
-          errorMessage = errorData.message;
-        } else if (typeof errorData === 'string') {
-          errorMessage = errorData;
+        } else if (r.status === 429) {
+          // Rate limiting
+          setErr('Too many signup attempts. Please try again in a few minutes.');
+        } else if (r.status === 403) {
+          // Signup disabled
+          if (errorData.detail === 'signup_disabled' || errorData.detail?.error === 'signup_disabled') {
+            setErr('Signup is currently disabled. Please contact support.');
+          } else {
+            setErr(errorData.detail?.message || errorData.message || 'Access denied. Please contact support.');
+          }
+        } else if (r.status === 500) {
+          // Internal server error
+          setErr('Something went wrong. Please try again later.');
+        } else {
+          // Other errors - fallback parsing
+          if (errorData.detail?.message) {
+            setErr(errorData.detail.message);
+          } else if (errorData.detail?.error) {
+            setErr(errorData.detail.error);
+          } else if (errorData.message) {
+            setErr(errorData.message);
+          } else if (typeof errorData.detail === 'string') {
+            setErr(errorData.detail);
+          } else {
+            setErr('Signup failed. Please check your information and try again.');
+          }
         }
         
-        setErr(errorMessage);
         setLoading(false);
         return;
       }
@@ -143,26 +193,26 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] overflow-y-auto bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 py-8 sm:py-12">
-      <div className="max-w-md w-full my-auto">
-        {/* Header with Logo */}
-        <div className="text-center mb-4 sm:mb-5 md:mb-6">
-          <div className="flex justify-center mb-6 sm:mb-7 md:mb-8">
+    <div className="min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-start justify-center p-4 pt-8 sm:pt-12">
+      <div className="max-w-md w-full">
+        {/* Header with Logo - Compact spacing */}
+        <div className="text-center mb-4">
+          <div className="flex justify-center mb-3">
             <Image
               src="/abilitix-logo.png"
               alt="Abilitix"
-              width={88}
-              height={88}
+              width={64}
+              height={64}
               priority
               className="rounded-lg"
             />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-1.5">Welcome to Ask Abilitix</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Welcome to Ask Abilitix</h1>
           <p className="text-sm sm:text-base text-gray-600">Create your AI-powered workspace</p>
         </div>
 
         {/* Signup Form - Enhanced shadow with glass effect */}
-        <div className="relative bg-white rounded-[20px] shadow-xl p-5 sm:p-6 md:p-8 overflow-hidden">
+        <div className="relative bg-white rounded-[20px] shadow-xl p-5 sm:p-6 overflow-hidden">
           {/* Glass reflection overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
           <div className="relative">
@@ -193,6 +243,7 @@ export default function SignupPage() {
                     onChange={e => {
                       setCompany(e.target.value);
                       if (err) setErr(null);
+                      if (passwordErrors.length > 0) setPasswordErrors([]);
                     }}
                     placeholder="Enter your company name"
                     className="w-full px-4 py-3 text-base sm:text-sm bg-[#F8F9FC] border border-[#D0D5DD] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -212,6 +263,7 @@ export default function SignupPage() {
                     onChange={e => {
                       setEmail(e.target.value);
                       if (err) setErr(null);
+                      if (passwordErrors.length > 0) setPasswordErrors([]);
                     }}
                     placeholder="Enter your email address"
                     className="w-full px-4 py-3 text-base sm:text-sm bg-[#F8F9FC] border border-[#D0D5DD] rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -233,10 +285,11 @@ export default function SignupPage() {
                         id="password"
                         type={showPassword ? 'text' : 'password'}
                         value={password}
-                        onChange={(e) => {
-                          setPassword(e.target.value);
-                          if (err) setErr(null);
-                        }}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (err) setErr(null);
+                            if (passwordErrors.length > 0) setPasswordErrors([]);
+                          }}
                         onFocus={() => setPasswordFocused(true)}
                         onBlur={() => setPasswordFocused(false)}
                         placeholder="Create a strong password"
@@ -317,8 +370,16 @@ export default function SignupPage() {
                     <svg className="w-5 h-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
-                    <div className="text-sm text-red-700">
+                    <div className="text-sm text-red-700 flex-1">
                       <div className="font-medium mb-1">{err}</div>
+                      {/* Password errors array - display as bulleted list */}
+                      {passwordErrors.length > 0 && (
+                        <ul className="mt-2 space-y-1 list-disc list-inside text-xs">
+                          {passwordErrors.map((error, index) => (
+                            <li key={index}>{error}</li>
+                          ))}
+                        </ul>
+                      )}
                       {err.includes('already exists') && (
                         <div className="mt-2 text-xs text-gray-600">
                           <Link href="/signin" className="text-indigo-600 hover:text-indigo-500 font-medium underline">
@@ -374,7 +435,7 @@ export default function SignupPage() {
           )}
 
           {/* Terms and Privacy */}
-          <div className="mt-3 sm:mt-4 md:mt-6 text-center text-xs text-gray-500 relative z-10">
+          <div className="mt-3 text-center text-xs text-gray-500 relative z-10">
             <p>
               By continuing, you confirm that you have read and agree to our{' '}
               <a 
@@ -401,7 +462,7 @@ export default function SignupPage() {
         </div>
 
         {/* Link to Signin */}
-        <div className="mt-6 sm:mt-8 text-center pb-4">
+        <div className="mt-3 text-center">
           <p className="text-sm text-gray-600 mb-2">
             Already have a workspace?
           </p>

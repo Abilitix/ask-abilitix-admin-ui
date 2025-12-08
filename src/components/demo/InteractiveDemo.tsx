@@ -39,10 +39,10 @@ export const InteractiveDemo = forwardRef<InteractiveDemoRef, InteractiveDemoPro
         label: 'Go to Documents',
         onClick: () => {
           router.push('/admin/docs');
-          // Wait for navigation, then continue
+          // Wait for navigation and page load, then continue
           setTimeout(() => {
             setCurrentStepIndex(2);
-          }, 800);
+          }, 1500);
         },
       },
     },
@@ -58,7 +58,7 @@ export const InteractiveDemo = forwardRef<InteractiveDemoRef, InteractiveDemoPro
           router.push('/admin/docs/generate-faqs');
           setTimeout(() => {
             setCurrentStepIndex(3);
-          }, 800);
+          }, 1500);
         },
       },
     },
@@ -74,7 +74,7 @@ export const InteractiveDemo = forwardRef<InteractiveDemoRef, InteractiveDemoPro
           router.push('/admin/inbox');
           setTimeout(() => {
             setCurrentStepIndex(4);
-          }, 800);
+          }, 1500);
         },
       },
     },

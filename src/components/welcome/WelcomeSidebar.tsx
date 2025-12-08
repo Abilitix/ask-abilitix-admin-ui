@@ -18,8 +18,11 @@ import {
   Menu,
   X,
   HelpCircle,
-  Link2
+  Link2,
+  Play
 } from 'lucide-react';
+
+import { useDemo } from '@/components/demo/DemoProvider';
 
 type WelcomeSidebarProps = {
   pendingReviews?: number;
@@ -28,6 +31,7 @@ type WelcomeSidebarProps = {
 };
 
 export function WelcomeSidebar({ pendingReviews = 0, docsCount = 0, faqCount = 0 }: WelcomeSidebarProps) {
+  const { startDemo } = useDemo();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
@@ -61,17 +65,19 @@ export function WelcomeSidebar({ pendingReviews = 0, docsCount = 0, faqCount = 0
   ];
 
   const support = [
+    { href: '#', label: 'Take a Tour', icon: Play, onClick: startDemo, isDemo: true },
     { href: '#help-center', label: 'Help Center', icon: HelpCircle, comingSoon: true },
     { href: '#tutorials', label: 'Video Tutorials', icon: Video, comingSoon: true },
   ];
 
-  const NavItem = ({ href, label, icon: Icon, count, comingSoon, onClick }: {
+  const NavItem = ({ href, label, icon: Icon, count, comingSoon, onClick, isDemo }: {
     href: string;
     label: string;
     icon: React.ComponentType<{ className?: string }>;
     count?: number;
     comingSoon?: boolean;
     onClick?: () => void;
+    isDemo?: boolean;
   }) => {
     const active = isActive(href);
     const isAnchor = href.startsWith('#');
@@ -79,6 +85,12 @@ export function WelcomeSidebar({ pendingReviews = 0, docsCount = 0, faqCount = 0
     const handleClick = (e: React.MouseEvent) => {
       if (comingSoon) {
         e.preventDefault();
+        return;
+      }
+      if (isDemo && onClick) {
+        e.preventDefault();
+        onClick();
+        setMobileOpen(false);
         return;
       }
       if (isAnchor) {
@@ -187,7 +199,8 @@ export function WelcomeSidebar({ pendingReviews = 0, docsCount = 0, faqCount = 0
               label={item.label}
               icon={item.icon}
               comingSoon={item.comingSoon}
-              onClick={() => setMobileOpen(false)}
+              onClick={item.onClick || (() => setMobileOpen(false))}
+              isDemo={item.isDemo}
             />
           ))}
         </div>

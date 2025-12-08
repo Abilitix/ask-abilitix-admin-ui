@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useDashboardSummary } from '@/hooks/useDashboardSummary';
 import { WelcomeSidebar } from './WelcomeSidebar';
-import { InteractiveDemo, type InteractiveDemoRef } from '@/components/demo/InteractiveDemo';
+import { useDemo } from '@/components/demo/DemoProvider';
 import { Upload, MessageSquare, CheckCircle2, Sparkles, FileText, Users, ArrowRight, X, Bell, BookOpen, Video, Rocket, Brain, Shield, Zap, TrendingUp, Settings, Link2, Cloud, Play } from 'lucide-react';
 import type { User } from '@/lib/auth';
 
@@ -15,7 +15,7 @@ type WelcomePageClientProps = {
 
 export default function WelcomePageClient({ user }: WelcomePageClientProps) {
   const { summary, isLoading } = useDashboardSummary();
-  const demoRef = useRef<InteractiveDemoRef>(null);
+  const { startDemo } = useDemo();
 
   if (isLoading) {
     return (
@@ -100,24 +100,34 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
               : `Welcome back to ${tenantName}. Here's what's happening and how to get the most out of Ask Abilitix.`
             }
           </p>
-          {isNewUser && (
-            <div className="flex items-center justify-center gap-4 flex-wrap">
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            {isNewUser ? (
+              <>
+                <button
+                  onClick={startDemo}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                >
+                  <Play className="w-5 h-5" />
+                  Try Interactive Demo
+                </button>
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-all duration-200"
+                >
+                  Go to Dashboard
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
+              </>
+            ) : (
               <button
-                onClick={() => demoRef.current?.start()}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                onClick={startDemo}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-all duration-200"
               >
-                <Play className="w-5 h-5" />
-                Try Interactive Demo
+                <Play className="w-4 h-4" />
+                Take a Tour
               </button>
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-all duration-200"
-              >
-                Go to Dashboard
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Announcements Section - Always visible */}
@@ -368,8 +378,6 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
         </div>
         </div>
       </main>
-      {/* Interactive Demo Component */}
-      <InteractiveDemo ref={demoRef} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import ConditionalTopNav from "@/components/ConditionalTopNav";
 import { TenantProvider } from "@/components/TenantContext";
+import { DemoProvider } from "@/components/demo/DemoProvider";
 import { getAuthUser } from "@/lib/auth";
 import ConditionalSiteFooter from "@/components/ConditionalSiteFooter";
 import { Toaster } from "@/components/ui/sonner";
@@ -28,13 +29,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-slate-50 text-slate-900">
         <TenantProvider>
-          <AuthPageBodyOverflow />
-          <ConditionalTopNav />
-          <ConditionalMainWrapper>
-            {children}
-          </ConditionalMainWrapper>
-          <ConditionalSiteFooter />
-          <Toaster />
+          <DemoProvider>
+            <AuthPageBodyOverflow />
+            <ConditionalTopNav />
+            <ConditionalMainWrapper>
+              {children}
+            </ConditionalMainWrapper>
+            <ConditionalSiteFooter />
+            <Toaster />
+          </DemoProvider>
         </TenantProvider>
       </body>
     </html>

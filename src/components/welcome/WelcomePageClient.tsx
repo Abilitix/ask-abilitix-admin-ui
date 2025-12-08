@@ -423,12 +423,12 @@ function StepCard({ step, title, description, icon: Icon, href, completed, butto
         <p className="text-sm sm:text-base text-gray-600 mb-6 leading-relaxed">{description}</p>
       </div>
 
-      {/* Buttons - always at bottom; inline on desktop for better alignment */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-auto">
+      {/* Buttons - always at bottom; vertical stack with secondary first */}
+      <div className="flex flex-col gap-2 mt-auto">
         {secondaryHref && secondaryButtonText && !completed && (
           <Link
             href={secondaryHref}
-            className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all duration-200 active:scale-[0.98] min-h-[44px] w-full sm:w-auto"
+            className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-medium text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all duration-200 active:scale-[0.98] min-h-[44px]"
           >
             <Link2 className="h-4 w-4" />
             <span>{secondaryButtonText}</span>
@@ -436,11 +436,11 @@ function StepCard({ step, title, description, icon: Icon, href, completed, butto
         )}
         <Link
           href={href}
-          className={`inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+          className={`inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
             completed
               ? 'bg-green-600 text-white hover:bg-green-700 shadow-[0_4px_10px_rgba(34,197,94,0.25)]'
               : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_10px_rgba(62,44,195,0.25)]'
-          } hover:shadow-[0_4px_12px_rgba(62,44,195,0.3)] active:scale-[0.98] min-h-[48px] w-full sm:w-auto`}
+          } hover:shadow-[0_4px_12px_rgba(62,44,195,0.3)] active:scale-[0.98] min-h-[48px]`}
         >
           {completed ? (
             <>

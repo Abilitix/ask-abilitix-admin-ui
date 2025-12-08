@@ -17,7 +17,19 @@ export const InteractiveDemo = forwardRef<InteractiveDemoRef, InteractiveDemoPro
   ({ onComplete, onSkip }, ref) => {
     const [isActive, setIsActive] = useState(false);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
+    const [isNavigating, setIsNavigating] = useState(false);
     const router = useRouter();
+
+  // Track routes for each step to enable proper navigation
+  const stepRoutes: Record<number, string> = {
+    0: '/', // welcome
+    1: '/admin/docs', // upload
+    2: '/admin/docs/generate-faqs', // generate
+    3: '/admin/inbox', // inbox
+    4: '/admin/inbox', // citations (same page)
+    5: '/admin/settings', // widget
+    6: '/', // complete (back to welcome)
+  };
 
   // Define demo steps - Best-in-class SaaS demo flow
   const steps: DemoStep[] = [
@@ -38,11 +50,9 @@ export const InteractiveDemo = forwardRef<InteractiveDemoRef, InteractiveDemoPro
       action: {
         label: 'Go to Documents',
         onClick: () => {
+          setIsNavigating(true);
           router.push('/admin/docs');
-          // Wait for navigation and page load, then continue
-          setTimeout(() => {
-            setCurrentStepIndex(2);
-          }, 1500);
+          setTimeout(() => setIsNavigating(false), 2000);
         },
       },
     },
@@ -55,10 +65,9 @@ export const InteractiveDemo = forwardRef<InteractiveDemoRef, InteractiveDemoPro
       action: {
         label: 'Try Generate FAQs',
         onClick: () => {
+          setIsNavigating(true);
           router.push('/admin/docs/generate-faqs');
-          setTimeout(() => {
-            setCurrentStepIndex(3);
-          }, 1500);
+          setTimeout(() => setIsNavigating(false), 2000);
         },
       },
     },
@@ -71,10 +80,9 @@ export const InteractiveDemo = forwardRef<InteractiveDemoRef, InteractiveDemoPro
       action: {
         label: 'Go to Inbox',
         onClick: () => {
+          setIsNavigating(true);
           router.push('/admin/inbox');
-          setTimeout(() => {
-            setCurrentStepIndex(4);
-          }, 1500);
+          setTimeout(() => setIsNavigating(false), 2000);
         },
       },
     },
@@ -82,8 +90,16 @@ export const InteractiveDemo = forwardRef<InteractiveDemoRef, InteractiveDemoPro
       id: 'step4-citations',
       target: '[data-demo="citations"]',
       title: 'Trust Through Citations',
-      content: 'Every answer includes source citations. Click any citation to see the exact document and page where the information comes from. This builds trust with your customers and ensures accuracy.',
+      content: 'Every answer includes source citations. When you review items in the inbox, you can attach citations to show the exact document and page where information comes from. This builds trust with your customers and ensures accuracy. (Note: Your inbox is currently empty, but once you generate FAQs, you\'ll see them here with citation options.)',
       position: 'right',
+      action: {
+        label: 'Go to Widget Settings',
+        onClick: () => {
+          setIsNavigating(true);
+          router.push('/admin/settings');
+          setTimeout(() => setIsNavigating(false), 2000);
+        },
+      },
     },
     {
       id: 'step5-widget',
@@ -103,6 +119,8 @@ export const InteractiveDemo = forwardRef<InteractiveDemoRef, InteractiveDemoPro
 
   const handleComplete = () => {
     setIsActive(false);
+    // Navigate back to welcome page
+    router.push('/');
     if (onComplete) {
       onComplete();
     }
@@ -125,6 +143,33 @@ export const InteractiveDemo = forwardRef<InteractiveDemoRef, InteractiveDemoPro
     start: startDemo,
   }));
 
+  // Handle step change with navigation
+  const handleStepChange = (newIndex: number) => {
+    const targetRoute = stepRoutes[newIndex];
+    const currentRoute = stepRoutes[currentStepIndex];
+    
+    // If we're currently navigating from an action, just update the step index
+    // The action already handled navigation
+    if (isNavigating) {
+      setCurrentStepIndex(newIndex);
+      return;
+    }
+    
+    // Navigate if route changed
+    if (targetRoute && targetRoute !== currentRoute) {
+      setIsNavigating(true);
+      router.push(targetRoute);
+      // Wait for navigation before updating step
+      setTimeout(() => {
+        setCurrentStepIndex(newIndex);
+        setIsNavigating(false);
+      }, 1500);
+    } else {
+      // Same page, just update step
+      setCurrentStepIndex(newIndex);
+    }
+  };
+
   return (
     <DemoWalkthrough
       steps={steps}
@@ -132,7 +177,7 @@ export const InteractiveDemo = forwardRef<InteractiveDemoRef, InteractiveDemoPro
       onComplete={handleComplete}
       onSkip={handleSkip}
       currentStepIndex={currentStepIndex}
-      onStepChange={setCurrentStepIndex}
+      onStepChange={handleStepChange}
     />
   );
 });

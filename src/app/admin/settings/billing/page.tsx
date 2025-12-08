@@ -19,6 +19,7 @@ import {
 import type { TenantBilling, Usage, Quota, Plan } from '@/lib/types/billing';
 import { UsageCharts } from '@/components/billing/UsageCharts';
 import { ContactSupportModal } from '@/components/billing/ContactSupportModal';
+import { QuotaWarningBanner } from '@/components/billing/QuotaWarningBanner';
 
 export default function BillingPage() {
   const router = useRouter();
@@ -306,6 +307,22 @@ export default function BillingPage() {
             </CardContent>
           </Card>
 
+          {/* Quota Warning Banner */}
+          {usage && quota && (
+            <QuotaWarningBanner
+              usage={usage}
+              quota={quota}
+              plans={plans}
+              onUpgradeClick={() => {
+                // Scroll to available plans section
+                const plansSection = document.getElementById('available-plans');
+                if (plansSection) {
+                  plansSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+            />
+          )}
+
           {/* Usage Card */}
           <Card className="bg-white rounded-xl border border-gray-200 shadow-md">
             <CardHeader>
@@ -339,22 +356,48 @@ export default function BillingPage() {
                         {formatTokens(usage.tokens_used)} / {formatTokens(quota.effective_quota)}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="w-full bg-gray-200 rounded-full h-3 relative overflow-hidden">
                       <div
                         className={`h-3 rounded-full transition-all ${
-                          getUsagePercentage(usage.tokens_used, quota.effective_quota) >= 90
+                          getUsagePercentage(usage.tokens_used, quota.effective_quota) >= 100
+                            ? 'bg-red-600'
+                            : getUsagePercentage(usage.tokens_used, quota.effective_quota) >= 90
                             ? 'bg-red-500'
+                            : getUsagePercentage(usage.tokens_used, quota.effective_quota) >= 80
+                            ? 'bg-orange-500'
                             : getUsagePercentage(usage.tokens_used, quota.effective_quota) >= 75
                             ? 'bg-yellow-500'
                             : 'bg-blue-500'
                         }`}
                         style={{
-                          width: `${getUsagePercentage(usage.tokens_used, quota.effective_quota)}%`,
+                          width: `${Math.min(100, getUsagePercentage(usage.tokens_used, quota.effective_quota))}%`,
                         }}
                       />
+                      {/* Warning markers at 80% and 90% */}
+                      {getUsagePercentage(usage.tokens_used, quota.effective_quota) < 80 && (
+                        <>
+                          <div
+                            className="absolute top-0 bottom-0 w-0.5 bg-amber-400 opacity-60"
+                            style={{ left: '80%' }}
+                            title="80% warning threshold"
+                          />
+                          <div
+                            className="absolute top-0 bottom-0 w-0.5 bg-orange-400 opacity-60"
+                            style={{ left: '90%' }}
+                            title="90% warning threshold"
+                          />
+                        </>
+                      )}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {getUsagePercentage(usage.tokens_used, quota.effective_quota)}% of quota used
+                    <div className="flex items-center justify-between mt-1">
+                      <div className="text-xs text-gray-500">
+                        {getUsagePercentage(usage.tokens_used, quota.effective_quota)}% of quota used
+                      </div>
+                      {quota.remaining_tokens >= 0 && (
+                        <div className="text-xs font-medium text-gray-700">
+                          {quota.remaining_tokens.toLocaleString()} tokens remaining
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
@@ -389,7 +432,7 @@ export default function BillingPage() {
         </div>
 
         {/* Right Column: Available Plans */}
-        <div className="space-y-6">
+        <div className="space-y-6" id="available-plans">
           <Card className="bg-white rounded-xl border border-gray-200 shadow-md">
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-900">Available Plans</CardTitle>

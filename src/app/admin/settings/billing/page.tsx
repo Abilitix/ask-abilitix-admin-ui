@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CreditCard, Loader2, CheckCircle2, TrendingUp, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CreditCard, Loader2, CheckCircle2, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getMyBilling,
@@ -37,14 +37,36 @@ export default function BillingPage() {
   const [billingError, setBillingError] = useState<string | null>(null);
   const [usageError, setUsageError] = useState<string | null>(null);
   const [quotaError, setQuotaError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadData();
+
+    // Auto-refresh every 60 seconds
+    const interval = setInterval(() => {
+      loadData(true); // Pass true to indicate auto-refresh (silent)
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
-  const loadData = async () => {
+  // Also refresh when window regains focus (user returns to tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadData(true); // Silent refresh on focus
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
 
       // Get current user and tenant ID
       const authRes = await fetch('/api/auth/me', { cache: 'no-store' });
@@ -124,9 +146,12 @@ export default function BillingPage() {
       }
     } catch (error: any) {
       console.error('Failed to load billing data:', error);
-      toast.error('Failed to load billing information. Please refresh the page.');
+      if (!silent) {
+        toast.error('Failed to load billing information. Please refresh the page.');
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -214,9 +239,22 @@ export default function BillingPage() {
           <ArrowLeft className="h-4 w-4" />
           Back to Settings
         </Link>
-        <div className="flex items-center gap-2 sm:gap-3 mb-2">
-          <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Billing & Plan</h1>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Billing & Plan</h1>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadData(false)}
+            disabled={loading || refreshing}
+            className="min-h-[36px] sm:min-h-0"
+            title="Refresh usage data"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
         <p className="text-sm text-gray-600">
           Manage your subscription, view usage, and upgrade your plan.

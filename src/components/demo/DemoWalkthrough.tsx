@@ -244,10 +244,10 @@ export function DemoWalkthrough({
 
   return (
     <>
-      {/* Overlay with spotlight */}
+      {/* Overlay with spotlight - Lighter overlay so background is visible */}
       <div
         ref={overlayRef}
-        className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300"
+        className="fixed inset-0 z-[100] bg-slate-900/30 backdrop-blur-[1px] transition-opacity duration-300"
         style={getSpotlightStyle()}
         onClick={(e) => {
           // Only close if clicking overlay (not tooltip)

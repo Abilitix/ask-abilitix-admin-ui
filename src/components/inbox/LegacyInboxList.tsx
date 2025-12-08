@@ -1633,7 +1633,7 @@ export function LegacyInboxList({
                 Add document citations for this inbox item. At least one citation with a document ID is required.
               </p>
             </CardHeader>
-            <CardContent className="space-y-4 overflow-y-auto flex-1">
+            <CardContent className="space-y-4 overflow-y-auto flex-1" data-demo="citations">
               <CitationsEditor
                 value={attachCitations}
                 onChange={setAttachCitations}

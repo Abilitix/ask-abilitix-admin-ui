@@ -32,6 +32,7 @@ export function DocumentsPageHeader({ canManage }: DocumentsPageHeaderProps) {
         <Link href="/admin/docs/generate-faqs" className="w-full sm:w-auto">
           <Button 
             variant="default" 
+            data-demo="generate-faqs"
             className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm hover:shadow-md transition-all min-h-[44px] px-4"
           >
             <Sparkles className="h-4 w-4" />

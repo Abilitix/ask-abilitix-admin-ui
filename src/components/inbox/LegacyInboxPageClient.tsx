@@ -1681,7 +1681,7 @@ export function LegacyInboxPageClient({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-demo="inbox">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <LegacyInboxStatsCard itemCount={filteredItems.length} refreshSignal={refreshSignal} />
         {enableFaqCreation && (

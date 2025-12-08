@@ -402,6 +402,7 @@ export function DocumentUpload({ onUploadComplete, compact = false, header = fal
             fileInputRef.current?.click();
             setShowUploadArea(true);
           }}
+          data-demo="upload-docs"
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm hover:shadow-md transition-all min-h-[44px] px-4"
           size="default"
         >

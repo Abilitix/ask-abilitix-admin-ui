@@ -17,6 +17,7 @@ export interface Plan {
   price_annual_cents?: number;
   display_order: number;
   is_popular: boolean;
+  is_default_for_new_tenants?: boolean; // Flag to mark plan as default for new tenants
   created_at: string; // ISO 8601
   updated_at: string; // ISO 8601
 }
@@ -138,6 +139,7 @@ export interface CreatePlanPayload {
   price_annual_cents?: number;
   display_order?: number;
   is_popular?: boolean;
+  is_default_for_new_tenants?: boolean;
 }
 
 export interface UpdatePlanPayload {
@@ -153,6 +155,7 @@ export interface UpdatePlanPayload {
   price_annual_cents?: number;
   display_order?: number;
   is_popular?: boolean;
+  is_default_for_new_tenants?: boolean;
 }
 
 export interface UpdatePlanStatusPayload {

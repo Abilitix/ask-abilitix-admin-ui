@@ -61,6 +61,7 @@ export default function PlansPage() {
     price_annual_cents: 0,
     display_order: 0,
     is_popular: false,
+    is_default_for_new_tenants: false,
   });
 
   // Edit plan dialog state
@@ -210,6 +211,7 @@ export default function PlansPage() {
         price_annual_cents: 0,
         display_order: 0,
         is_popular: false,
+        is_default_for_new_tenants: false,
       });
       setCreateDialogOpen(false);
       
@@ -244,6 +246,7 @@ export default function PlansPage() {
         price_annual_cents: fullPlan.price_annual_cents || 0,
         display_order: fullPlan.display_order,
         is_popular: fullPlan.is_popular,
+        is_default_for_new_tenants: fullPlan.is_default_for_new_tenants || false,
       });
       
       setEditDialogOpen(true);
@@ -507,7 +510,19 @@ export default function PlansPage() {
                         } hover:bg-blue-50/50`}
                       >
                         <TableCell className="px-4 py-4">
-                          <div className="font-medium text-gray-900">{plan.name}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium text-gray-900">{plan.name}</div>
+                            {plan.is_default_for_new_tenants && (
+                              <Badge variant="default" className="text-xs bg-blue-600">
+                                Default
+                              </Badge>
+                            )}
+                            {plan.is_popular && (
+                              <Badge variant="outline" className="text-xs">
+                                Popular
+                              </Badge>
+                            )}
+                          </div>
                           {plan.description && (
                             <div className="text-sm text-gray-600 mt-1 line-clamp-1">
                               {plan.description}
@@ -586,7 +601,19 @@ export default function PlansPage() {
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-gray-900 mb-1">{plan.name}</div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="font-semibold text-gray-900">{plan.name}</div>
+                          {plan.is_default_for_new_tenants && (
+                            <Badge variant="default" className="text-xs bg-blue-600">
+                              Default
+                            </Badge>
+                          )}
+                          {plan.is_popular && (
+                            <Badge variant="outline" className="text-xs">
+                              Popular
+                            </Badge>
+                          )}
+                        </div>
                         {plan.description && (
                           <div className="text-sm text-gray-600 mb-2 line-clamp-2">
                             {plan.description}
@@ -860,6 +887,35 @@ export default function PlansPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="is-default">Default for New Tenants</Label>
+                <div className="flex items-center space-x-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="is-default"
+                    checked={formData.is_default_for_new_tenants || false}
+                    onChange={(e) => {
+                      setFormData({ ...formData, is_default_for_new_tenants: e.target.checked });
+                      // If setting as default, warn if another plan is already default
+                      if (e.target.checked) {
+                        const existingDefault = plans.find(p => p.is_default_for_new_tenants && p.status === 'active');
+                        if (existingDefault) {
+                          toast.warning(`Note: ${existingDefault.name} is currently set as default. Setting this plan as default will unset the previous default.`);
+                        }
+                      }
+                    }}
+                    disabled={creating}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="is-default" className="text-sm text-gray-700">
+                    Set as default plan for new tenants
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Only one plan can be the default. New tenants will be automatically assigned this plan.
+                </p>
+              </div>
+
               {/* Features Editor with Toggles */}
               <FeaturesEditor
                 features={formData.features || {}}
@@ -1113,6 +1169,41 @@ export default function PlansPage() {
                     </label>
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-is-default">Default for New Tenants</Label>
+                <div className="flex items-center space-x-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="edit-is-default"
+                    checked={editFormData.is_default_for_new_tenants !== undefined 
+                      ? editFormData.is_default_for_new_tenants 
+                      : (planToEdit.is_default_for_new_tenants || false)}
+                    onChange={(e) => {
+                      setEditFormData({ ...editFormData, is_default_for_new_tenants: e.target.checked });
+                      // If setting as default, warn if another plan is already default
+                      if (e.target.checked) {
+                        const existingDefault = plans.find(p => 
+                          p.is_default_for_new_tenants && 
+                          p.status === 'active' && 
+                          p.id !== planToEdit.id
+                        );
+                        if (existingDefault) {
+                          toast.warning(`Note: ${existingDefault.name} is currently set as default. Setting this plan as default will unset the previous default.`);
+                        }
+                      }
+                    }}
+                    disabled={editing}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="edit-is-default" className="text-sm text-gray-700">
+                    Set as default plan for new tenants
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Only one plan can be the default. New tenants will be automatically assigned this plan.
+                </p>
               </div>
 
               {/* Stripe Fields */}

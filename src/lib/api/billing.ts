@@ -374,9 +374,51 @@ export async function getMyQuota(): Promise<Quota> {
     cache: 'no-store',
   });
 
-  const data = await handleResponse<QuotaResponse>(response);
-  // Ensure we always return a valid Quota object, even if response structure is unexpected
-  return data.quota || {
+  const data = await handleResponse<any>(response);
+  
+  // Handle both nested structure (expected) and flat structure (actual backend response)
+  if (data.quota && typeof data.quota === 'object') {
+    // Nested structure: { ok: true, quota: { effective_quota: ..., ... } }
+    return data.quota;
+  } else {
+    // Flat structure: { ok: true, quota: 1000000, used: 0, remaining: 1000000, max_seats: 5, ... }
+    // Map flat structure to nested Quota object
+    const effectiveQuota = typeof data.quota === 'number' ? data.quota : (data.effective_quota || 0);
+    const effectiveSeatCap = data.max_seats || data.effective_seat_cap || 0;
+    const currentUsage = data.used !== undefined ? data.used : (data.current_usage || 0);
+    const remainingTokens = data.remaining !== undefined ? data.remaining : (data.remaining_tokens || 0);
+    // Try multiple possible field names for current_seats
+    const currentSeats = data.current_seats !== undefined 
+      ? data.current_seats 
+      : (data.seats_used !== undefined 
+          ? data.seats_used 
+          : (data.seats || 0));
+    
+    // Log for debugging (remove in production if needed)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[getMyQuota] Backend response:', data);
+      console.log('[getMyQuota] Mapped quota:', {
+        effective_quota: effectiveQuota,
+        effective_seat_cap: effectiveSeatCap,
+        current_usage: currentUsage,
+        remaining_tokens: remainingTokens,
+        current_seats: currentSeats,
+      });
+    }
+    
+    return {
+      tenant_id: '', // Will be populated from session
+      effective_quota: effectiveQuota,
+      effective_seat_cap: effectiveSeatCap,
+      current_usage: currentUsage,
+      remaining_tokens: remainingTokens,
+      current_seats: currentSeats,
+      remaining_seats: Math.max(0, effectiveSeatCap - currentSeats),
+    };
+  }
+  
+  // Fallback to empty quota if structure is completely unexpected
+  return {
     tenant_id: '', // Will be populated from session
     effective_quota: 0,
     effective_seat_cap: 0,

@@ -1103,7 +1103,9 @@ export default function SettingsPage() {
       </Card>
 
       {/* Website Widget Section */}
-      <WidgetSettingsSection />
+      <div data-demo="widget">
+        <WidgetSettingsSection />
+      </div>
 
       {/* Context Management Section */}
       <ContextNavigationCard />

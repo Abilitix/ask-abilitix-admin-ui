@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle, Settings, Users, TestTube, Trash2, UserX, Info, CreditCard, AlertTriangle } from 'lucide-react';
+import { HelpCircle, Settings, Users, TestTube, Trash2, UserX, CreditCard, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { isEmailValid, normalizeEmail } from '@/utils/email';
@@ -543,6 +543,9 @@ export default function SettingsPage() {
       // Reset success message after 3 seconds
       setTimeout(() => setInviteSuccess(false), 3000);
       
+      // Refresh members list to show the newly invited user
+      await fetchMembers();
+      
     } catch (e) {
       setErr(String(e));
     } finally {
@@ -663,6 +666,23 @@ export default function SettingsPage() {
     
     // Load members list
     fetchMembers();
+
+    // Auto-refresh members list every 60 seconds (silent background updates)
+    const interval = setInterval(() => {
+      fetchMembers();
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Also refresh members list when window regains focus (user returns to tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchMembers();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   if (!data) return <div className="p-6">Loading...</div>;

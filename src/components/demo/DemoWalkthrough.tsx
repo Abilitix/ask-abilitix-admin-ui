@@ -46,6 +46,7 @@ export function DemoWalkthrough({
   const isFirstStep = currentStepIndex === 0;
 
   // Find and position tooltip relative to target element
+  // Retry logic for elements that may not be loaded yet (after navigation)
   useEffect(() => {
     if (!isActive || !currentStep) return;
 
@@ -55,19 +56,43 @@ export function DemoWalkthrough({
       return;
     }
 
-    const element = document.querySelector(currentStep.target) as HTMLElement;
-    if (element) {
-      setTargetElement(element);
-      const rect = element.getBoundingClientRect();
-      setTargetRect(rect);
-      
-      // Scroll element into view if needed
-      element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-    } else {
-      // Element not found, show centered
-      setTargetElement(null);
-      setTargetRect(null);
-    }
+    // Retry finding element (for navigation scenarios)
+    let retryCount = 0;
+    const maxRetries = 10; // Try for up to 2 seconds (10 * 200ms)
+    const retryDelay = 200;
+
+    const findElement = () => {
+      const element = document.querySelector(currentStep.target) as HTMLElement;
+      if (element) {
+        setTargetElement(element);
+        const rect = element.getBoundingClientRect();
+        setTargetRect(rect);
+        
+        // Scroll element into view if needed
+        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Demo] Found element: ${currentStep.target}`, element);
+        }
+      } else {
+        // Element not found yet, retry if we haven't exceeded max retries
+        if (retryCount < maxRetries) {
+          retryCount++;
+          if (process.env.NODE_ENV === 'development' && retryCount % 3 === 0) {
+            console.log(`[Demo] Retrying to find element (attempt ${retryCount}/${maxRetries}): ${currentStep.target}`);
+          }
+          setTimeout(findElement, retryDelay);
+        } else {
+          // Element not found after retries, show centered
+          console.warn(`[Demo] Element not found after ${maxRetries} retries: ${currentStep.target}`);
+          console.log(`[Demo] Available data-demo elements:`, Array.from(document.querySelectorAll('[data-demo]')).map(el => el.getAttribute('data-demo')));
+          setTargetElement(null);
+          setTargetRect(null);
+        }
+      }
+    };
+
+    findElement();
   }, [isActive, currentStep, currentStepIndex]);
 
   // Update overlay position on scroll/resize

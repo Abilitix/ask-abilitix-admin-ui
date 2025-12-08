@@ -119,6 +119,7 @@ export function getVisibleNavItems(role: UserRole, isMobile: boolean = false, us
   const navItems = [
     { href: "/", label: "Dashboard", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: true },
     { href: "/welcome", label: "Getting Started", permission: "canAccessDashboard" as keyof RolePermissions, mobileVisible: true },
+    { href: "/admin/knowledge", label: "Knowledge Studio", permission: "canAccessDocs" as keyof RolePermissions, mobileVisible: true },
     { href: "/admin/ai", label: "AI Assistant", permission: "canAccessDebug" as keyof RolePermissions, mobileVisible: true },
     { href: "/admin/inbox", label: "Review Answers", permission: "canAccessInbox" as keyof RolePermissions, mobileVisible: true },
     { href: "/admin/docs", label: "Upload Docs", permission: "canAccessDocs" as keyof RolePermissions, mobileVisible: true },

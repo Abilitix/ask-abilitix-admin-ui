@@ -16,6 +16,7 @@ import { WidgetSettingsSection } from '@/components/widget/WidgetSettingsSection
 import { ContextNavigationCard } from '@/components/context/ContextNavigationCard';
 import { BillingPlanCard } from '@/components/billing/BillingPlanCard';
 import { DeleteAccountDialog } from '@/components/account/DeleteAccountDialog';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 type Eff = { DOC_MIN_SCORE:number; RAG_TOPK:number; DOC_VEC_W:number; DOC_TRGM_W:number; REQUIRE_WIDGET_KEY?: number; LLM_MAX_OUTPUT_TOKENS?: number; PROMPT_TOPK?: number; LLM_MAX_OUTPUT_TOKENS_CEILING?: number; };
 type SettingsResp = { effective: Eff; overrides: Partial<Eff>; tenant_id?: string; tenant_slug?: string; tenant_name?: string; };
@@ -125,6 +126,7 @@ export default function SettingsPage() {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [offboardingUsers, setOffboardingUsers] = useState<Set<string>>(new Set());
   const [currentUser, setCurrentUser] = useState<{ id: string; role: string } | null>(null);
+  const [removeUserDialog, setRemoveUserDialog] = useState<{ userId: string; userName: string } | null>(null);
 
   // Delete account state
   const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false);
@@ -572,8 +574,14 @@ export default function SettingsPage() {
   }
 
   async function offboardUser(userId: string, userName: string) {
-    if (!confirm(`Remove ${userName} from this workspace?`)) return;
+    // Open confirmation dialog instead of browser confirm
+    setRemoveUserDialog({ userId, userName });
+  }
+
+  async function handleRemoveUserConfirm() {
+    if (!removeUserDialog) return;
     
+    const { userId } = removeUserDialog;
     setOffboardingUsers(prev => new Set([...prev, userId]));
     try {
       const response = await fetch(`/api/admin/members/${userId}`, {
@@ -587,13 +595,16 @@ export default function SettingsPage() {
         toast.success(`User removed successfully. ${result.actions_taken?.join(', ') || ''}`);
         // Refresh members list
         await fetchMembers();
+        setRemoveUserDialog(null);
       } else {
         const errorData = await response.json();
         const errorMessage = getErrorMessage(errorData.error);
         toast.error(errorMessage);
+        setRemoveUserDialog(null);
       }
     } catch (error) {
       toast.error('Failed to remove user. Please try again.');
+      setRemoveUserDialog(null);
     } finally {
       setOffboardingUsers(prev => {
         const newSet = new Set(prev);
@@ -1332,6 +1343,24 @@ export default function SettingsPage() {
       <DeleteAccountDialog
         open={deleteAccountDialogOpen}
         onClose={() => setDeleteAccountDialogOpen(false)}
+      />
+
+      {/* Remove User Confirmation Dialog */}
+      <ConfirmationDialog
+        open={!!removeUserDialog}
+        onClose={() => {
+          if (!removeUserDialog || !offboardingUsers.has(removeUserDialog.userId)) {
+            setRemoveUserDialog(null);
+          }
+        }}
+        onConfirm={handleRemoveUserConfirm}
+        title="Remove User"
+        message={removeUserDialog ? `Remove ${removeUserDialog.userName} from this workspace?` : ''}
+        confirmText="Remove"
+        cancelText="Cancel"
+        variant="destructive"
+        loading={removeUserDialog ? offboardingUsers.has(removeUserDialog.userId) : false}
+        loadingText="Removing..."
       />
       </div>
     </TooltipProvider>

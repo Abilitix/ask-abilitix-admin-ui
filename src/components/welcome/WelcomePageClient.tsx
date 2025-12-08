@@ -121,9 +121,9 @@ export default function WelcomePageClient({ user }: WelcomePageClientProps) {
             ) : (
               <button
                 onClick={startDemo}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-all duration-200"
+                className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 min-h-[44px] bg-white hover:bg-gray-50 text-gray-700 text-sm sm:text-base font-medium rounded-lg border border-gray-300 shadow-sm hover:shadow-md transition-all duration-200"
               >
-                <Play className="w-4 h-4" />
+                <Play className="w-4 h-4 sm:w-5 sm:h-5" />
                 Take a Tour
               </button>
             )}

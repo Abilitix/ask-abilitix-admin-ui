@@ -38,7 +38,7 @@ export function DocumentPicker({
         const params = new URLSearchParams({
           status: 'all', // Show all non-deleted documents
           limit: '100', // Fetch up to 100 documents
-          ...(searchQuery && { q: searchQuery }),
+          ...(searchQuery && { search: searchQuery }), // Backend expects `search`
         });
         
         const res = await fetch(`/api/admin/docs?${params}`, { cache: 'no-store' });

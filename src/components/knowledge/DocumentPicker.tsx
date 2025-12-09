@@ -51,25 +51,60 @@ export function DocumentPicker({
           return;
         }
 
-        const data = await res.json();
-        // Handle various backend shapes: { items: [...] }, { documents: [...] }, or an array response
-        const docs =
-          (Array.isArray(data.items) && data.items) ||
-          (Array.isArray((data as any).documents) && (data as any).documents) ||
-          (Array.isArray(data) && data) ||
-          [];
+        // Read raw response for debugging
+        const responseText = await res.text();
+        let data: any;
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          console.error('[DocumentPicker] Failed to parse /api/admin/docs JSON', {
+            status: res.status,
+            responseText: responseText?.slice(0, 500),
+          });
+          setError('Invalid response format from /api/admin/docs.');
+          setDocuments([]);
+          return;
+        }
+
+        // Handle various backend shapes: { items: [...] }, { documents: [...] }, nested data, or an array response
+        const candidates = [
+          (data as any)?.items,
+          (data as any)?.documents,
+          (data as any)?.data?.items,
+          (data as any)?.data?.documents,
+          (data as any)?.results,
+          (data as any)?.docs,
+          Array.isArray(data) ? data : null,
+        ].filter(Boolean);
+
+        // Find the first non-empty array; if none, try any array even if empty; otherwise empty array
+        let docs: any[] = [];
+        for (const c of candidates) {
+          if (Array.isArray(c) && c.length > 0) {
+            docs = c;
+            break;
+          }
+        }
+        if (docs.length === 0) {
+          const firstArray = candidates.find((c) => Array.isArray(c));
+          if (Array.isArray(firstArray)) {
+            docs = firstArray;
+          }
+        }
         
         // Debug logging
         console.log('[DocumentPicker] Documents fetched:', {
           status: res.status,
-          total: data.total || data.count || docs.length || 0,
+          total: data?.total || data?.count || docs.length || 0,
           itemsCount: docs.length,
+          keys: Object.keys(data || {}),
           documents: docs.map((d: Document) => ({
             id: (d as any).id || d.doc_id,
             title: d.title,
             status: (d as any).status || d.doc_status,
             upload_status: d.upload_status,
           })),
+          rawSample: responseText?.slice(0, 300),
         });
         
         setDocuments(docs);

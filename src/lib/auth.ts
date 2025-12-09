@@ -11,6 +11,7 @@ export interface User {
   email: string;
   role: 'owner' | 'admin' | 'curator' | 'viewer';
   expires_at: string;
+  features?: Record<string, boolean>;  // Feature flags from plan/entitlements
 }
 
 function parseEmailCsv(list?: string | null): string[] {

@@ -15,8 +15,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Sparkles, BookOpen, ShieldCheck, RefreshCcw, AlertCircle } from 'lucide-react';
+import { Sparkles, BookOpen, ShieldCheck, RefreshCcw, AlertCircle, Lock, ArrowUpRight } from 'lucide-react';
 import type { Template, KnowledgeErrorResponse } from '@/lib/types/knowledge';
+import { hasFeature, hasKnowledgeStudio } from '@/lib/features';
+import { useUserFeatures } from '@/hooks/useUserFeatures';
 
 type TemplatesResponse = Template[];
 
@@ -31,6 +33,7 @@ type GenerateState = {
 };
 
 export default function KnowledgeStudioPage() {
+  const { features, loading: featuresLoading } = useUserFeatures();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -84,6 +87,17 @@ export default function KnowledgeStudioPage() {
           return;
         }
         const data: TemplatesResponse = await res.json();
+        
+        // Debug logging in development
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[Knowledge Studio] Templates API response:', {
+            status: res.status,
+            isArray: Array.isArray(data),
+            count: Array.isArray(data) ? data.length : 0,
+            data: data,
+          });
+        }
+        
         setTemplates(Array.isArray(data) ? data : []);
       } catch (err) {
         if (active) {
@@ -103,6 +117,16 @@ export default function KnowledgeStudioPage() {
   const hasTemplates = useMemo(() => templates.length > 0, [templates]);
 
   const openGenerate = (template: Template) => {
+    // Check if template is locked
+    const requiredFeature = template.required_feature;
+    if (requiredFeature && typeof requiredFeature === 'string') {
+      const isLocked = !hasFeature(features, requiredFeature);
+      if (isLocked) {
+        // Don't open modal if locked - user should see upgrade prompt
+        return;
+      }
+    }
+    
     setSelected(template);
     setGen((prev) => ({
       ...prev,
@@ -232,10 +256,20 @@ export default function KnowledgeStudioPage() {
     // Determine type from channel or email_layout presence
     const isEmail = tpl.email_layout !== undefined || tpl.channel === 'email';
     const typeLabel = isEmail ? 'Email' : 'FAQ';
-    const hasFeatureGate = tpl.required_feature && tpl.required_feature !== null;
+    const requiredFeature = tpl.required_feature;
+    const hasFeatureGate = requiredFeature !== null && requiredFeature !== undefined;
+    const isLocked = hasFeatureGate && requiredFeature ? !hasFeature(features, requiredFeature) : false;
+    const canUse = !isLocked && hasKnowledgeStudio(features);
     
     return (
-      <Card key={tpl.id} className="h-full flex flex-col shadow-sm hover:shadow-md transition-shadow">
+      <Card 
+        key={tpl.id} 
+        className={`h-full flex flex-col shadow-sm transition-all ${
+          isLocked 
+            ? 'opacity-75 border-slate-300 bg-slate-50' 
+            : 'hover:shadow-md'
+        }`}
+      >
         <CardHeader className="space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap">
@@ -243,7 +277,8 @@ export default function KnowledgeStudioPage() {
                 {typeLabel}
               </Badge>
               {hasFeatureGate && (
-                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                <Badge className={isLocked ? 'bg-slate-200 text-slate-600 border-slate-300' : 'bg-indigo-50 text-indigo-700 border-indigo-200'}>
+                  {isLocked && <Lock className="h-3 w-3 mr-1" />}
                   {tpl.required_feature}
                 </Badge>
               )}
@@ -259,12 +294,43 @@ export default function KnowledgeStudioPage() {
           <div className="flex items-center gap-2">
             <Badge variant="secondary">Channel: {tpl.channel}</Badge>
           </div>
+          {isLocked && (
+            <div className="mt-3 pt-3 border-t border-slate-200">
+              <p className="text-xs text-slate-500 mb-2">
+                Requires <strong>{tpl.required_feature}</strong> feature
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                asChild
+              >
+                <Link href="/admin/billing">
+                  Upgrade Plan
+                  <ArrowUpRight className="h-3 w-3 ml-1" />
+                </Link>
+              </Button>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex items-center justify-between gap-3">
           <Button variant="outline" asChild>
             <Link href="/admin/knowledge/drafts">View Drafts</Link>
           </Button>
-          <Button onClick={() => openGenerate(tpl)}>Generate drafts</Button>
+          <Button 
+            onClick={() => openGenerate(tpl)} 
+            disabled={isLocked || !canUse}
+            title={isLocked ? `Requires ${tpl.required_feature} feature` : undefined}
+          >
+            {isLocked ? (
+              <>
+                <Lock className="h-4 w-4 mr-2" />
+                Locked
+              </>
+            ) : (
+              'Generate drafts'
+            )}
+          </Button>
         </CardFooter>
       </Card>
     );
@@ -314,11 +380,15 @@ export default function KnowledgeStudioPage() {
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <CardTitle className="text-lg">Template Library</CardTitle>
-              <CardDescription>Choose a template, select docs, and generate drafts with citations.</CardDescription>
+              <CardDescription>
+                {hasKnowledgeStudio(features) 
+                  ? 'Choose a template, select docs, and generate drafts with citations.'
+                  : 'Upgrade your plan to unlock Knowledge Studio templates.'}
+              </CardDescription>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <ShieldCheck className="h-4 w-4" />
-              <span>Gated by entitlements & feature flag</span>
+              <span>Gated by plan features & feature flag</span>
             </div>
           </CardHeader>
           <CardContent>
@@ -333,8 +403,29 @@ export default function KnowledgeStudioPage() {
               </div>
             )}
             {!loading && !hasTemplates && (
-              <div className="text-sm text-slate-600">
-                No templates available. Check entitlements or add templates in the backend registry.
+              <div className="text-center py-8 space-y-3">
+                {hasKnowledgeStudio(features) ? (
+                  <>
+                    <p className="text-sm text-slate-600">
+                      No templates available. Add templates in the backend registry.
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Templates are registered in the backend and filtered by your plan's features.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-slate-600">
+                      Knowledge Studio is not enabled for your plan.
+                    </p>
+                    <Button variant="outline" asChild>
+                      <Link href="/admin/billing">
+                        View Plans
+                        <ArrowUpRight className="h-3 w-3 ml-1" />
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             )}
             {!loading && hasTemplates && (

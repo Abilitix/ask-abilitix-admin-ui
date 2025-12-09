@@ -19,6 +19,7 @@ import { Sparkles, BookOpen, ShieldCheck, RefreshCcw, AlertCircle, Lock, ArrowUp
 import type { Template, KnowledgeErrorResponse } from '@/lib/types/knowledge';
 import { hasFeature, hasKnowledgeStudio } from '@/lib/features';
 import { useUserFeatures } from '@/hooks/useUserFeatures';
+import { DocumentPicker } from '@/components/knowledge/DocumentPicker';
 
 type TemplatesResponse = Template[];
 
@@ -37,6 +38,14 @@ export default function KnowledgeStudioPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
+  
+  // Debug: Log features when they load
+  useEffect(() => {
+    if (!featuresLoading && features !== undefined) {
+      console.log('[Knowledge Studio] User features:', features);
+      console.log('[Knowledge Studio] Has knowledge_studio:', features?.knowledge_studio);
+    }
+  }, [features, featuresLoading]);
   const [selected, setSelected] = useState<Template | null>(null);
   const [gen, setGen] = useState<GenerateState>({
     template: undefined,
@@ -45,6 +54,7 @@ export default function KnowledgeStudioPage() {
     channel: '',
     submitting: false,
   });
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -98,6 +108,13 @@ export default function KnowledgeStudioPage() {
           });
         }
         
+        // Always log in preview/production for debugging
+        console.log('[Knowledge Studio] Templates loaded:', {
+          status: res.status,
+          count: Array.isArray(data) ? data.length : 0,
+          templates: Array.isArray(data) ? data.map(t => ({ id: t.id, name: t.name, required_feature: t.required_feature })) : [],
+        });
+        
         setTemplates(Array.isArray(data) ? data : []);
       } catch (err) {
         if (active) {
@@ -128,6 +145,7 @@ export default function KnowledgeStudioPage() {
     }
     
     setSelected(template);
+    setSelectedDocIds([]); // Reset document selection
     setGen((prev) => ({
       ...prev,
       template,
@@ -141,12 +159,17 @@ export default function KnowledgeStudioPage() {
 
   const handleGenerate = async () => {
     if (!gen.template) return;
-    const docIds = gen.docIds
-      .split(',')
-      .map((d) => d.trim())
-      .filter(Boolean);
+    
+    // Use selectedDocIds if available, otherwise fall back to manual docIds input
+    const docIds = selectedDocIds.length > 0 
+      ? selectedDocIds 
+      : gen.docIds
+          .split(',')
+          .map((d) => d.trim())
+          .filter(Boolean);
+    
     if (!docIds.length) {
-      setGen((prev) => ({ ...prev, error: 'Please add at least one document ID.' }));
+      setGen((prev) => ({ ...prev, error: 'Please select at least one document.' }));
       return;
     }
     setGen((prev) => ({ ...prev, submitting: true, error: undefined, message: undefined }));
@@ -459,15 +482,41 @@ export default function KnowledgeStudioPage() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Document IDs (comma separated)</Label>
-                <Textarea
-                  value={gen.docIds}
-                  onChange={(e) => setGen((prev) => ({ ...prev, docIds: e.target.value }))}
-                  placeholder="doc_id_1, doc_id_2"
-                  rows={3}
+                <Label>Select Documents</Label>
+                <DocumentPicker
+                  selectedDocIds={selectedDocIds}
+                  onSelectionChange={(docIds) => {
+                    setSelectedDocIds(docIds);
+                    // Also update the manual input field for backward compatibility
+                    setGen((prev) => ({ ...prev, docIds: docIds.join(', ') }));
+                  }}
+                  disabled={gen.submitting}
                 />
-                <p className="text-xs text-slate-500">We’ll fetch these docs and draft answers with citations.</p>
+                <p className="text-xs text-slate-500">
+                  Search and select documents to generate drafts with citations. Only active documents are shown.
+                </p>
               </div>
+              
+              {/* Fallback: Manual document ID input (hidden by default, can be shown if needed) */}
+              <details className="text-xs text-slate-400">
+                <summary className="cursor-pointer hover:text-slate-600">Or enter document IDs manually</summary>
+                <div className="mt-2 space-y-2">
+                  <Textarea
+                    value={gen.docIds}
+                    onChange={(e) => {
+                      setGen((prev) => ({ ...prev, docIds: e.target.value }));
+                      // Sync with selectedDocIds if manual input is used
+                      const manualIds = e.target.value.split(',').map((d) => d.trim()).filter(Boolean);
+                      if (manualIds.length > 0) {
+                        setSelectedDocIds(manualIds);
+                      }
+                    }}
+                    placeholder="doc_id_1, doc_id_2"
+                    rows={2}
+                    disabled={gen.submitting}
+                  />
+                </div>
+              </details>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Category (optional)</Label>

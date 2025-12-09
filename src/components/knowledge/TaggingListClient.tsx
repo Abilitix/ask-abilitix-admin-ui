@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -46,34 +46,81 @@ export function TaggingListClient() {
     missingCandidate: true,
   });
 
-  const loadDocs = async () => {
+  const loadDocs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ status: 'all', limit: '200' });
-      const res = await fetch(`/api/admin/docs?${params.toString()}`, { cache: 'no-store' });
+      const params = new URLSearchParams();
+      
+      // Search query
+      if (filters.search.trim()) {
+        params.append('q', filters.search.trim());
+      }
+      
+      // Filter flags - backend handles filtering
+      if (filters.missingType) {
+        params.append('missing_type', 'true');
+      }
+      // missing_role covers both role_id and candidate_id for recruiter docs
+      if (filters.missingRole || filters.missingCandidate) {
+        params.append('missing_role', 'true');
+      }
+      
+      // Pagination
+      params.append('limit', '100');
+      
+      const res = await fetch(`/api/admin/knowledge/tagging?${params.toString()}`, { cache: 'no-store' });
+      
+      if (res.status === 401) {
+        setError('Authentication required. Please sign in again.');
+        return;
+      }
+      
+      if (res.status === 403) {
+        setError('Knowledge Studio is not enabled for this tenant.');
+        return;
+      }
+      
       if (!res.ok) {
         const text = await res.text().catch(() => '');
         throw new Error(text || `Failed to load documents (${res.status})`);
       }
+      
       const data = await res.json();
+      
+      // Debug logging
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[Tagging] API response:', {
+          status: res.status,
+          dataKeys: Object.keys(data || {}),
+          isArray: Array.isArray(data),
+          hasItems: Array.isArray(data?.items),
+          itemsCount: Array.isArray(data?.items) ? data.items.length : 0,
+          arrayCount: Array.isArray(data) ? data.length : 0,
+        });
+      }
+      
+      // Handle response format (items array or direct array)
       const items =
         (Array.isArray(data?.items) && data.items) ||
-        (Array.isArray(data?.documents) && data.documents) ||
         (Array.isArray(data) && data) ||
         [];
+      
+      console.log('[Tagging] Loaded documents:', items.length);
       setDocs(items);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load documents.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.search, filters.missingType, filters.missingRole, filters.missingCandidate]);
 
   useEffect(() => {
     loadDocs();
-  }, []);
+  }, [loadDocs]);
 
+  // Backend handles filtering, so we just display the returned docs
+  // But we still need to check which fields are missing for UI badges
   const needsTagging = (doc: Doc) => {
     const type = doc.document_type?.toLowerCase();
     const missingType = !type || !KNOWN_TYPES.includes(type);
@@ -86,25 +133,6 @@ export function TaggingListClient() {
       needs: missingType || missingRole || missingCandidate,
     };
   };
-
-  const filtered = useMemo(() => {
-    return docs.filter((doc) => {
-      const { missingType, missingRole, missingCandidate, needs } = needsTagging(doc);
-      if (!needs) return false;
-
-      if (filters.missingType && !missingType) return false;
-      if (filters.missingRole && !missingRole) return false;
-      if (filters.missingCandidate && !missingCandidate) return false;
-
-      if (filters.search.trim()) {
-        const q = filters.search.toLowerCase();
-        const text =
-          `${doc.title || ''} ${doc.file_name || ''} ${doc.doc_id || ''} ${doc.document_type || ''}`.toLowerCase();
-        if (!text.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [docs, filters]);
 
   const handleFieldChange = (docId: string, field: keyof Doc, value: string) => {
     setDocs((prev) =>
@@ -127,7 +155,7 @@ export function TaggingListClient() {
         candidate_id: doc.candidate_id || null,
         client_id: doc.client_id || null,
       };
-      const res = await fetch(`/api/admin/docs/${id}`, {
+      const res = await fetch(`/api/admin/docs/${id}/metadata`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -156,21 +184,27 @@ export function TaggingListClient() {
     const isSaving = savingIds.has(id);
 
     return (
-      <Card key={id} className="border-slate-200 hover:border-slate-300 hover:shadow-sm transition">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-base">{doc.title || doc.file_name || 'Untitled document'}</CardTitle>
-              <CardDescription className="text-xs font-mono break-all">ID: {id}</CardDescription>
+      <Card key={id} className="border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200">
+        <CardHeader className="pb-3 sm:pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-base sm:text-lg font-semibold truncate">
+                {doc.title || doc.file_name || 'Untitled document'}
+              </CardTitle>
+              <CardDescription className="text-xs font-mono break-all mt-1">
+                ID: {id}
+              </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="capitalize">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Badge variant="secondary" className="capitalize text-xs">
                 {status || 'unknown'}
               </Badge>
               {missingType || missingRole || missingCandidate ? (
-                <Badge variant="destructive">Needs tagging</Badge>
+                <Badge variant="destructive" className="text-xs">
+                  Needs tagging
+                </Badge>
               ) : (
-                <Badge className="bg-green-100 text-green-700 border-green-200">
+                <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   Ready
                 </Badge>
@@ -178,15 +212,18 @@ export function TaggingListClient() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor={`type-${id}`}>Document type</Label>
+        <CardContent className="space-y-4 sm:space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+            <div className="space-y-2">
+              <Label htmlFor={`type-${id}`} className="text-sm font-medium">
+                Document type
+                {missingType && <span className="text-amber-600 ml-1">*</span>}
+              </Label>
               <select
                 id={`type-${id}`}
                 value={type}
                 onChange={(e) => handleFieldChange(id, 'document_type', e.target.value)}
-                className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                className="w-full rounded-md border border-input bg-white px-3 py-2.5 text-sm min-h-[44px] sm:min-h-0 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isSaving}
               >
                 <option value="">Select type</option>
@@ -200,50 +237,62 @@ export function TaggingListClient() {
               </select>
               {missingType && <p className="text-xs text-amber-600">Required</p>}
             </div>
-            <div className="space-y-1">
-              <Label htmlFor={`role-${id}`}>Role ID</Label>
+            <div className="space-y-2">
+              <Label htmlFor={`role-${id}`} className="text-sm font-medium">
+                Role ID
+                {missingRole && <span className="text-amber-600 ml-1">*</span>}
+              </Label>
               <Input
                 id={`role-${id}`}
                 value={doc.role_id || ''}
                 onChange={(e) => handleFieldChange(id, 'role_id', e.target.value)}
                 disabled={isSaving}
                 placeholder="ROLE-123"
+                className="min-h-[44px] sm:min-h-0"
               />
               {missingRole && <p className="text-xs text-amber-600">Required for recruiter flows</p>}
             </div>
-            <div className="space-y-1">
-              <Label htmlFor={`candidate-${id}`}>Candidate ID</Label>
+            <div className="space-y-2">
+              <Label htmlFor={`candidate-${id}`} className="text-sm font-medium">
+                Candidate ID
+                {missingCandidate && <span className="text-amber-600 ml-1">*</span>}
+              </Label>
               <Input
                 id={`candidate-${id}`}
                 value={doc.candidate_id || ''}
                 onChange={(e) => handleFieldChange(id, 'candidate_id', e.target.value)}
                 disabled={isSaving}
                 placeholder="CAND-456"
+                className="min-h-[44px] sm:min-h-0"
               />
               {missingCandidate && <p className="text-xs text-amber-600">Required for recruiter flows</p>}
             </div>
-            <div className="space-y-1">
-              <Label htmlFor={`client-${id}`}>Client ID (optional)</Label>
+            <div className="space-y-2">
+              <Label htmlFor={`client-${id}`} className="text-sm font-medium">
+                Client ID <span className="text-slate-400 font-normal">(optional)</span>
+              </Label>
               <Input
                 id={`client-${id}`}
                 value={doc.client_id || ''}
                 onChange={(e) => handleFieldChange(id, 'client_id', e.target.value)}
                 disabled={isSaving}
                 placeholder="CLIENT-789"
+                className="min-h-[44px] sm:min-h-0"
               />
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-2 border-t border-slate-100">
             <Button
               onClick={() => saveDoc(doc)}
               disabled={isSaving}
-              className="min-h-[38px] min-w-[120px]"
+              className="min-h-[44px] sm:min-h-0 min-w-[120px]"
             >
               {isSaving ? (
                 <span className="inline-flex items-center gap-2">
                   <RefreshCw className="h-4 w-4 animate-spin" />
-                  Saving...
+                  <span className="hidden sm:inline">Saving...</span>
+                  <span className="sm:hidden">Saving</span>
                 </span>
               ) : (
                 'Save'
@@ -259,63 +308,71 @@ export function TaggingListClient() {
     <div className="space-y-4 sm:space-y-6">
       <Breadcrumbs items={[{ label: 'Needs tagging' }]} />
 
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold">Needs Tagging</h1>
-          <p className="text-sm sm:text-base text-slate-600">
-            Tag JDs and CVs with role and candidate so recruiter generators can select the right documents.
-          </p>
-        </div>
-        <Button variant="outline" onClick={loadDocs} disabled={loading} className="w-full sm:w-auto">
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
-
-      <Card>
-        <CardContent className="p-4 sm:p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-3">
-            <div>
-              <Label htmlFor="search">Search</Label>
+      <Card className="shadow-sm border-slate-200">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4">
+          <div>
+            <CardTitle className="text-lg sm:text-xl">Documents Needing Tags</CardTitle>
+            <CardDescription className="text-sm mt-1">
+              Filter and tag documents with missing type, role, or candidate information.
+            </CardDescription>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={loadDocs} 
+            disabled={loading} 
+            className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 sm:gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="search" className="text-sm font-medium">Search</Label>
               <Input
                 id="search"
                 placeholder="Search by title, filename, or ID"
                 value={filters.search}
                 onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+                className="min-h-[44px] sm:min-h-0"
               />
             </div>
-            <div className="space-y-1">
-              <Label>Filters</Label>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Filters</Label>
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant={filters.missingType ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setFilters((prev) => ({ ...prev, missingType: !prev.missingType }))}
-                  className="gap-2"
+                  className="min-h-[44px] sm:min-h-0 gap-2"
                 >
                   <Filter className="h-4 w-4" />
-                  Missing type
+                  <span className="hidden sm:inline">Missing type</span>
+                  <span className="sm:hidden">Type</span>
                 </Button>
                 <Button
                   type="button"
                   variant={filters.missingRole ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setFilters((prev) => ({ ...prev, missingRole: !prev.missingRole }))}
-                  className="gap-2"
+                  className="min-h-[44px] sm:min-h-0 gap-2"
                 >
                   <Filter className="h-4 w-4" />
-                  Missing role
+                  <span className="hidden sm:inline">Missing role</span>
+                  <span className="sm:hidden">Role</span>
                 </Button>
                 <Button
                   type="button"
                   variant={filters.missingCandidate ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setFilters((prev) => ({ ...prev, missingCandidate: !prev.missingCandidate }))}
-                  className="gap-2"
+                  className="min-h-[44px] sm:min-h-0 gap-2"
                 >
                   <Filter className="h-4 w-4" />
-                  Missing candidate
+                  <span className="hidden sm:inline">Missing candidate</span>
+                  <span className="sm:hidden">Candidate</span>
                 </Button>
               </div>
             </div>
@@ -342,7 +399,7 @@ export function TaggingListClient() {
             </div>
           )}
 
-          {!loading && !error && filtered.length === 0 && (
+          {!loading && !error && docs.length === 0 && (
             <div className="text-center py-10 space-y-3">
               <FileText className="h-8 w-8 mx-auto text-slate-300" />
               <p className="text-sm text-slate-600">No documents need tagging based on your filters.</p>
@@ -352,13 +409,13 @@ export function TaggingListClient() {
             </div>
           )}
 
-          {!loading && !error && filtered.length > 0 && (
-            <div className="space-y-3">
-              <div className="text-sm text-slate-600">
-                Showing {filtered.length} document{filtered.length === 1 ? '' : 's'} needing tagging.
+          {!loading && !error && docs.length > 0 && (
+            <div className="space-y-4 sm:space-y-5">
+              <div className="text-sm text-slate-600 font-medium">
+                Showing {docs.length} document{docs.length === 1 ? '' : 's'} needing tagging.
               </div>
-              <div className="space-y-3">
-                {filtered.map((doc) => renderDoc(doc))}
+              <div className="space-y-4 sm:space-y-5">
+                {docs.map((doc) => renderDoc(doc))}
               </div>
             </div>
           )}

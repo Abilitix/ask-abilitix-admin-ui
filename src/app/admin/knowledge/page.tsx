@@ -592,6 +592,16 @@ export default function KnowledgeStudioPage() {
               <span>View Drafts</span>
             </Link>
           </Button>
+          <Button 
+            variant="ghost"
+            asChild
+            className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+          >
+            <Link href="/admin/knowledge/tagging" className="flex items-center justify-center gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              <span>Needs Tagging</span>
+            </Link>
+          </Button>
         </div>
       </div>
 

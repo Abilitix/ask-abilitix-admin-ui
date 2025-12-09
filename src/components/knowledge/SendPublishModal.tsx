@@ -154,23 +154,58 @@ export function SendPublishModal({
         return;
       }
 
-      const data: SendPreviewResponse = await res.json();
+      const responseText = await res.text();
+      console.log('[SendPublishModal] Raw preview response:', {
+        status: res.status,
+        contentType: res.headers.get('content-type'),
+        responseText: responseText,
+        responseLength: responseText.length,
+      });
+      
+      let data: SendPreviewResponse;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('[SendPublishModal] Failed to parse JSON response:', parseError);
+        setError(`Invalid response format from backend. Response: ${responseText.substring(0, 200)}`);
+        return;
+      }
       
       // Debug logging
-      console.log('[SendPublishModal] Preview response:', {
+      console.log('[SendPublishModal] Parsed preview response:', {
         status: res.status,
         data: data,
+        dataKeys: Object.keys(data),
         hasPreviewHtml: !!data.preview_html,
         hasPreviewText: !!data.preview_text,
         previewHtmlLength: data.preview_html?.length || 0,
         previewTextLength: data.preview_text?.length || 0,
+        // Check for alternative field names
+        hasBodyHtml: !!(data as any).body_html,
+        hasBodyText: !!(data as any).body_text,
+        hasHtml: !!(data as any).html,
+        hasText: !!(data as any).text,
       });
       
-      // Validate response structure
+      // Validate response structure - check for alternative field names
       if (!data.preview_html && !data.preview_text) {
-        console.error('[SendPublishModal] Preview response missing content:', data);
-        setError('Preview response is empty. Please check backend logs.');
-        return;
+        // Try alternative field names that backend might be using
+        const bodyHtml = (data as any).body_html || (data as any).html;
+        const bodyText = (data as any).body_text || (data as any).text;
+        
+        if (bodyHtml || bodyText) {
+          // Backend is using different field names, map them
+          console.warn('[SendPublishModal] Backend using alternative field names, mapping...');
+          data = {
+            ...data,
+            preview_html: bodyHtml || '',
+            preview_text: bodyText || '',
+          } as SendPreviewResponse;
+        } else {
+          console.error('[SendPublishModal] Preview response missing content:', data);
+          setError('Preview response is empty. Backend returned: ' + JSON.stringify(data).substring(0, 200));
+          return;
+        }
       }
       
       setPreview(data);

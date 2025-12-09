@@ -33,8 +33,10 @@ export function DocumentPicker({
       setLoading(true);
       setError(null);
       try {
+        // Fetch all documents (not just 'active') to show more options
+        // Backend will filter out deleted/superseded, but we want to show pending/processing too
         const params = new URLSearchParams({
-          status: 'active', // Only show active documents
+          status: 'all', // Show all non-deleted documents
           limit: '100', // Fetch up to 100 documents
           ...(searchQuery && { q: searchQuery }),
         });
@@ -50,7 +52,22 @@ export function DocumentPicker({
         }
 
         const data = await res.json();
-        setDocuments(Array.isArray(data.items) ? data.items : []);
+        const docs = Array.isArray(data.items) ? data.items : [];
+        
+        // Debug logging
+        console.log('[DocumentPicker] Documents fetched:', {
+          status: res.status,
+          total: data.total || 0,
+          itemsCount: docs.length,
+          documents: docs.map((d: Document) => ({
+            id: (d as any).id || d.doc_id,
+            title: d.title,
+            status: (d as any).status || d.doc_status,
+            upload_status: d.upload_status,
+          })),
+        });
+        
+        setDocuments(docs);
       } catch (err) {
         if (active) {
           setError(err instanceof Error ? err.message : 'Failed to load documents.');
@@ -72,12 +89,20 @@ export function DocumentPicker({
     };
   }, [searchQuery]);
 
-  // Filter documents by search query
+  // Filter documents by search query and status
+  // Only show documents that are usable (not deleted, not superseded)
   const filteredDocuments = useMemo(() => {
-    if (!searchQuery.trim()) return documents;
+    // First filter by status - exclude deleted and superseded
+    const usableDocs = documents.filter((doc) => {
+      const status = (doc as any).status || doc.doc_status;
+      return status !== 'deleted' && status !== 'superseded';
+    });
+    
+    // Then filter by search query if provided
+    if (!searchQuery.trim()) return usableDocs;
     
     const query = searchQuery.toLowerCase();
-    return documents.filter(
+    return usableDocs.filter(
       (doc) =>
         doc.title?.toLowerCase().includes(query) ||
         doc.file_name?.toLowerCase().includes(query) ||

@@ -59,7 +59,7 @@ export default function KnowledgeStudioPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/knowledge/templates', { cache: 'no-store' });
+        const res = await fetch('/api/admin/knowledge/templates', { cache: 'no-store' });
         if (!active) return;
         if (res.status === 401 || res.status === 403 || res.status === 404) {
           setError('Knowledge Studio is not enabled for this tenant.');
@@ -111,7 +111,7 @@ export default function KnowledgeStudioPage() {
     }
     setGen((prev) => ({ ...prev, submitting: true, error: undefined, message: undefined }));
     try {
-      const res = await fetch('/knowledge/drafts/generate', {
+      const res = await fetch('/api/admin/knowledge/drafts/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

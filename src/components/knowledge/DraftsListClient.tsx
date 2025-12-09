@@ -29,9 +29,11 @@ import {
   FileText,
   Calendar,
   Send,
+  Sparkles,
 } from 'lucide-react';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { SendPublishModal } from './SendPublishModal';
+import { Breadcrumbs } from './Breadcrumbs';
 import type { Draft, DraftListResponse, KnowledgeErrorResponse } from '@/lib/types/knowledge';
 
 type StatusFilter = 'draft' | 'approved' | 'all';
@@ -234,38 +236,52 @@ export function DraftsListClient() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <CardTitle>Drafts</CardTitle>
-              <CardDescription>
-                {filteredDrafts.length} {filteredDrafts.length === 1 ? 'draft' : 'drafts'}
-                {searchTerm && ` matching "${searchTerm}"`}
+      {/* Breadcrumbs */}
+      <Breadcrumbs items={[{ label: 'Drafts' }]} className="mb-4" />
+      
+      <Card className="shadow-sm">
+        <CardHeader className="border-b border-slate-100">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="space-y-1">
+              <CardTitle className="text-xl sm:text-2xl font-bold">Drafts</CardTitle>
+              <CardDescription className="text-sm sm:text-base">
+                {loading ? (
+                  'Loading drafts...'
+                ) : (
+                  <>
+                    {filteredDrafts.length} {filteredDrafts.length === 1 ? 'draft' : 'drafts'}
+                    {searchTerm && ` matching "${searchTerm}"`}
+                  </>
+                )}
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => fetchDrafts()}
                 disabled={loading}
+                className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
               >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline ml-2">Refresh</span>
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''} sm:mr-2`} />
+                <span>Refresh</span>
               </Button>
               {selectedDraftIds.size > 0 && (
                 <Button
                   variant="default"
                   size="sm"
                   onClick={() => setSendModalOpen(true)}
+                  className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
                 >
-                  <Send className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Send ({selectedDraftIds.size})</span>
+                  <Send className="h-4 w-4 mr-2" />
+                  <span>Send ({selectedDraftIds.size})</span>
                 </Button>
               )}
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/admin/knowledge">Templates</Link>
+              <Button variant="outline" size="sm" asChild className="min-h-[44px] sm:min-h-0 w-full sm:w-auto">
+                <Link href="/admin/knowledge" className="flex items-center justify-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  <span>Templates</span>
+                </Link>
               </Button>
             </div>
           </div>
@@ -386,14 +402,15 @@ export function DraftsListClient() {
                 const isSelected = selectedDraftIds.has(draft.id);
 
                 return (
-                  <div
+                  <Card
                     key={draft.id}
-                    className={`border rounded-lg p-4 hover:bg-slate-50 transition-colors ${
-                      isSource ? 'border-indigo-300 bg-indigo-50' : ''
-                    } ${isTarget ? 'border-green-300 bg-green-50' : ''} ${
-                      isSelected ? 'border-blue-300 bg-blue-50' : ''
+                    className={`transition-all duration-200 ${
+                      isSource ? 'border-indigo-300 bg-indigo-50 shadow-indigo-100' : ''
+                    } ${isTarget ? 'border-green-300 bg-green-50 shadow-green-100' : ''} ${
+                      isSelected ? 'border-blue-300 bg-blue-50 shadow-blue-100' : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
                     }`}
                   >
+                    <CardContent className="p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                       {/* Selection checkbox */}
                       <input
@@ -463,7 +480,7 @@ export function DraftsListClient() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-2 sm:flex-col sm:items-end">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 w-full sm:w-auto">
                         {mergeState.sourceId ? (
                           <>
                             {isSource && (
@@ -471,6 +488,7 @@ export function DraftsListClient() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setMergeState({ sourceId: null, targetId: null })}
+                                className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
                               >
                                 Cancel
                               </Button>
@@ -495,9 +513,19 @@ export function DraftsListClient() {
                                   });
                                 }}
                                 disabled={isLoading}
+                                className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
                               >
-                                <Merge className="h-4 w-4 mr-1" />
-                                Merge Here
+                                {isLoading ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    <span>Merging...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Merge className="h-4 w-4 mr-2" />
+                                    <span>Merge Here</span>
+                                  </>
+                                )}
                               </Button>
                             )}
                           </>
@@ -508,18 +536,20 @@ export function DraftsListClient() {
                               size="sm"
                               onClick={() => handleOpenEditor(draft.id)}
                               disabled={isLoading}
+                              className="min-h-[44px] sm:min-h-0 w-full sm:w-auto flex-1 sm:flex-none"
                             >
-                              <Edit className="h-4 w-4 sm:mr-1" />
-                              <span className="hidden sm:inline">Edit</span>
+                              <Edit className="h-4 w-4 mr-2" />
+                              <span>Edit</span>
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => setMergeState({ sourceId: draft.id, targetId: null })}
                               disabled={isLoading}
+                              className="min-h-[44px] sm:min-h-0 w-full sm:w-auto flex-1 sm:flex-none"
                             >
-                              <Merge className="h-4 w-4 sm:mr-1" />
-                              <span className="hidden sm:inline">Merge</span>
+                              <Merge className="h-4 w-4 mr-2" />
+                              <span>Merge</span>
                             </Button>
                             <Button
                               variant="outline"
@@ -538,15 +568,17 @@ export function DraftsListClient() {
                                 });
                               }}
                               disabled={isLoading}
+                              className="min-h-[44px] sm:min-h-0 w-full sm:w-auto flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                             >
-                              <Trash2 className="h-4 w-4 sm:mr-1" />
-                              <span className="hidden sm:inline">Delete</span>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              <span>Delete</span>
                             </Button>
                           </>
                         )}
                       </div>
                     </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>

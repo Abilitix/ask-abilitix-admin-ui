@@ -29,6 +29,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { Breadcrumbs } from './Breadcrumbs';
 import type {
   Draft,
   UpdateDraftRequest,
@@ -318,13 +319,22 @@ export function DraftEditorClient({ draftId }: Props) {
 
   return (
     <>
-      <div className="space-y-4">
+      {/* Breadcrumbs */}
+      <Breadcrumbs 
+        items={[
+          { label: 'Drafts', href: '/admin/knowledge/drafts' },
+          { label: 'Edit Draft' }
+        ]} 
+        className="mb-4"
+      />
+      
+      <div className="space-y-4 sm:space-y-6">
         {/* Needs input warning */}
         {draft.needs_input && (
-          <Card className="border-amber-200 bg-amber-50">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-2 text-amber-700">
-                <AlertCircle className="h-5 w-5" />
+          <Card className="border-amber-200 bg-amber-50 shadow-sm">
+            <CardContent className="py-3 sm:py-4">
+              <div className="flex items-start gap-3 text-amber-700">
+                <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                 <p className="text-sm font-medium">
                   This draft needs manual input or refinement before it can be approved.
                 </p>
@@ -334,25 +344,26 @@ export function DraftEditorClient({ draftId }: Props) {
         )}
 
         {/* Main editor */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Edit Draft</CardTitle>
-                <CardDescription>
+        <Card className="shadow-sm">
+          <CardHeader className="border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle className="text-xl sm:text-2xl font-bold">Edit Draft</CardTitle>
+                <CardDescription className="text-sm sm:text-base">
                   {draft.template_id && (
-                    <span className="text-xs">Template: {draft.template_id.slice(0, 8)}...</span>
+                    <span>Template: {draft.template_id.slice(0, 8)}...</span>
                   )}
+                  {!draft.template_id && 'Edit and refine your draft content'}
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 {draft.status === 'approved' ? (
-                  <Badge className="bg-green-100 text-green-700 border-green-200">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                  <Badge className="bg-green-100 text-green-700 border-green-200 px-3 py-1">
+                    <CheckCircle2 className="h-3 w-3 mr-1.5" />
                     Approved
                   </Badge>
                 ) : (
-                  <Badge variant="outline">Draft</Badge>
+                  <Badge variant="outline" className="px-3 py-1">Draft</Badge>
                 )}
               </div>
             </div>
@@ -427,21 +438,35 @@ export function DraftEditorClient({ draftId }: Props) {
             </div>
 
             {/* Actions */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t">
-              <div className="flex items-center gap-2">
-                <Button variant="outline" asChild>
-                  <Link href="/admin/knowledge/drafts">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Drafts
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-6 border-t border-slate-200">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                <Button 
+                  variant="outline" 
+                  asChild
+                  className="min-h-[44px] sm:min-h-0 w-full sm:w-auto order-3 sm:order-1"
+                >
+                  <Link href="/admin/knowledge/drafts" className="flex items-center justify-center gap-2">
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>Back to Drafts</span>
                   </Link>
                 </Button>
                 <Button
                   variant="outline"
                   onClick={handleRegenerate}
-                  disabled={regenerating}
+                  disabled={regenerating || saving}
+                  className="min-h-[44px] sm:min-h-0 w-full sm:w-auto order-2 sm:order-2"
                 >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${regenerating ? 'animate-spin' : ''}`} />
-                  Regenerate
+                  {regenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <span>Regenerating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      <span>Regenerate</span>
+                    </>
+                  )}
                 </Button>
                 <Button
                   variant="outline"
@@ -455,21 +480,27 @@ export function DraftEditorClient({ draftId }: Props) {
                       onConfirm: handleDelete,
                     });
                   }}
+                  disabled={saving || regenerating}
+                  className="min-h-[44px] sm:min-h-0 w-full sm:w-auto order-1 sm:order-3 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  <span>Delete</span>
                 </Button>
               </div>
-              <Button onClick={handleSave} disabled={saving} className="sm:min-w-[120px]">
+              <Button 
+                onClick={handleSave} 
+                disabled={saving || regenerating} 
+                className="min-h-[44px] sm:min-h-0 w-full sm:w-auto sm:min-w-[140px] order-1 sm:order-4"
+              >
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
+                    <span>Saving...</span>
                   </>
                 ) : (
                   <>
                     <Save className="h-4 w-4 mr-2" />
-                    Save Draft
+                    <span>Save Draft</span>
                   </>
                 )}
               </Button>

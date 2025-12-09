@@ -15,11 +15,12 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Sparkles, BookOpen, ShieldCheck, RefreshCcw, AlertCircle, Lock, ArrowUpRight } from 'lucide-react';
+import { Sparkles, BookOpen, ShieldCheck, RefreshCcw, AlertCircle, Lock, ArrowUpRight, FileText, Loader2 } from 'lucide-react';
 import type { Template, KnowledgeErrorResponse } from '@/lib/types/knowledge';
 import { hasFeature, hasKnowledgeStudio } from '@/lib/features';
 import { useUserFeatures } from '@/hooks/useUserFeatures';
 import { DocumentPicker } from '@/components/knowledge/DocumentPicker';
+import { Breadcrumbs } from '@/components/knowledge/Breadcrumbs';
 
 type TemplatesResponse = Template[];
 
@@ -287,10 +288,10 @@ export default function KnowledgeStudioPage() {
     return (
       <Card 
         key={tpl.id} 
-        className={`h-full flex flex-col shadow-sm transition-all ${
+        className={`h-full flex flex-col transition-all duration-200 ${
           isLocked 
-            ? 'opacity-75 border-slate-300 bg-slate-50' 
-            : 'hover:shadow-md'
+            ? 'opacity-75 border-slate-300 bg-slate-50 cursor-not-allowed' 
+            : 'border-slate-200 hover:border-indigo-300 hover:shadow-lg shadow-sm bg-white'
         }`}
       >
         <CardHeader className="space-y-2">
@@ -336,22 +337,33 @@ export default function KnowledgeStudioPage() {
             </div>
           )}
         </CardContent>
-        <CardFooter className="flex items-center justify-between gap-3">
-          <Button variant="outline" asChild>
-            <Link href="/admin/knowledge/drafts">View Drafts</Link>
+        <CardFooter className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-4 border-t border-slate-100">
+          <Button 
+            variant="outline" 
+            asChild
+            className="min-h-[44px] sm:min-h-0 w-full sm:w-auto order-2 sm:order-1"
+          >
+            <Link href="/admin/knowledge/drafts" className="flex items-center justify-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              <span>View Drafts</span>
+            </Link>
           </Button>
           <Button 
             onClick={() => openGenerate(tpl)} 
             disabled={isLocked || !canUse}
             title={isLocked ? `Requires ${tpl.required_feature} feature` : undefined}
+            className="min-h-[44px] sm:min-h-0 w-full sm:w-auto order-1 sm:order-2"
           >
             {isLocked ? (
               <>
                 <Lock className="h-4 w-4 mr-2" />
-                Locked
+                <span>Locked</span>
               </>
             ) : (
-              'Generate drafts'
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                <span>Generate Drafts</span>
+              </>
             )}
           </Button>
         </CardFooter>
@@ -360,26 +372,47 @@ export default function KnowledgeStudioPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-10 space-y-6">
-      <div className="flex items-start justify-between gap-3 flex-col sm:flex-row sm:items-center">
-        <div className="space-y-1">
+    <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 space-y-4 sm:space-y-6">
+      {/* Breadcrumbs */}
+      <Breadcrumbs items={[{ label: 'Templates' }]} />
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="space-y-2">
           <div className="flex items-center gap-2 text-indigo-600">
-            <Sparkles className="h-5 w-5" />
-            <span className="text-sm font-semibold">Knowledge Studio</span>
+            <Sparkles className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="text-sm sm:text-base font-semibold">Knowledge Studio</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-            Templates → Drafts → Approve → Publish/Send
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
+            Template Library
           </h1>
-          <p className="text-sm sm:text-base text-slate-600">
+          <p className="text-sm sm:text-base text-slate-600 max-w-2xl">
             Generate cited drafts from templates, edit in the editor, approve, and publish/send—all governed and explicit.
           </p>
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 pt-1">
+            <ShieldCheck className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span>Gated by plan features & feature flag</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/admin/docs">Upload docs</Link>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <Button 
+            variant="outline" 
+            asChild
+            className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+          >
+            <Link href="/admin/docs" className="flex items-center justify-center gap-2">
+              <FileText className="h-4 w-4" />
+              <span>Upload Docs</span>
+            </Link>
           </Button>
-          <Button asChild>
-            <Link href="/admin/knowledge/drafts">Go to drafts</Link>
+          <Button 
+            asChild
+            className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+          >
+            <Link href="/admin/knowledge/drafts" className="flex items-center justify-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              <span>View Drafts</span>
+            </Link>
           </Button>
         </div>
       </div>
@@ -548,18 +581,30 @@ export default function KnowledgeStudioPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <Button variant="outline" onClick={() => setSelected(null)}>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-slate-200">
+              <Button 
+                variant="outline" 
+                onClick={() => setSelected(null)}
+                disabled={gen.submitting}
+                className="min-h-[44px] sm:min-h-0 w-full sm:w-auto order-2 sm:order-1"
+              >
                 Cancel
               </Button>
-              <Button onClick={handleGenerate} disabled={gen.submitting}>
+              <Button 
+                onClick={handleGenerate} 
+                disabled={gen.submitting || selectedDocIds.length === 0}
+                className="min-h-[44px] sm:min-h-0 w-full sm:w-auto order-1 sm:order-2"
+              >
                 {gen.submitting ? (
-                  <span className="inline-flex items-center gap-2">
-                    <RefreshCcw className="h-4 w-4 animate-spin" />
-                    Generating...
-                  </span>
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <span>Generating drafts...</span>
+                  </>
                 ) : (
-                  'Generate drafts'
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    <span>Generate Drafts</span>
+                  </>
                 )}
               </Button>
             </div>

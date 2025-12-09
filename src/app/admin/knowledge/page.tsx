@@ -16,17 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Sparkles, BookOpen, ShieldCheck, RefreshCcw, AlertCircle } from 'lucide-react';
-
-type Template = {
-  id: string;
-  name: string;
-  description?: string;
-  required_feature?: string;
-  type?: 'faq' | 'email' | string;
-  category?: string;
-  channel?: string;
-  prompt_config?: unknown;
-};
+import type { Template, KnowledgeErrorResponse } from '@/lib/types/knowledge';
 
 type TemplatesResponse = Template[];
 
@@ -61,19 +51,45 @@ export default function KnowledgeStudioPage() {
       try {
         const res = await fetch('/api/admin/knowledge/templates', { cache: 'no-store' });
         if (!active) return;
-        if (res.status === 401 || res.status === 403 || res.status === 404) {
-          setError('Knowledge Studio is not enabled for this tenant.');
+        
+        // 404 = Template not found (shouldn't happen for list, but handle gracefully)
+        if (res.status === 404) {
+          setError('Templates not found. Verify tenant has access.');
           setTemplates([]);
           return;
         }
+        
+        // 401 = Authentication required
+        if (res.status === 401) {
+          setError('Authentication required. Please sign in again.');
+          setTemplates([]);
+          return;
+        }
+        
+        // 403 = Feature not enabled or not entitled
+        if (res.status === 403) {
+          const errorData = (await res.json().catch(() => ({}))) as KnowledgeErrorResponse;
+          if (errorData.detail === 'feature_not_enabled') {
+            setError('This feature is not available for your plan. Contact support to upgrade.');
+          } else {
+            setError('Knowledge Studio is not enabled for this tenant. Check feature flag (KNOWLEDGE_STUDIO_ENABLE) and tenant entitlements.');
+          }
+          setTemplates([]);
+          return;
+        }
+        
         if (!res.ok) {
-          setError('Failed to load templates. Please try again.');
+          const errorText = await res.text().catch(() => '');
+          setError(`Failed to load templates (${res.status}). ${errorText || 'Please try again.'}`);
           return;
         }
         const data: TemplatesResponse = await res.json();
         setTemplates(Array.isArray(data) ? data : []);
       } catch (err) {
-        if (active) setError('Failed to load templates. Please try again.');
+        if (active) {
+          const msg = err instanceof Error ? err.message : 'Failed to load templates. Please try again.';
+          setError(msg);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -121,49 +137,112 @@ export default function KnowledgeStudioPage() {
           channel: gen.channel || undefined,
         }),
       });
-      if (res.status === 401 || res.status === 403 || res.status === 404) {
+      
+      // Handle specific error codes with user-friendly messages
+      if (res.status === 401) {
         setGen((prev) => ({
           ...prev,
           submitting: false,
-          error: 'Not entitled or feature disabled for this tenant.',
+          error: 'Authentication required. Please sign in again.',
         }));
         return;
       }
+      
+      if (res.status === 403) {
+        const errorData = (await res.json().catch(() => ({}))) as KnowledgeErrorResponse;
+        if (errorData.detail === 'feature_not_enabled') {
+          setGen((prev) => ({
+            ...prev,
+            submitting: false,
+            error: 'This feature is not available for your plan. Contact support to upgrade.',
+          }));
+        } else {
+          setGen((prev) => ({
+            ...prev,
+            submitting: false,
+            error: 'Not entitled or feature disabled for this tenant.',
+          }));
+        }
+        return;
+      }
+      
+      if (res.status === 404) {
+        const errorData = (await res.json().catch(() => ({}))) as KnowledgeErrorResponse;
+        if (errorData.detail === 'drafts_not_found') {
+          setGen((prev) => ({
+            ...prev,
+            submitting: false,
+            error: 'One or more document IDs not found. Please verify the document IDs are correct.',
+          }));
+        } else {
+          setGen((prev) => ({
+            ...prev,
+            submitting: false,
+            error: 'Template or documents not found. Please verify your selection.',
+          }));
+        }
+        return;
+      }
+      
+      if (res.status === 400) {
+        const errorData = (await res.json().catch(() => ({}))) as KnowledgeErrorResponse;
+        if (errorData.detail === 'invalid_email') {
+          setGen((prev) => ({
+            ...prev,
+            submitting: false,
+            error: 'Invalid email address. Please check the email format.',
+          }));
+        } else {
+          setGen((prev) => ({
+            ...prev,
+            submitting: false,
+            error: errorData.detail || errorData.message || 'Invalid request. Please check your input.',
+          }));
+        }
+        return;
+      }
+      
       if (!res.ok) {
-        const text = await res.text();
+        const errorData = (await res.json().catch(() => ({}))) as KnowledgeErrorResponse;
+        const errorText = errorData.detail || errorData.message || await res.text().catch(() => '');
         setGen((prev) => ({
           ...prev,
           submitting: false,
-          error: text || 'Generation failed. Please try again.',
+          error: errorText || `Generation failed (${res.status}). Please try again.`,
         }));
         return;
       }
+      
       setGen((prev) => ({
         ...prev,
         submitting: false,
-        message: 'Drafts generated. You can edit and approve them from Drafts.',
+        message: 'Drafts generated successfully. You can edit and approve them from Drafts.',
         docIds: '',
       }));
     } catch (err) {
       setGen((prev) => ({
         ...prev,
         submitting: false,
-        error: 'Generation failed. Please try again.',
+        error: err instanceof Error ? err.message : 'Generation failed. Please try again.',
       }));
     }
   };
 
   const renderCard = (tpl: Template) => {
-    const typeLabel = tpl.type === 'email' ? 'Email' : 'FAQ';
+    // Determine type from channel or email_layout presence
+    const isEmail = tpl.email_layout !== undefined || tpl.channel === 'email';
+    const typeLabel = isEmail ? 'Email' : 'FAQ';
+    const hasFeatureGate = tpl.required_feature && tpl.required_feature !== null;
+    
     return (
       <Card key={tpl.id} className="h-full flex flex-col shadow-sm hover:shadow-md transition-shadow">
         <CardHeader className="space-y-2">
           <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className="capitalize">
                 {typeLabel}
               </Badge>
-              {tpl.required_feature && (
+              {hasFeatureGate && (
                 <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
                   {tpl.required_feature}
                 </Badge>
@@ -171,25 +250,19 @@ export default function KnowledgeStudioPage() {
             </div>
           </div>
           <CardTitle className="text-lg leading-tight">{tpl.name}</CardTitle>
-          {tpl.description && (
-            <CardDescription className="text-sm text-slate-600">{tpl.description}</CardDescription>
-          )}
+          <CardDescription className="text-sm text-slate-600">{tpl.description}</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 space-y-2 text-sm text-slate-600">
-          {tpl.category && (
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">Category: {tpl.category}</Badge>
-            </div>
-          )}
-          {tpl.channel && (
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">Channel: {tpl.channel}</Badge>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">Category: {tpl.category}</Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">Channel: {tpl.channel}</Badge>
+          </div>
         </CardContent>
         <CardFooter className="flex items-center justify-between gap-3">
           <Button variant="outline" asChild>
-            <Link href="/admin/faqs">View Drafts</Link>
+            <Link href="/admin/knowledge/drafts">View Drafts</Link>
           </Button>
           <Button onClick={() => openGenerate(tpl)}>Generate drafts</Button>
         </CardFooter>
@@ -217,7 +290,7 @@ export default function KnowledgeStudioPage() {
             <Link href="/admin/docs">Upload docs</Link>
           </Button>
           <Button asChild>
-            <Link href="/admin/faqs">Go to drafts</Link>
+            <Link href="/admin/knowledge/drafts">Go to drafts</Link>
           </Button>
         </div>
       </div>

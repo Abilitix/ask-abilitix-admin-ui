@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   CardHeader,
@@ -35,6 +36,7 @@ type GenerateState = {
 };
 
 export default function KnowledgeStudioPage() {
+  const router = useRouter();
   const { features, loading: featuresLoading } = useUserFeatures();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +58,167 @@ export default function KnowledgeStudioPage() {
     submitting: false,
   });
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+
+  // Async job (new generator) state
+  const [jobTemplate, setJobTemplate] = useState<Template | null>(null);
+  const [jobForm, setJobForm] = useState<{
+    roleId: string;
+    candidateId: string;
+    clientId: string;
+    docIds: string;
+    submitting: boolean;
+    polling: boolean;
+    error: string | null;
+    jobId: string | null;
+  }>({
+    roleId: '',
+    candidateId: '',
+    clientId: '',
+    docIds: '',
+    submitting: false,
+    polling: false,
+    error: null,
+    jobId: null,
+  });
+  const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollAttemptsRef = useRef(0);
+
+  const resetJob = () => {
+    setJobTemplate(null);
+    setJobForm({
+      roleId: '',
+      candidateId: '',
+      clientId: '',
+      docIds: '',
+      submitting: false,
+      polling: false,
+      error: null,
+      jobId: null,
+    });
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+    pollAttemptsRef.current = 0;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    };
+  }, []);
+
+  const startPoll = (jobId: string) => {
+    const poll = async () => {
+      pollAttemptsRef.current += 1;
+      if (pollAttemptsRef.current > 40) {
+        setJobForm((prev) => ({
+          ...prev,
+          polling: false,
+          error: 'Timed out waiting for generation. Please try again.',
+        }));
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/admin/knowledge/generate/${jobId}`, { cache: 'no-store' });
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          setJobForm((prev) => ({
+            ...prev,
+            polling: false,
+            error: text || `Failed to poll job (${res.status}).`,
+          }));
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        const status = data.status;
+        if (status === 'completed' && data.draft_id) {
+          resetJob();
+          router.push(`/admin/knowledge/drafts/${data.draft_id}`);
+          return;
+        }
+        if (status === 'failed') {
+          const detail = data.detail || data.message || 'Generation failed.';
+          setJobForm((prev) => ({
+            ...prev,
+            polling: false,
+            error: detail,
+          }));
+          return;
+        }
+        // still pending
+        pollTimeoutRef.current = setTimeout(poll, 1500);
+      } catch (err) {
+        setJobForm((prev) => ({
+          ...prev,
+          polling: false,
+          error: err instanceof Error ? err.message : 'Failed to poll job.',
+        }));
+      }
+    };
+
+    setJobForm((prev) => ({ ...prev, polling: true, error: null, jobId }));
+    pollTimeoutRef.current = setTimeout(poll, 1200);
+  };
+
+  const handleSubmitJob = async () => {
+    if (!jobTemplate) return;
+    const hasContext = jobForm.roleId || jobForm.candidateId || jobForm.clientId;
+    const docIds = jobForm.docIds
+      .split(',')
+      .map((d) => d.trim())
+      .filter(Boolean);
+
+    if (!hasContext && docIds.length === 0) {
+      setJobForm((prev) => ({ ...prev, error: 'Add role/candidate/client or doc IDs.' }));
+      return;
+    }
+
+    setJobForm((prev) => ({ ...prev, submitting: true, polling: false, error: null }));
+    try {
+      const body: any = { template_id: jobTemplate.id };
+      if (docIds.length) body.doc_ids = docIds;
+      if (hasContext) {
+        body.context = {
+          ...(jobForm.roleId ? { role_id: jobForm.roleId } : {}),
+          ...(jobForm.candidateId ? { candidate_id: jobForm.candidateId } : {}),
+          ...(jobForm.clientId ? { client_id: jobForm.clientId } : {}),
+        };
+      }
+
+      const res = await fetch('/api/admin/knowledge/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errData = (await res.json().catch(() => ({}))) as KnowledgeErrorResponse & { detail?: string };
+        const msg =
+          errData.detail ||
+          (errData as any).message ||
+          (await res.text().catch(() => 'Failed to start generation.'));
+        setJobForm((prev) => ({ ...prev, submitting: false, error: msg }));
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (!data.job_id) {
+        setJobForm((prev) => ({ ...prev, submitting: false, error: 'No job_id returned.' }));
+        return;
+      }
+
+      setJobForm((prev) => ({ ...prev, submitting: false, jobId: data.job_id }));
+      startPoll(data.job_id);
+    } catch (err) {
+      setJobForm((prev) => ({
+        ...prev,
+        submitting: false,
+        error: err instanceof Error ? err.message : 'Failed to start generation.',
+      }));
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -285,6 +448,9 @@ export default function KnowledgeStudioPage() {
     const isLocked = hasFeatureGate && requiredFeature ? !hasFeature(features, requiredFeature) : false;
     const canUse = !isLocked && hasKnowledgeStudio(features);
     
+    const isRecruiterBrief = tpl.id === 'recruiter_candidate_brief_v1';
+    const isRecruiterShortlist = tpl.id === 'recruiter_shortlist_email';
+
     return (
       <Card 
         key={tpl.id} 
@@ -349,7 +515,13 @@ export default function KnowledgeStudioPage() {
             </Link>
           </Button>
           <Button 
-            onClick={() => openGenerate(tpl)} 
+            onClick={() => {
+              if (isRecruiterBrief || isRecruiterShortlist) {
+                setJobTemplate(tpl);
+              } else {
+                openGenerate(tpl);
+              }
+            }} 
             disabled={isLocked || !canUse}
             title={isLocked ? `Requires ${tpl.required_feature} feature` : undefined}
             className="min-h-[44px] sm:min-h-0 w-full sm:w-auto order-1 sm:order-2"
@@ -362,7 +534,13 @@ export default function KnowledgeStudioPage() {
             ) : (
               <>
                 <Sparkles className="h-4 w-4 mr-2" />
-                <span>Generate Drafts</span>
+                <span>
+                  {isRecruiterBrief
+                    ? 'Generate brief'
+                    : isRecruiterShortlist
+                    ? 'Generate shortlist'
+                    : 'Generate drafts'}
+                </span>
               </>
             )}
           </Button>
@@ -605,6 +783,121 @@ export default function KnowledgeStudioPage() {
                     <Sparkles className="h-4 w-4 mr-2" />
                     <span>Generate Drafts</span>
                   </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Async generate job modal (recruiter templates) */}
+      {jobTemplate && (
+        <div className="fixed inset-0 z-[130] bg-black/40 backdrop-blur-[2px] flex items-end sm:items-center justify-center px-3"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white w-full sm:max-w-lg rounded-xl shadow-2xl p-5 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Generate</p>
+                <h3 className="text-lg font-semibold text-slate-900">{jobTemplate.name}</h3>
+                {jobTemplate.description && (
+                  <p className="text-sm text-slate-600 mt-1">{jobTemplate.description}</p>
+                )}
+                <p className="text-xs text-slate-500 mt-1">
+                  Provide role/candidate context, or specify doc IDs (advanced).
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={resetJob} disabled={jobForm.submitting || jobForm.polling}>
+                Close
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="roleId">Role ID</Label>
+                <Input
+                  id="roleId"
+                  placeholder="ROLE-123"
+                  value={jobForm.roleId}
+                  onChange={(e) => setJobForm((prev) => ({ ...prev, roleId: e.target.value }))}
+                  disabled={jobForm.submitting || jobForm.polling}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="candidateId">Candidate ID</Label>
+                <Input
+                  id="candidateId"
+                  placeholder="CAND-456"
+                  value={jobForm.candidateId}
+                  onChange={(e) => setJobForm((prev) => ({ ...prev, candidateId: e.target.value }))}
+                  disabled={jobForm.submitting || jobForm.polling}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="clientId">Client ID (optional)</Label>
+                <Input
+                  id="clientId"
+                  placeholder="CLIENT-789"
+                  value={jobForm.clientId}
+                  onChange={(e) => setJobForm((prev) => ({ ...prev, clientId: e.target.value }))}
+                  disabled={jobForm.submitting || jobForm.polling}
+                />
+              </div>
+
+              <details className="text-xs text-slate-500">
+                <summary className="cursor-pointer hover:text-slate-700">Advanced: use specific doc IDs</summary>
+                <div className="mt-2 space-y-2">
+                  <Textarea
+                    placeholder="doc_id_1, doc_id_2"
+                    value={jobForm.docIds}
+                    onChange={(e) => setJobForm((prev) => ({ ...prev, docIds: e.target.value }))}
+                    disabled={jobForm.submitting || jobForm.polling}
+                    rows={2}
+                  />
+                  <p className="text-xs text-slate-500">Comma-separated document IDs. Use if context docs are missing.</p>
+                </div>
+              </details>
+
+              {jobForm.error && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {jobForm.error.startsWith('rag_extraction_failed')
+                    ? 'Missing required docs. Please attach a JD and CV for this role/candidate (or provide doc_ids).'
+                    : jobForm.error}
+                  <p className="text-xs text-red-500 mt-1 truncate">{jobForm.error}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-slate-200">
+              <Button
+                variant="outline"
+                onClick={resetJob}
+                disabled={jobForm.submitting || jobForm.polling}
+                className="min-h-[44px] sm:min-h-0 w-full sm:w-auto order-2 sm:order-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitJob}
+                disabled={jobForm.submitting || jobForm.polling}
+                className="min-h-[44px] sm:min-h-0 w-full sm:w-auto order-1 sm:order-2"
+              >
+                {jobForm.submitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Starting...
+                  </span>
+                ) : jobForm.polling ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Generate
+                  </span>
                 )}
               </Button>
             </div>

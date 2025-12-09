@@ -305,7 +305,7 @@ export default function KnowledgeStudioPage() {
                 className="w-full"
                 asChild
               >
-                <Link href="/admin/billing">
+                <Link href="/admin/settings/billing">
                   Upgrade Plan
                   <ArrowUpRight className="h-3 w-3 ml-1" />
                 </Link>
@@ -419,7 +419,7 @@ export default function KnowledgeStudioPage() {
                       Knowledge Studio is not enabled for your plan.
                     </p>
                     <Button variant="outline" asChild>
-                      <Link href="/admin/billing">
+                      <Link href="/admin/settings/billing">
                         View Plans
                         <ArrowUpRight className="h-3 w-3 ml-1" />
                       </Link>

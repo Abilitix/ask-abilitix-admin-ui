@@ -155,8 +155,27 @@ export function SendPublishModal({
       }
 
       const data: SendPreviewResponse = await res.json();
+      
+      // Debug logging
+      console.log('[SendPublishModal] Preview response:', {
+        status: res.status,
+        data: data,
+        hasPreviewHtml: !!data.preview_html,
+        hasPreviewText: !!data.preview_text,
+        previewHtmlLength: data.preview_html?.length || 0,
+        previewTextLength: data.preview_text?.length || 0,
+      });
+      
+      // Validate response structure
+      if (!data.preview_html && !data.preview_text) {
+        console.error('[SendPublishModal] Preview response missing content:', data);
+        setError('Preview response is empty. Please check backend logs.');
+        return;
+      }
+      
       setPreview(data);
     } catch (err) {
+      console.error('[SendPublishModal] Preview error:', err);
       setError(err instanceof Error ? err.message : 'Failed to preview email');
     } finally {
       setLoadingPreview(false);

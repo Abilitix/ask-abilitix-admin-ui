@@ -52,12 +52,17 @@ export function DocumentPicker({
         }
 
         const data = await res.json();
-        const docs = Array.isArray(data.items) ? data.items : [];
+        // Handle various backend shapes: { items: [...] }, { documents: [...] }, or an array response
+        const docs =
+          (Array.isArray(data.items) && data.items) ||
+          (Array.isArray((data as any).documents) && (data as any).documents) ||
+          (Array.isArray(data) && data) ||
+          [];
         
         // Debug logging
         console.log('[DocumentPicker] Documents fetched:', {
           status: res.status,
-          total: data.total || 0,
+          total: data.total || data.count || docs.length || 0,
           itemsCount: docs.length,
           documents: docs.map((d: Document) => ({
             id: (d as any).id || d.doc_id,

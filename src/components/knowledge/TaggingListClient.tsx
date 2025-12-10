@@ -208,9 +208,16 @@ export function TaggingListClient() {
         const text = await res.text().catch(() => '');
         throw new Error(text || `Failed to save (${res.status})`);
       }
-      toast.success('Saved tags');
+      toast.success('Tags saved successfully', {
+        description: 'Document has been updated with the new tags.',
+      });
+      
+      // Reload the list to reflect changes (document might no longer need tagging)
+      await loadDocs();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save tags');
+      toast.error('Failed to save tags', {
+        description: err instanceof Error ? err.message : 'Please try again.',
+      });
     } finally {
       setSavingIds((prev) => {
         const next = new Set(prev);
@@ -228,27 +235,27 @@ export function TaggingListClient() {
     const isSaving = savingIds.has(id);
 
     return (
-      <Card key={id} className="border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200">
-        <CardHeader className="pb-3 sm:pb-4">
+      <Card key={id} className="border-slate-200 hover:border-slate-300 hover:shadow-lg transition-all duration-200 bg-white">
+        <CardHeader className="pb-4 sm:pb-5 border-b border-slate-100">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <CardTitle className="text-base sm:text-lg font-semibold truncate">
+              <CardTitle className="text-base sm:text-lg font-semibold text-slate-900 truncate">
                 {doc.title || doc.file_name || 'Untitled document'}
               </CardTitle>
-              <CardDescription className="text-xs font-mono break-all mt-1">
-                ID: {id}
+              <CardDescription className="text-xs text-slate-500 font-mono break-all mt-1.5">
+                ID: {id.slice(0, 8)}...
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Badge variant="secondary" className="capitalize text-xs">
+            <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+              <Badge variant="secondary" className="capitalize text-xs font-medium">
                 {status || 'unknown'}
               </Badge>
               {missingType || missingRole || missingCandidate ? (
-                <Badge variant="destructive" className="text-xs">
+                <Badge variant="destructive" className="text-xs font-medium">
                   Needs tagging
                 </Badge>
               ) : (
-                <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">
+                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-medium">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   Ready
                 </Badge>
@@ -256,22 +263,22 @@ export function TaggingListClient() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 sm:space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+        <CardContent className="p-4 sm:p-6 space-y-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
             <div className="space-y-2">
-              <Label htmlFor={`type-${id}`} className="text-sm font-medium">
+              <Label htmlFor={`type-${id}`} className="text-sm font-semibold text-slate-700">
                 Document type
-                {missingType && <span className="text-amber-600 ml-1">*</span>}
+                {missingType && <span className="text-red-500 ml-1">*</span>}
               </Label>
               <select
                 id={`type-${id}`}
                 value={type}
                 onChange={(e) => handleFieldChange(id, 'document_type', e.target.value)}
-                className="w-full rounded-md border border-input bg-white px-3 py-2.5 text-sm min-h-[44px] sm:min-h-0 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium min-h-[44px] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 disabled={isSaving}
               >
-                <option value="">Select type</option>
-                <option value="jd">JD</option>
+                <option value="">Select document type</option>
+                <option value="jd">Job Description (JD)</option>
                 <option value="cv">CV</option>
                 <option value="resume">Resume</option>
                 <option value="policy">Policy</option>
@@ -279,58 +286,73 @@ export function TaggingListClient() {
                 <option value="note">Note</option>
                 <option value="email">Email</option>
               </select>
-              {missingType && <p className="text-xs text-amber-600">Required</p>}
+              {missingType && (
+                <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Required field
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor={`role-${id}`} className="text-sm font-medium">
+              <Label htmlFor={`role-${id}`} className="text-sm font-semibold text-slate-700">
                 Role ID
-                {missingRole && <span className="text-amber-600 ml-1">*</span>}
+                {missingRole && <span className="text-red-500 ml-1">*</span>}
               </Label>
               <Input
                 id={`role-${id}`}
                 value={doc.role_id || ''}
                 onChange={(e) => handleFieldChange(id, 'role_id', e.target.value)}
                 disabled={isSaving}
-                placeholder="ROLE-123"
-                className="min-h-[44px] sm:min-h-0"
+                placeholder="Enter role identifier"
+                className="min-h-[44px] sm:min-h-0 font-mono text-sm"
               />
-              {missingRole && <p className="text-xs text-amber-600">Required for recruiter flows</p>}
+              {missingRole && (
+                <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Required for recruiter templates
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor={`candidate-${id}`} className="text-sm font-medium">
+              <Label htmlFor={`candidate-${id}`} className="text-sm font-semibold text-slate-700">
                 Candidate ID
-                {missingCandidate && <span className="text-amber-600 ml-1">*</span>}
+                {missingCandidate && <span className="text-red-500 ml-1">*</span>}
               </Label>
               <Input
                 id={`candidate-${id}`}
                 value={doc.candidate_id || ''}
                 onChange={(e) => handleFieldChange(id, 'candidate_id', e.target.value)}
                 disabled={isSaving}
-                placeholder="CAND-456"
-                className="min-h-[44px] sm:min-h-0"
+                placeholder="Enter candidate identifier"
+                className="min-h-[44px] sm:min-h-0 font-mono text-sm"
               />
-              {missingCandidate && <p className="text-xs text-amber-600">Required for recruiter flows</p>}
+              {missingCandidate && (
+                <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Required for recruiter templates
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor={`client-${id}`} className="text-sm font-medium">
-                Client ID <span className="text-slate-400 font-normal">(optional)</span>
+              <Label htmlFor={`client-${id}`} className="text-sm font-semibold text-slate-700">
+                Client ID <span className="text-slate-400 font-normal text-xs">(optional)</span>
               </Label>
               <Input
                 id={`client-${id}`}
                 value={doc.client_id || ''}
                 onChange={(e) => handleFieldChange(id, 'client_id', e.target.value)}
                 disabled={isSaving}
-                placeholder="CLIENT-789"
-                className="min-h-[44px] sm:min-h-0"
+                placeholder="Enter client identifier (optional)"
+                className="min-h-[44px] sm:min-h-0 font-mono text-sm"
               />
             </div>
           </div>
 
-          <div className="flex justify-end pt-2 border-t border-slate-100">
+          <div className="flex justify-end pt-4 border-t border-slate-100">
             <Button
               onClick={() => saveDoc(doc)}
-              disabled={isSaving}
-              className="min-h-[44px] sm:min-h-0 min-w-[120px]"
+              disabled={isSaving || (!doc.document_type && missingType)}
+              className="min-h-[44px] sm:min-h-0 min-w-[140px] font-semibold shadow-sm hover:shadow-md transition-shadow"
             >
               {isSaving ? (
                 <span className="inline-flex items-center gap-2">
@@ -339,7 +361,10 @@ export function TaggingListClient() {
                   <span className="sm:hidden">Saving</span>
                 </span>
               ) : (
-                'Save'
+                <span className="inline-flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Save tags
+                </span>
               )}
             </Button>
           </div>
@@ -471,9 +496,17 @@ export function TaggingListClient() {
           )}
 
           {!loading && !error && docs.length > 0 && (
-            <div className="space-y-4 sm:space-y-5">
-              <div className="text-sm text-slate-600 font-medium">
-                Showing {docs.length} document{docs.length === 1 ? '' : 's'} needing tagging.
+            <div className="space-y-5 sm:space-y-6">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="text-sm text-slate-600 font-semibold">
+                  Showing <span className="text-slate-900">{docs.length}</span> document{docs.length === 1 ? '' : 's'} needing tagging
+                </div>
+                <div className="text-xs text-slate-500">
+                  {docs.filter(d => {
+                    const { missingType, missingRole, missingCandidate } = needsTagging(d);
+                    return missingType || missingRole || missingCandidate;
+                  }).length} require action
+                </div>
               </div>
               <div className="space-y-4 sm:space-y-5">
                 {docs.map((doc) => renderDoc(doc))}

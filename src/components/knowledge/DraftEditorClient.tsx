@@ -25,6 +25,10 @@ import {
   AlertCircle,
   CheckCircle2,
   FileText,
+  Eye,
+  Pencil,
+  Download,
+  Copy,
   Sparkles,
   Trash2,
 } from 'lucide-react';
@@ -297,6 +301,7 @@ export function DraftEditorClient({ draftId }: Props) {
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<'preview' | 'edit'>('preview');
   const [formData, setFormData] = useState<UpdateDraftRequest>({
     question: '',
     answer: '',
@@ -376,14 +381,14 @@ export function DraftEditorClient({ draftId }: Props) {
     fetchDraft();
   }, [fetchDraft]);
 
-  // Save draft
-  const handleSave = async () => {
+  // Save draft (with optional overrides, e.g., approve)
+  const handleSave = async (override?: Partial<UpdateDraftRequest>) => {
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/knowledge/drafts/${draftId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, ...override }),
       });
 
       if (!res.ok) {
@@ -399,6 +404,48 @@ export function DraftEditorClient({ draftId }: Props) {
       toast.error(err instanceof Error ? err.message : 'Failed to save draft');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    await handleSave({ status: 'approved' });
+    toast.success('Draft approved');
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      const res = await fetch(`/api/admin/knowledge/drafts/${draftId}/pdf`, {
+        method: 'GET',
+      });
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => '');
+        toast.error(`Failed to download PDF (${res.status})`);
+        console.error('PDF download failed', { status: res.status, errorText });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `draft-${draftId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success('PDF downloaded');
+    } catch (err) {
+      console.error('PDF download error', err);
+      toast.error('Failed to download PDF');
+    }
+  };
+
+  const handleCopyHtml = async () => {
+    try {
+      await navigator.clipboard.writeText(formData.answer || '');
+      toast.success('HTML copied');
+    } catch (err) {
+      console.error('Copy HTML failed', err);
+      toast.error('Failed to copy HTML');
     }
   };
 
@@ -495,6 +542,93 @@ export function DraftEditorClient({ draftId }: Props) {
       />
       
       <div className="space-y-4 sm:space-y-6">
+        {/* Top banner & actions */}
+        <Card className="shadow-sm border border-slate-200">
+          <CardContent className="py-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">Template</div>
+                  <div className="text-lg font-semibold text-slate-900">
+                    {draft.template_id ? `Template: ${draft.template_id.slice(0, 8)}…` : 'Custom Draft'}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Last updated {new Date(draft.updated_at).toLocaleString()}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    variant={mode === 'preview' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setMode('preview')}
+                    className="min-w-[90px]"
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preview
+                  </Button>
+                  <Button
+                    variant={mode === 'edit' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setMode('edit')}
+                    className="min-w-[90px]"
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Badge className={draft.status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-700 border-slate-200'}>
+                    {draft.status === 'approved' ? (
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Approved
+                      </span>
+                    ) : (
+                      'Draft'
+                    )}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleCopyHtml}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy HTML
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRegenerate}
+                  disabled={regenerating || saving}
+                >
+                  {regenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Regenerating...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Regenerate
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleApprove}
+                  disabled={saving || regenerating}
+                  className="border-green-200 text-green-700 hover:bg-green-50"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Needs input warning */}
         {draft.needs_input && (
           <Card className="border-amber-200 bg-amber-50 shadow-sm">
@@ -514,23 +648,10 @@ export function DraftEditorClient({ draftId }: Props) {
           <CardHeader className="border-b border-slate-100">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div className="space-y-1">
-                <CardTitle className="text-xl sm:text-2xl font-bold">Edit Draft</CardTitle>
+                <CardTitle className="text-xl sm:text-2xl font-bold">Draft</CardTitle>
                 <CardDescription className="text-sm sm:text-base">
-                  {draft.template_id && (
-                    <span>Template: {draft.template_id.slice(0, 8)}...</span>
-                  )}
-                  {!draft.template_id && 'Edit and refine your draft content'}
+                  Preview is rich and formatted; Edit uses a lightweight rich-text surface (no raw HTML shown).
                 </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                {draft.status === 'approved' ? (
-                  <Badge className="bg-green-100 text-green-700 border-green-200 px-3 py-1">
-                    <CheckCircle2 className="h-3 w-3 mr-1.5" />
-                    Approved
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="px-3 py-1">Draft</Badge>
-                )}
               </div>
             </div>
           </CardHeader>
@@ -548,25 +669,55 @@ export function DraftEditorClient({ draftId }: Props) {
               />
             </div>
 
-            {/* Answer */}
-            <div className="space-y-2">
-              <Label htmlFor="answer">Answer</Label>
-              <Textarea
-                id="answer"
-                value={formData.answer}
-                onChange={(e) => setFormData((prev) => ({ ...prev, answer: e.target.value }))}
-                placeholder="Enter the answer..."
-                rows={10}
-                className="font-mono text-sm"
-              />
-              {/* HTML Preview */}
-              {formData.answer && formData.answer.trim() !== '' && (
-                <div className="mt-3 space-y-2">
-                  <Label className="text-xs text-slate-600">Preview:</Label>
-                  <div 
-                    className="prose prose-slate max-w-none border rounded-lg p-4 bg-slate-50 min-h-[100px] prose-headings:text-slate-900 prose-strong:text-slate-900 prose-p:text-slate-900 prose-li:text-slate-900 prose-a:text-blue-600 hover:prose-a:text-blue-700"
-                    dangerouslySetInnerHTML={{ __html: formData.answer }}
+            {/* Answer with Preview/Edit toggle */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Answer</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={mode === 'preview' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setMode('preview')}
+                  >
+                    <Eye className="h-4 w-4 mr-1.5" />
+                    Preview
+                  </Button>
+                  <Button
+                    variant={mode === 'edit' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setMode('edit')}
+                  >
+                    <Pencil className="h-4 w-4 mr-1.5" />
+                    Edit
+                  </Button>
+                </div>
+              </div>
+
+              {mode === 'preview' ? (
+                <div className="prose prose-slate max-w-none border rounded-lg p-4 bg-white shadow-sm min-h-[200px] prose-headings:text-slate-900 prose-strong:text-slate-900 prose-p:text-slate-900 prose-li:text-slate-900 prose-a:text-blue-600 hover:prose-a:text-blue-700">
+                  {formData.answer ? (
+                    <div dangerouslySetInnerHTML={{ __html: formData.answer }} />
+                  ) : (
+                    <p className="text-sm text-slate-500">No content yet.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="border rounded-lg p-3 bg-white shadow-sm">
+                  <div
+                    className="prose prose-slate max-w-none min-h-[200px] outline-none"
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        answer: (e.currentTarget as HTMLDivElement).innerHTML,
+                      }))
+                    }
+                    dangerouslySetInnerHTML={{ __html: formData.answer || '' }}
                   />
+                  <p className="mt-2 text-xs text-slate-500">
+                    Tip: Paste rich text/HTML; we’ll store it as HTML. No raw HTML textarea is shown.
+                  </p>
                 </div>
               )}
             </div>
@@ -607,7 +758,22 @@ export function DraftEditorClient({ draftId }: Props) {
             </div>
 
             {/* Citations */}
-            <div className="border-t pt-6">
+            <div className="border-t pt-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Citations</Label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {formData.citations && formData.citations.length > 0 ? (
+                  formData.citations.map((cite, idx) => (
+                    <Badge key={`${cite.doc_id}-${idx}`} variant="outline" className="cursor-pointer">
+                      {cite.doc_id?.slice(0, 8) || 'Doc'}
+                      {cite.page ? ` • p${cite.page}` : ''}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-sm text-slate-500">No citations yet.</span>
+                )}
+              </div>
               <CitationsEditor
                 citations={formData.citations}
                 onChange={(citations) => setFormData((prev) => ({ ...prev, citations }))}
@@ -665,7 +831,7 @@ export function DraftEditorClient({ draftId }: Props) {
                 </Button>
               </div>
               <Button 
-                onClick={handleSave} 
+                onClick={() => handleSave()} 
                 disabled={saving || regenerating} 
                 className="min-h-[44px] sm:min-h-0 w-full sm:w-auto sm:min-w-[140px] order-1 sm:order-4"
               >

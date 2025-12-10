@@ -200,7 +200,8 @@ export default function KnowledgeStudioPage() {
           return;
         }
         
-        if (status === 'completed' && data.draft_id) {
+        // Backend returns "done" (not "completed") when job completes successfully
+        if (status === 'done' && data.draft_id) {
           resetJob();
           router.push(`/admin/knowledge/drafts/${data.draft_id}`);
           return;
@@ -226,8 +227,25 @@ export default function KnowledgeStudioPage() {
           }));
           return;
         }
-        // still pending
-        pollTimeoutRef.current = setTimeout(poll, 1500);
+        
+        // Backend status values: "queued", "running", "done", "failed"
+        // If status is "queued" or "running", continue polling
+        if (status === 'queued' || status === 'running') {
+          pollTimeoutRef.current = setTimeout(poll, 1500);
+          return;
+        }
+        
+        // Unknown status - log and stop polling
+        console.warn('[Knowledge Studio] Unknown job status:', {
+          jobId,
+          status,
+          data,
+        });
+        setJobForm((prev) => ({
+          ...prev,
+          polling: false,
+          error: `Unknown job status: ${status}. Please check the draft list or try again.`,
+        }));
       } catch (err) {
         setJobForm((prev) => ({
           ...prev,

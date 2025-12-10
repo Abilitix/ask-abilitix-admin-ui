@@ -103,35 +103,50 @@ export function TaggingListClient() {
       }
       
       const data = await res.json();
-      console.log('[Tagging] Response data:', data);
       
-      // Debug logging
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[Tagging] API response:', {
-          status: res.status,
-          dataKeys: Object.keys(data || {}),
-          isArray: Array.isArray(data),
-          hasItems: Array.isArray(data?.items),
-          itemsCount: Array.isArray(data?.items) ? data.items.length : 0,
-          arrayCount: Array.isArray(data) ? data.length : 0,
-        });
+      // Always log the response (even in production) to debug
+      console.log('[Tagging] Full API response:', JSON.stringify(data, null, 2));
+      console.log('[Tagging] Response type:', typeof data);
+      console.log('[Tagging] Is array:', Array.isArray(data));
+      console.log('[Tagging] Data keys:', Object.keys(data || {}));
+      
+      // Check various possible response formats
+      let items: Doc[] = [];
+      
+      if (Array.isArray(data)) {
+        // Direct array response
+        items = data;
+        console.log('[Tagging] Found direct array with', items.length, 'items');
+      } else if (Array.isArray(data?.items)) {
+        // { items: [...] } format
+        items = data.items;
+        console.log('[Tagging] Found items array with', items.length, 'items');
+      } else if (Array.isArray(data?.documents)) {
+        // { documents: [...] } format
+        items = data.documents;
+        console.log('[Tagging] Found documents array with', items.length, 'items');
+      } else if (data && typeof data === 'object') {
+        // Check for other possible keys
+        const possibleKeys = ['results', 'data', 'docs', 'list'];
+        for (const key of possibleKeys) {
+          if (Array.isArray(data[key])) {
+            items = data[key];
+            console.log(`[Tagging] Found ${key} array with`, items.length, 'items');
+            break;
+          }
+        }
       }
       
-      // Handle response format (items array or direct array)
-      const items =
-        (Array.isArray(data?.items) && data.items) ||
-        (Array.isArray(data) && data) ||
-        [];
-      
-      console.log('[Tagging] Loaded documents:', items.length, 'items');
-      console.log('[Tagging] Sample item:', items[0]);
-      
-      if (items.length === 0) {
-        console.log('[Tagging] No documents returned. Filters:', {
-          missingType: filters.missingType,
-          missingRole: filters.missingRole,
-          missingCandidate: filters.missingCandidate,
-          search: filters.search,
+      console.log('[Tagging] Final items count:', items.length);
+      if (items.length > 0) {
+        console.log('[Tagging] Sample item:', items[0]);
+      } else {
+        console.log('[Tagging] No items found. Raw response structure:', {
+          isArray: Array.isArray(data),
+          hasItems: Array.isArray(data?.items),
+          hasDocuments: Array.isArray(data?.documents),
+          keys: Object.keys(data || {}),
+          dataType: typeof data,
         });
       }
       
@@ -429,10 +444,29 @@ export function TaggingListClient() {
           {!loading && !error && docs.length === 0 && (
             <div className="text-center py-10 space-y-3">
               <FileText className="h-8 w-8 mx-auto text-slate-300" />
-              <p className="text-sm text-slate-600">No documents need tagging based on your filters.</p>
+              <p className="text-sm text-slate-600 font-medium">No documents need tagging</p>
               <p className="text-xs text-slate-500">
-                Try refreshing, adjusting filters, or uploading new documents.
+                {filters.missingType || filters.missingRole || filters.missingCandidate
+                  ? 'No documents match your current filters. Try adjusting the filters or uploading new documents.'
+                  : 'All documents appear to be properly tagged. Upload new documents to tag them.'}
               </p>
+              {(filters.missingType || filters.missingRole || filters.missingCandidate) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFilters({
+                      search: '',
+                      missingType: true,
+                      missingRole: true,
+                      missingCandidate: true,
+                    });
+                  }}
+                  className="mt-2"
+                >
+                  Reset Filters
+                </Button>
+              )}
             </div>
           )}
 

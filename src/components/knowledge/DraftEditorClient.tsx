@@ -303,6 +303,7 @@ export function DraftEditorClient({ draftId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'preview' | 'edit'>('preview');
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  const answerEditRef = useRef<HTMLDivElement | null>(null);
   const [formData, setFormData] = useState<UpdateDraftRequest>({
     question: '',
     answer: '',
@@ -447,13 +448,19 @@ export function DraftEditorClient({ draftId }: Props) {
 
   const handleCopyHtml = async () => {
     try {
-      await navigator.clipboard.writeText(formData.answer || '');
+      const text = (() => {
+        if (!formData.answer) return '';
+        const tmp = document.createElement('div');
+        tmp.innerHTML = formData.answer;
+        return tmp.textContent || tmp.innerText || '';
+      })();
+      await navigator.clipboard.writeText(text);
       setCopyState('copied');
-      toast.success('HTML copied');
+      toast.success('Copied to clipboard');
       setTimeout(() => setCopyState('idle'), 1500);
     } catch (err) {
-      console.error('Copy HTML failed', err);
-      toast.error('Failed to copy HTML');
+      console.error('Copy failed', err);
+      toast.error('Failed to copy');
     }
   };
 
@@ -750,19 +757,22 @@ export function DraftEditorClient({ draftId }: Props) {
                 </div>
               ) : (
                 <div className="border rounded-lg p-3 bg-white shadow-sm">
-                  <Textarea
-                    value={formData.answer || ''}
-                    onChange={(e) =>
+                  <div
+                    ref={answerEditRef}
+                    className="prose prose-slate max-w-none min-h-[200px] outline-none"
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={(e) => {
+                      const html = (e.currentTarget as HTMLDivElement | null)?.innerHTML ?? '';
                       setFormData((prev) => ({
                         ...prev,
-                        answer: e.target.value,
-                      }))
-                    }
-                    rows={12}
-                    className="font-mono text-sm"
+                        answer: html,
+                      }));
+                    }}
+                    dangerouslySetInnerHTML={{ __html: formData.answer || '' }}
                   />
                   <p className="mt-2 text-xs text-slate-500">
-                    Tip: Edit the HTML directly here; Preview shows the rendered view.
+                    Tip: Edit directly in place; Preview shows the rendered result. Use Copy to grab plain text.
                   </p>
                 </div>
               )}

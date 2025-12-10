@@ -302,8 +302,8 @@ export function DraftEditorClient({ draftId }: Props) {
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'preview' | 'edit'>('preview');
-  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
-  const answerEditRef = useRef<HTMLDivElement | null>(null);
+  const [copyHtmlState, setCopyHtmlState] = useState<'idle' | 'copied'>('idle');
+  const [copyTextState, setCopyTextState] = useState<'idle' | 'copied'>('idle');
   const [formData, setFormData] = useState<UpdateDraftRequest>({
     question: '',
     answer: '',
@@ -448,6 +448,18 @@ export function DraftEditorClient({ draftId }: Props) {
 
   const handleCopyHtml = async () => {
     try {
+      await navigator.clipboard.writeText(formData.answer || '');
+      setCopyHtmlState('copied');
+      toast.success('Formatted content copied');
+      setTimeout(() => setCopyHtmlState('idle'), 1500);
+    } catch (err) {
+      console.error('Copy formatted failed', err);
+      toast.error('Failed to copy formatted content');
+    }
+  };
+
+  const handleCopyPlain = async () => {
+    try {
       const text = (() => {
         if (!formData.answer) return '';
         const tmp = document.createElement('div');
@@ -455,12 +467,12 @@ export function DraftEditorClient({ draftId }: Props) {
         return tmp.textContent || tmp.innerText || '';
       })();
       await navigator.clipboard.writeText(text);
-      setCopyState('copied');
-      toast.success('Copied to clipboard');
-      setTimeout(() => setCopyState('idle'), 1500);
+      setCopyTextState('copied');
+      toast.success('Plain text copied');
+      setTimeout(() => setCopyTextState('idle'), 1500);
     } catch (err) {
-      console.error('Copy failed', err);
-      toast.error('Failed to copy');
+      console.error('Copy plain failed', err);
+      toast.error('Failed to copy plain text');
     }
   };
 
@@ -709,22 +721,40 @@ export function DraftEditorClient({ draftId }: Props) {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Answer</Label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleCopyHtml}
                     className="flex items-center gap-1"
                   >
-                    {copyState === 'copied' ? (
+                    {copyHtmlState === 'copied' ? (
                       <>
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span>Copied</span>
+                        <span>Copied (formatted)</span>
                       </>
                     ) : (
                       <>
                         <Copy className="h-4 w-4" />
-                        <span>Copy</span>
+                        <span>Copy formatted</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyPlain}
+                    className="flex items-center gap-1"
+                  >
+                    {copyTextState === 'copied' ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <span>Copied (plain)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        <span>Copy plain</span>
                       </>
                     )}
                   </Button>
@@ -757,22 +787,19 @@ export function DraftEditorClient({ draftId }: Props) {
                 </div>
               ) : (
                 <div className="border rounded-lg p-3 bg-white shadow-sm">
-                  <div
-                    ref={answerEditRef}
-                    className="prose prose-slate max-w-none min-h-[200px] outline-none"
-                    contentEditable
-                    suppressContentEditableWarning
-                    onInput={(e) => {
-                      const html = (e.currentTarget as HTMLDivElement | null)?.innerHTML ?? '';
+                  <Textarea
+                    value={formData.answer || ''}
+                    onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        answer: html,
-                      }));
-                    }}
-                    dangerouslySetInnerHTML={{ __html: formData.answer || '' }}
+                        answer: e.target.value,
+                      }))
+                    }
+                    rows={12}
+                    className="font-mono text-sm"
                   />
                   <p className="mt-2 text-xs text-slate-500">
-                    Tip: Edit directly in place; Preview shows the rendered result. Use Copy to grab plain text.
+                    Tip: Edit in plain text here; Preview shows the rendered formatting. Use Copy formatted or Copy plain as needed.
                   </p>
                 </div>
               )}

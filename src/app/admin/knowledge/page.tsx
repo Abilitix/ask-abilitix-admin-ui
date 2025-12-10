@@ -961,7 +961,7 @@ export default function KnowledgeStudioPage() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white w-full sm:max-w-lg rounded-xl shadow-2xl p-5 space-y-4">
+          <div className="bg-white w-full sm:max-w-lg rounded-xl shadow-2xl p-5 space-y-4 max-h-[85vh] flex flex-col">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Generate</p>
@@ -978,7 +978,7 @@ export default function KnowledgeStudioPage() {
               </Button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1">
               <div className="space-y-2">
                 <Label htmlFor="roleId">Role ID</Label>
                 <Input
@@ -1026,28 +1026,6 @@ export default function KnowledgeStudioPage() {
                     <p className="text-xs text-slate-500">
                       Pick your JD and CVs. One CV → single brief; multiple CVs → comparison brief.
                     </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-slate-600">Or enter doc IDs manually</Label>
-                    <Textarea
-                      placeholder="doc_id_1, doc_id_2"
-                      value={jobForm.docIds}
-                      onChange={(e) => {
-                        setJobForm((prev) => ({ ...prev, docIds: e.target.value }));
-                        const manualIds = e.target.value
-                          .split(',')
-                          .map((d) => d.trim())
-                          .filter(Boolean);
-                        if (manualIds.length > 0) {
-                          setJobSelectedDocIds(manualIds);
-                        } else {
-                          setJobSelectedDocIds([]);
-                        }
-                      }}
-                      disabled={jobForm.submitting || jobForm.polling}
-                      rows={2}
-                    />
-                    <p className="text-xs text-slate-500">Comma-separated document IDs. Use if context docs are missing.</p>
                   </div>
                 </div>
               </details>

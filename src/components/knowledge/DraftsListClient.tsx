@@ -178,17 +178,32 @@ export function DraftsListClient() {
 
   // Merge drafts
   const handleMerge = async (sourceId: string, targetId: string) => {
+    if (!sourceId || !targetId) {
+      toast.error('Select both source and target drafts before merging.');
+      return;
+    }
     setActionLoading((prev) => new Map(prev).set(`${sourceId}-merge`, true));
     try {
       const res = await fetch(`/api/admin/knowledge/drafts/${targetId}/merge`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source_draft_id: sourceId }),
+        body: JSON.stringify({ source_id: sourceId }),
       });
 
       if (!res.ok) {
-        const errorData = (await res.json().catch(() => ({}))) as KnowledgeErrorResponse;
-        toast.error(errorData.detail || errorData.message || 'Failed to merge drafts');
+        let detail = '';
+        try {
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const errJson = await res.json().catch(() => ({}));
+            detail = errJson.detail || errJson.message || errJson.error || '';
+          } else {
+            detail = await res.text().catch(() => '');
+          }
+        } catch {
+          /* ignore */
+        }
+        toast.error(detail || `Failed to merge drafts (${res.status})`);
         return;
       }
 

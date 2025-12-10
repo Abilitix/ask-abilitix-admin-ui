@@ -66,25 +66,76 @@ function CitationsEditor({ citations = [], onChange }: CitationsEditorProps) {
 
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-        const title = data.title || data.file_name || 'Unknown Document';
-        setDocTitles((prev) => {
-          // Only update if we don't already have it (avoid overwriting)
-          if (!prev[docId]) {
-            return { ...prev, [docId]: title };
-          }
-          return prev;
+        
+        // Log the response to debug
+        console.log('[CitationsEditor] Document fetch response:', {
+          docId,
+          status: res.status,
+          dataKeys: Object.keys(data || {}),
+          hasTitle: !!data.title,
+          hasFileName: !!data.file_name,
+          hasId: !!data.id,
+          hasDocId: !!data.doc_id,
+          dataSample: JSON.stringify(data).slice(0, 300),
         });
+        
+        // Try different possible field names and structures
+        // Admin API might return: { id, title, ... } or { doc_id, title, ... }
+        const title = 
+          data.title || 
+          data.file_name || 
+          data.name ||
+          (data.doc && (data.doc.title || data.doc.file_name)) ||
+          null;
+        
+        if (!title) {
+          console.warn('[CitationsEditor] Could not find title in response:', {
+            docId,
+            dataKeys: Object.keys(data || {}),
+            data,
+          });
+          setDocTitles((prev) => {
+            if (!prev[docId]) {
+              return { ...prev, [docId]: 'Unknown Document' };
+            }
+            return prev;
+          });
+        } else {
+          setDocTitles((prev) => {
+            // Only update if we don't already have it (avoid overwriting)
+            if (!prev[docId]) {
+              return { ...prev, [docId]: title };
+            }
+            return prev;
+          });
+        }
       } else {
-        // Document not found or error - set a placeholder
+        // Document not found or error - log and set placeholder
+        const errorText = await res.text().catch(() => '');
+        console.error('[CitationsEditor] Document fetch failed:', {
+          docId,
+          status: res.status,
+          statusText: res.statusText,
+          error: errorText.slice(0, 200),
+        });
+        
         setDocTitles((prev) => {
           if (!prev[docId]) {
-            return { ...prev, [docId]: 'Document not found' };
+            const errorMsg = res.status === 404 
+              ? 'Document not found' 
+              : res.status === 403
+              ? 'Access denied'
+              : `Error (${res.status})`;
+            return { ...prev, [docId]: errorMsg };
           }
           return prev;
         });
       }
     } catch (err) {
-      console.error('[CitationsEditor] Failed to fetch document:', err);
+      console.error('[CitationsEditor] Failed to fetch document:', {
+        docId,
+        error: err,
+      });
       setDocTitles((prev) => {
         if (!prev[docId]) {
           return { ...prev, [docId]: 'Error loading document' };

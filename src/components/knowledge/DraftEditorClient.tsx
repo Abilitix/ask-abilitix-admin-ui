@@ -302,8 +302,10 @@ export function DraftEditorClient({ draftId }: Props) {
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'preview' | 'edit'>('preview');
-  const [copyHtmlState, setCopyHtmlState] = useState<'idle' | 'copied'>('idle');
-  const [copyTextState, setCopyTextState] = useState<'idle' | 'copied'>('idle');
+  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  const [copyPlainState, setCopyPlainState] = useState<'idle' | 'copied'>('idle');
+  const [editingAnswer, setEditingAnswer] = useState<string>('');
+  const editContentRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<UpdateDraftRequest>({
     question: '',
     answer: '',
@@ -377,6 +379,7 @@ export function DraftEditorClient({ draftId }: Props) {
         channel: data.channel || '',
         citations: data.citations || [],
       });
+      setEditingAnswer(data.answer || '');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load draft');
     } finally {
@@ -392,10 +395,13 @@ export function DraftEditorClient({ draftId }: Props) {
   const handleSave = async (override?: Partial<UpdateDraftRequest>) => {
     setSaving(true);
     try {
+      // If in edit mode, sync editingAnswer to formData.answer
+      const answerToSave = mode === 'edit' ? editingAnswer : formData.answer;
+      
       const res = await fetch(`/api/admin/knowledge/drafts/${draftId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, ...override }),
+        body: JSON.stringify({ ...formData, answer: answerToSave, ...override }),
       });
 
       if (!res.ok) {
@@ -406,12 +412,41 @@ export function DraftEditorClient({ draftId }: Props) {
 
       const updated: Draft = await res.json();
       setDraft(updated);
+      setFormData({
+        ...formData,
+        answer: updated.answer || '',
+      });
+      setEditingAnswer(updated.answer || '');
+      
+      // Exit edit mode after save
+      if (mode === 'edit') {
+        setMode('preview');
+      }
+      
       toast.success('Draft saved successfully');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save draft');
     } finally {
       setSaving(false);
     }
+  };
+
+  // Handle edit mode entry
+  const handleStartEdit = () => {
+    setEditingAnswer(formData.answer || '');
+    setMode('edit');
+    // Set content after a brief delay to ensure DOM is ready
+    setTimeout(() => {
+      if (editContentRef.current) {
+        editContentRef.current.innerHTML = formData.answer || '';
+      }
+    }, 0);
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setEditingAnswer(formData.answer || '');
+    setMode('preview');
   };
 
   const handleApprove = async () => {
@@ -446,18 +481,82 @@ export function DraftEditorClient({ draftId }: Props) {
     }
   };
 
-  const handleCopyHtml = async () => {
+  // Copy rich text (works in Gmail/email clients)
+  const handleCopyRichText = async () => {
     try {
-      await navigator.clipboard.writeText(formData.answer || '');
-      setCopyHtmlState('copied');
-      toast.success('Formatted content copied');
-      setTimeout(() => setCopyHtmlState('idle'), 1500);
+      if (!formData.answer) {
+        toast.error('No content to copy');
+        return;
+      }
+
+      // Create a temporary element to hold the HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = formData.answer;
+      tempDiv.style.position = 'fixed';
+      tempDiv.style.left = '-9999px';
+      document.body.appendChild(tempDiv);
+
+      const htmlContent = formData.answer;
+      const plainContent = tempDiv.textContent || tempDiv.innerText || '';
+
+      // Try modern Clipboard API with ClipboardItem (supports HTML)
+      try {
+        if (navigator.clipboard && typeof (window as any).ClipboardItem !== 'undefined') {
+          const ClipboardItem = (window as any).ClipboardItem;
+          const clipboardItem = new ClipboardItem({
+            'text/html': new Blob([htmlContent], { type: 'text/html' }),
+            'text/plain': new Blob([plainContent], { type: 'text/plain' }),
+          });
+          await navigator.clipboard.write([clipboardItem]);
+          document.body.removeChild(tempDiv);
+          setCopyState('copied');
+          toast.success('Content copied (formatted)');
+          setTimeout(() => setCopyState('idle'), 2000);
+          return;
+        }
+      } catch (clipboardItemErr) {
+        // ClipboardItem failed, fall through to execCommand
+        console.log('ClipboardItem not supported, using fallback');
+      }
+
+      // Fallback: Use execCommand (works in most browsers, preserves formatting in Gmail)
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(tempDiv);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      const success = document.execCommand('copy');
+      selection?.removeAllRanges();
+      document.body.removeChild(tempDiv);
+
+      if (success) {
+        setCopyState('copied');
+        toast.success('Content copied (formatted)');
+        setTimeout(() => setCopyState('idle'), 2000);
+      } else {
+        throw new Error('execCommand copy failed');
+      }
     } catch (err) {
-      console.error('Copy formatted failed', err);
-      toast.error('Failed to copy formatted content');
+      console.error('Copy rich text failed', err);
+      // Final fallback: plain text
+      try {
+        const text = (() => {
+          if (!formData.answer) return '';
+          const tmp = document.createElement('div');
+          tmp.innerHTML = formData.answer;
+          return tmp.textContent || tmp.innerText || '';
+        })();
+        await navigator.clipboard.writeText(text);
+        setCopyState('copied');
+        toast.success('Content copied (plain text)');
+        setTimeout(() => setCopyState('idle'), 2000);
+      } catch (fallbackErr) {
+        toast.error('Failed to copy content');
+      }
     }
   };
 
+  // Copy as plain text (strips formatting)
   const handleCopyPlain = async () => {
     try {
       const text = (() => {
@@ -467,9 +566,9 @@ export function DraftEditorClient({ draftId }: Props) {
         return tmp.textContent || tmp.innerText || '';
       })();
       await navigator.clipboard.writeText(text);
-      setCopyTextState('copied');
+      setCopyPlainState('copied');
       toast.success('Plain text copied');
-      setTimeout(() => setCopyTextState('idle'), 1500);
+      setTimeout(() => setCopyPlainState('idle'), 2000);
     } catch (err) {
       console.error('Copy plain failed', err);
       toast.error('Failed to copy plain text');
@@ -500,6 +599,7 @@ export function DraftEditorClient({ draftId }: Props) {
         channel: regenerated.channel || '',
         citations: regenerated.citations || [],
       });
+      setEditingAnswer(regenerated.answer || '');
       toast.success('Draft regenerated successfully');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to regenerate draft');
@@ -584,24 +684,6 @@ export function DraftEditorClient({ draftId }: Props) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Button
-                    variant={mode === 'preview' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setMode('preview')}
-                    className="min-w-[90px]"
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    Preview
-                  </Button>
-                  <Button
-                    variant={mode === 'edit' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setMode('edit')}
-                    className="min-w-[90px]"
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
                   <Badge className={draft.status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-700 border-slate-200'}>
                     {draft.status === 'approved' ? (
                       <span className="flex items-center gap-1">
@@ -617,14 +699,10 @@ export function DraftEditorClient({ draftId }: Props) {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
                   <Download className="h-4 w-4 mr-2" />
                   Download PDF
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleCopyHtml}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy HTML
                 </Button>
                 <Button
                   variant="outline"
@@ -698,7 +776,7 @@ export function DraftEditorClient({ draftId }: Props) {
               <div className="space-y-1">
                 <CardTitle className="text-xl sm:text-2xl font-bold">Draft</CardTitle>
                 <CardDescription className="text-sm sm:text-base">
-                  Preview is rich and formatted; Edit uses a lightweight rich-text surface (no raw HTML shown).
+                  View the formatted draft in preview mode, or click Edit to make changes with WYSIWYG editing.
                 </CardDescription>
               </div>
             </div>
@@ -717,64 +795,87 @@ export function DraftEditorClient({ draftId }: Props) {
               />
             </div>
 
-            {/* Answer with Preview/Edit toggle */}
+            {/* Answer with Preview/Edit mode */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Answer</Label>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyHtml}
-                    className="flex items-center gap-1"
-                  >
-                    {copyHtmlState === 'copied' ? (
-                      <>
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span>Copied (formatted)</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4" />
-                        <span>Copy formatted</span>
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyPlain}
-                    className="flex items-center gap-1"
-                  >
-                    {copyTextState === 'copied' ? (
-                      <>
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span>Copied (plain)</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4" />
-                        <span>Copy plain</span>
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant={mode === 'preview' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setMode('preview')}
-                  >
-                    <Eye className="h-4 w-4 mr-1.5" />
-                    Preview
-                  </Button>
-                  <Button
-                    variant={mode === 'edit' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setMode('edit')}
-                  >
-                    <Pencil className="h-4 w-4 mr-1.5" />
-                    Edit
-                  </Button>
-                </div>
+                {mode === 'preview' ? (
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyRichText}
+                      className="flex items-center gap-1"
+                    >
+                      {copyState === 'copied' ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCopyPlain}
+                      className="flex items-center gap-1 text-slate-600"
+                    >
+                      {copyPlainState === 'copied' ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          <span>Copy as Plain Text</span>
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleStartEdit}
+                    >
+                      <Pencil className="h-4 w-4 mr-1.5" />
+                      Edit
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelEdit}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleSave()}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-1.5" />
+                          Save
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {mode === 'preview' ? (
@@ -786,20 +887,25 @@ export function DraftEditorClient({ draftId }: Props) {
                   )}
                 </div>
               ) : (
-                <div className="border rounded-lg p-3 bg-white shadow-sm">
-                  <Textarea
-                    value={formData.answer || ''}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        answer: e.target.value,
-                      }))
-                    }
-                    rows={12}
-                    className="font-mono text-sm"
+                <div className="border rounded-lg p-4 bg-white shadow-sm">
+                  <div
+                    ref={editContentRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={(e) => {
+                      const target = e.currentTarget;
+                      if (target) {
+                        setEditingAnswer(target.innerHTML);
+                      }
+                    }}
+                    className="min-h-[300px] p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md prose prose-slate max-w-none prose-headings:text-slate-900 prose-strong:text-slate-900 prose-p:text-slate-900 prose-li:text-slate-900 prose-a:text-blue-600 hover:prose-a:text-blue-700"
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
                   />
-                  <p className="mt-2 text-xs text-slate-500">
-                    Tip: Edit in plain text here; Preview shows the rendered formatting. Use Copy formatted or Copy plain as needed.
+                  <p className="mt-3 text-xs text-slate-500">
+                    Tip: Edit directly in the formatted view. Use <strong>Ctrl+B</strong> for bold, <strong>Ctrl+I</strong> for italic, or right-click for formatting options.
                   </p>
                 </div>
               )}

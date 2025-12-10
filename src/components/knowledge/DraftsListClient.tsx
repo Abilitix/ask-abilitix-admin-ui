@@ -23,7 +23,6 @@ import {
   X,
   Edit,
   Trash2,
-  Merge,
   AlertCircle,
   CheckCircle2,
   FileText,
@@ -37,10 +36,6 @@ import { Breadcrumbs } from './Breadcrumbs';
 import type { Draft, DraftListResponse, KnowledgeErrorResponse } from '@/lib/types/knowledge';
 
 type StatusFilter = 'draft' | 'approved' | 'all';
-type MergeState = {
-  sourceId: string | null;
-  targetId: string | null;
-};
 
 export function DraftsListClient() {
   const router = useRouter();
@@ -53,7 +48,6 @@ export function DraftsListClient() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [actionLoading, setActionLoading] = useState<Map<string, boolean>>(new Map());
-  const [mergeState, setMergeState] = useState<MergeState>({ sourceId: null, targetId: null });
   const [selectedDraftIds, setSelectedDraftIds] = useState<Set<string>>(new Set());
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [confirmationDialog, setConfirmationDialog] = useState<{
@@ -176,50 +170,6 @@ export function DraftsListClient() {
     }
   };
 
-  // Merge drafts
-  const handleMerge = async (sourceId: string, targetId: string) => {
-    if (!sourceId || !targetId) {
-      toast.error('Select both source and target drafts before merging.');
-      return;
-    }
-    setActionLoading((prev) => new Map(prev).set(`${sourceId}-merge`, true));
-    try {
-      const res = await fetch(`/api/admin/knowledge/drafts/${targetId}/merge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source_id: sourceId }),
-      });
-
-      if (!res.ok) {
-        let detail = '';
-        try {
-          const contentType = res.headers.get('content-type') || '';
-          if (contentType.includes('application/json')) {
-            const errJson = await res.json().catch(() => ({}));
-            detail = errJson.detail || errJson.message || errJson.error || '';
-          } else {
-            detail = await res.text().catch(() => '');
-          }
-        } catch {
-          /* ignore */
-        }
-        toast.error(detail || `Failed to merge drafts (${res.status})`);
-        return;
-      }
-
-      toast.success('Drafts merged successfully');
-      setMergeState({ sourceId: null, targetId: null });
-      fetchDrafts();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to merge drafts');
-    } finally {
-      setActionLoading((prev) => {
-        const next = new Map(prev);
-        next.delete(`${sourceId}-merge`);
-        return next;
-      });
-    }
-  };
 
   // Open editor (navigate to draft editor page)
   const handleOpenEditor = (draftId: string) => {
@@ -410,18 +360,13 @@ export function DraftsListClient() {
           {!loading && !error && filteredDrafts.length > 0 && (
             <div className="space-y-2">
               {filteredDrafts.map((draft) => {
-                const isLoading = actionLoading.get(draft.id) || actionLoading.get(`${draft.id}-merge`);
-                const isSource = mergeState.sourceId === draft.id;
-                const isTarget = mergeState.targetId === draft.id;
-                const canMerge = mergeState.sourceId && mergeState.sourceId !== draft.id;
+                const isLoading = actionLoading.get(draft.id);
                 const isSelected = selectedDraftIds.has(draft.id);
 
                 return (
                   <Card
                     key={draft.id}
                     className={`transition-all duration-200 ${
-                      isSource ? 'border-indigo-300 bg-indigo-50 shadow-indigo-100' : ''
-                    } ${isTarget ? 'border-green-300 bg-green-50 shadow-green-100' : ''} ${
                       isSelected ? 'border-blue-300 bg-blue-50 shadow-blue-100' : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
                     }`}
                   >
@@ -496,100 +441,38 @@ export function DraftsListClient() {
 
                       {/* Actions */}
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 w-full sm:w-auto">
-                        {mergeState.sourceId ? (
-                          <>
-                            {isSource && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setMergeState({ sourceId: null, targetId: null })}
-                                className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
-                              >
-                                Cancel
-                              </Button>
-                            )}
-                            {canMerge && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => {
-                                  setConfirmationDialog({
-                                    open: true,
-                                    title: 'Merge Drafts',
-                                    message: `Merge draft "${truncate(draft.question, 50)}" into the selected draft? This will combine the content and delete the source draft.`,
-                                    confirmText: 'Merge',
-                                    variant: 'warning',
-                                    onConfirm: () => {
-                                      if (mergeState.sourceId) {
-                                        handleMerge(mergeState.sourceId, draft.id);
-                                      }
-                                      setConfirmationDialog((prev) => ({ ...prev, open: false }));
-                                    },
-                                  });
-                                }}
-                                disabled={isLoading}
-                                className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
-                              >
-                                {isLoading ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    <span>Merging...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Merge className="h-4 w-4 mr-2" />
-                                    <span>Merge Here</span>
-                                  </>
-                                )}
-                              </Button>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenEditor(draft.id)}
-                              disabled={isLoading}
-                              className="min-h-[44px] sm:min-h-0 w-full sm:w-auto flex-1 sm:flex-none"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              <span>Edit</span>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setMergeState({ sourceId: draft.id, targetId: null })}
-                              disabled={isLoading}
-                              className="min-h-[44px] sm:min-h-0 w-full sm:w-auto flex-1 sm:flex-none"
-                            >
-                              <Merge className="h-4 w-4 mr-2" />
-                              <span>Merge</span>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setConfirmationDialog({
-                                  open: true,
-                                  title: 'Delete Draft',
-                                  message: `Are you sure you want to delete this draft? This action cannot be undone.`,
-                                  confirmText: 'Delete',
-                                  variant: 'destructive',
-                                  onConfirm: () => {
-                                    handleDelete(draft.id);
-                                    setConfirmationDialog((prev) => ({ ...prev, open: false }));
-                                  },
-                                });
-                              }}
-                              disabled={isLoading}
-                              className="min-h-[44px] sm:min-h-0 w-full sm:w-auto flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              <span>Delete</span>
-                            </Button>
-                          </>
-                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEditor(draft.id)}
+                          disabled={isLoading}
+                          className="min-h-[44px] sm:min-h-0 w-full sm:w-auto flex-1 sm:flex-none"
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          <span>Edit</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setConfirmationDialog({
+                              open: true,
+                              title: 'Delete Draft',
+                              message: `Are you sure you want to delete this draft? This action cannot be undone.`,
+                              confirmText: 'Delete',
+                              variant: 'destructive',
+                              onConfirm: () => {
+                                handleDelete(draft.id);
+                                setConfirmationDialog((prev) => ({ ...prev, open: false }));
+                              },
+                            });
+                          }}
+                          disabled={isLoading}
+                          className="min-h-[44px] sm:min-h-0 w-full sm:w-auto flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          <span>Delete</span>
+                        </Button>
                       </div>
                     </div>
                     </CardContent>

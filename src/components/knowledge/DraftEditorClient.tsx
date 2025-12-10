@@ -733,12 +733,13 @@ export function DraftEditorClient({ draftId }: Props) {
                     className="prose prose-slate max-w-none min-h-[200px] outline-none"
                     contentEditable
                     suppressContentEditableWarning
-                    onInput={(e) =>
+                    onInput={(e) => {
+                      const html = (e.currentTarget as HTMLDivElement | null)?.innerHTML ?? '';
                       setFormData((prev) => ({
                         ...prev,
-                        answer: (e.currentTarget as HTMLDivElement).innerHTML,
-                      }))
-                    }
+                        answer: html,
+                      }));
+                    }}
                     dangerouslySetInnerHTML={{ __html: formData.answer || '' }}
                   />
                   <p className="mt-2 text-xs text-slate-500">

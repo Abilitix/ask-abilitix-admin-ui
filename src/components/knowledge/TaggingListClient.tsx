@@ -489,28 +489,32 @@ export function TaggingListClient() {
         </CardHeader>
         <CardContent className="p-4 sm:p-6 space-y-5 sm:space-y-6">
           <div className="space-y-4">
-            {/* Toggle between "Needs Tagging" and "All Documents" */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-slate-700">View:</span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant={!showAll ? 'default' : 'outline'}
-                    onClick={() => setShowAll(false)}
-                    className="min-h-[36px] sm:min-h-[32px] px-4 font-medium shadow-sm hover:shadow-md transition-all"
-                  >
-                    Needs Tagging
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={showAll ? 'default' : 'outline'}
-                    onClick={() => setShowAll(true)}
-                    className="min-h-[36px] sm:min-h-[32px] px-4 font-medium shadow-sm hover:shadow-md transition-all"
-                  >
-                    All Documents
-                  </Button>
-                </div>
+            {/* Toggle between "Needs Tagging" and "All Documents" - Segmented Control Pattern */}
+            <div className="space-y-2.5">
+              <Label className="text-sm font-semibold text-slate-700">View</Label>
+              <div className="inline-flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setShowAll(false)}
+                  className={`px-4 py-2 text-sm font-semibold rounded-md transition-all duration-200 min-h-[40px] sm:min-h-[36px] ${
+                    !showAll
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Needs Tagging
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAll(true)}
+                  className={`px-4 py-2 text-sm font-semibold rounded-md transition-all duration-200 min-h-[40px] sm:min-h-[36px] ${
+                    showAll
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All Documents
+                </button>
               </div>
             </div>
 

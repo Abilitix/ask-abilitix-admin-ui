@@ -437,7 +437,7 @@ export function TaggingListClient() {
           </Button>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 space-y-5 sm:space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5 sm:gap-6">
+          <div className="space-y-4">
             <div className="space-y-2.5">
               <Label htmlFor="search" className="text-sm font-semibold text-slate-700">Search</Label>
               <Input
@@ -449,39 +449,41 @@ export function TaggingListClient() {
               />
             </div>
             <div className="space-y-2.5">
-              <Label className="text-sm font-semibold text-slate-700">Filters</Label>
+              <Label className="text-sm font-semibold text-slate-700">Show documents missing</Label>
               <div className="flex flex-wrap gap-2.5">
                 <Button
                   type="button"
                   variant={filters.missingType ? 'default' : 'outline'}
                   onClick={() => setFilters((prev) => ({ ...prev, missingType: !prev.missingType }))}
-                  className="min-h-[44px] sm:min-h-[36px] gap-2 font-medium shadow-sm hover:shadow-md transition-shadow"
+                  className="min-h-[44px] sm:min-h-[38px] gap-2 font-medium shadow-sm hover:shadow-md transition-all"
                 >
                   <Filter className="h-4 w-4" />
-                  <span className="hidden sm:inline">Missing type</span>
-                  <span className="sm:hidden">Type</span>
+                  <span>Type</span>
                 </Button>
                 <Button
                   type="button"
                   variant={filters.missingRole ? 'default' : 'outline'}
                   onClick={() => setFilters((prev) => ({ ...prev, missingRole: !prev.missingRole }))}
-                  className="min-h-[44px] sm:min-h-[36px] gap-2 font-medium shadow-sm hover:shadow-md transition-shadow"
+                  className="min-h-[44px] sm:min-h-[38px] gap-2 font-medium shadow-sm hover:shadow-md transition-all"
                 >
                   <Filter className="h-4 w-4" />
-                  <span className="hidden sm:inline">Missing role</span>
-                  <span className="sm:hidden">Role</span>
+                  <span>Role</span>
                 </Button>
                 <Button
                   type="button"
                   variant={filters.missingCandidate ? 'default' : 'outline'}
                   onClick={() => setFilters((prev) => ({ ...prev, missingCandidate: !prev.missingCandidate }))}
-                  className="min-h-[44px] sm:min-h-[36px] gap-2 font-medium shadow-sm hover:shadow-md transition-shadow"
+                  className="min-h-[44px] sm:min-h-[38px] gap-2 font-medium shadow-sm hover:shadow-md transition-all"
                 >
                   <Filter className="h-4 w-4" />
-                  <span className="hidden sm:inline">Missing candidate</span>
-                  <span className="sm:hidden">Candidate</span>
+                  <span>Candidate</span>
                 </Button>
               </div>
+              <p className="text-xs text-slate-500 mt-2">
+                {filters.missingType || filters.missingRole || filters.missingCandidate
+                  ? 'Showing documents that need any of the selected tags. Documents with all tags complete are not shown.'
+                  : 'Enable at least one filter to see documents needing tags.'}
+              </p>
             </div>
           </div>
 
@@ -507,18 +509,19 @@ export function TaggingListClient() {
           )}
 
           {!loading && !error && docs.length === 0 && (
-            <div className="text-center py-10 space-y-3">
-              <FileText className="h-8 w-8 mx-auto text-slate-300" />
-              <p className="text-sm text-slate-600 font-medium">No documents need tagging</p>
-              <p className="text-xs text-slate-500">
-                {filters.missingType || filters.missingRole || filters.missingCandidate
-                  ? 'No documents match your current filters. Try adjusting the filters or uploading new documents.'
-                  : 'All documents appear to be properly tagged. Upload new documents to tag them.'}
-              </p>
+            <div className="text-center py-12 space-y-4">
+              <FileText className="h-12 w-12 mx-auto text-slate-300" />
+              <div className="space-y-2">
+                <p className="text-base text-slate-700 font-semibold">No documents need tagging</p>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">
+                  {filters.missingType || filters.missingRole || filters.missingCandidate
+                    ? 'No documents match your current filters. Documents that are already fully tagged are not shown here. Try adjusting the filters or uploading new documents.'
+                    : 'Enable at least one filter above to see documents needing tags. Documents that are already fully tagged are not shown.'}
+                </p>
+              </div>
               {(filters.missingType || filters.missingRole || filters.missingCandidate) && (
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => {
                     setFilters({
                       search: '',
@@ -527,9 +530,9 @@ export function TaggingListClient() {
                       missingCandidate: true,
                     });
                   }}
-                  className="mt-2"
+                  className="mt-4 min-h-[44px] sm:min-h-0"
                 >
-                  Reset Filters
+                  Reset to Default Filters
                 </Button>
               )}
             </div>

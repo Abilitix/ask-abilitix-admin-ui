@@ -302,6 +302,7 @@ export function DraftEditorClient({ draftId }: Props) {
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'preview' | 'edit'>('preview');
+  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
   const [formData, setFormData] = useState<UpdateDraftRequest>({
     question: '',
     answer: '',
@@ -447,7 +448,9 @@ export function DraftEditorClient({ draftId }: Props) {
   const handleCopyHtml = async () => {
     try {
       await navigator.clipboard.writeText(formData.answer || '');
+      setCopyState('copied');
       toast.success('HTML copied');
+      setTimeout(() => setCopyState('idle'), 1500);
     } catch (err) {
       console.error('Copy HTML failed', err);
       toast.error('Failed to copy HTML');
@@ -701,6 +704,24 @@ export function DraftEditorClient({ draftId }: Props) {
                 <Label>Answer</Label>
                 <div className="flex items-center gap-2">
                   <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyHtml}
+                    className="flex items-center gap-1"
+                  >
+                    {copyState === 'copied' ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <span>Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
                     variant={mode === 'preview' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setMode('preview')}
@@ -729,21 +750,19 @@ export function DraftEditorClient({ draftId }: Props) {
                 </div>
               ) : (
                 <div className="border rounded-lg p-3 bg-white shadow-sm">
-                  <div
-                    className="prose prose-slate max-w-none min-h-[200px] outline-none"
-                    contentEditable
-                    suppressContentEditableWarning
-                    onInput={(e) => {
-                      const html = (e.currentTarget as HTMLDivElement | null)?.innerHTML ?? '';
+                  <Textarea
+                    value={formData.answer || ''}
+                    onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        answer: html,
-                      }));
-                    }}
-                    dangerouslySetInnerHTML={{ __html: formData.answer || '' }}
+                        answer: e.target.value,
+                      }))
+                    }
+                    rows={12}
+                    className="font-mono text-sm"
                   />
                   <p className="mt-2 text-xs text-slate-500">
-                    Tip: Paste rich text/HTML; we’ll store it as HTML. No raw HTML textarea is shown.
+                    Tip: Edit the HTML directly here; Preview shows the rendered view.
                   </p>
                 </div>
               )}

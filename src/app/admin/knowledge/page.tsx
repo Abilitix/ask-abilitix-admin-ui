@@ -208,8 +208,12 @@ export default function KnowledgeStudioPage() {
 
     setJobForm((prev) => ({ ...prev, submitting: true, polling: false, error: null }));
     try {
-      const body: any = { template_id: jobTemplate.id };
-      if (docIds.length) body.doc_ids = docIds;
+      // Backend requires doc_ids in payload (even if empty array)
+      const body: any = { 
+        template_id: jobTemplate.id,
+        doc_ids: docIds, // Always include doc_ids (empty array if none provided)
+      };
+      
       if (hasContext) {
         body.context = {
           ...(jobForm.roleId ? { role_id: jobForm.roleId } : {}),

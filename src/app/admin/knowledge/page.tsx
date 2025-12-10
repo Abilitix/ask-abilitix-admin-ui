@@ -225,23 +225,42 @@ export default function KnowledgeStudioPage() {
       });
 
       if (!res.ok) {
-        const errData = (await res.json().catch(() => ({}))) as KnowledgeErrorResponse & { detail?: string };
-        const msg =
-          errData.detail ||
-          (errData as any).message ||
-          (await res.text().catch(() => 'Failed to start generation.'));
+        // Try to parse error response - handle both JSON and text
+        let errData: any = {};
+        let errorText = '';
+        
+        try {
+          const contentType = res.headers.get('content-type');
+          if (contentType?.includes('application/json')) {
+            errData = await res.json().catch(() => ({}));
+            errorText = errData.detail || errData.message || errData.error || '';
+          } else {
+            errorText = await res.text().catch(() => '');
+          }
+        } catch (e) {
+          errorText = await res.text().catch(() => '');
+        }
+        
+        const msg = errorText || errData.detail || errData.message || `Failed to start generation (${res.status}).`;
         
         // Enhanced error logging for SQL generation issues
         console.error('[Knowledge Studio] Generation start failed:', {
           status: res.status,
           statusText: res.statusText,
           error: errData,
+          errorText,
           message: msg,
+          headers: Object.fromEntries(res.headers.entries()),
         });
         
         // Check for 403 (feature/permission) errors
         if (res.status === 403) {
-          const enhancedMsg = `${msg}. Check feature flags and tenant entitlements. Use GET /api/admin/knowledge/debug/features to diagnose.`;
+          const enhancedMsg = errorText 
+            ? `${errorText}. Check feature flags and tenant entitlements. Use window.debugKnowledgeStudio() in console to diagnose.`
+            : `Access denied (403). Check feature flags and tenant entitlements. Use window.debugKnowledgeStudio() in console to diagnose.`;
+          setJobForm((prev) => ({ ...prev, submitting: false, error: enhancedMsg }));
+        } else if (res.status === 400) {
+          const enhancedMsg = errorText || `Invalid request (400). ${msg}`;
           setJobForm((prev) => ({ ...prev, submitting: false, error: enhancedMsg }));
         } else {
           setJobForm((prev) => ({ ...prev, submitting: false, error: msg }));
@@ -932,11 +951,22 @@ export default function KnowledgeStudioPage() {
               </details>
 
               {jobForm.error && (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {jobForm.error.startsWith('rag_extraction_failed')
-                    ? 'Missing required docs. Please attach a JD and CV for this role/candidate (or provide doc_ids).'
-                    : jobForm.error}
-                  <p className="text-xs text-red-500 mt-1 truncate">{jobForm.error}</p>
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 space-y-2">
+                  {jobForm.error.startsWith('rag_extraction_failed') ? (
+                    <>
+                      <p>Missing required docs. Please attach a JD and CV for this role/candidate (or provide doc_ids).</p>
+                      <p className="text-xs text-red-500 break-words">{jobForm.error}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="break-words">{jobForm.error}</p>
+                      {jobForm.error.includes('403') || jobForm.error.includes('Access denied') ? (
+                        <p className="text-xs text-red-600 mt-2">
+                          💡 Tip: Run <code className="bg-red-100 px-1 rounded">window.debugKnowledgeStudio()</code> in the browser console for diagnostic info.
+                        </p>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               )}
             </div>

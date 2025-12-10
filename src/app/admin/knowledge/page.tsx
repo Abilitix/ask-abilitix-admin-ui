@@ -150,8 +150,56 @@ export default function KnowledgeStudioPage() {
           }));
           return;
         }
-        const data = await res.json().catch(() => ({}));
+        
+        // Try to parse JSON - detect parsing failures
+        let data: any = {};
+        let jsonParseError = false;
+        try {
+          const text = await res.text();
+          try {
+            data = JSON.parse(text);
+          } catch (parseErr) {
+            jsonParseError = true;
+            console.error('[Knowledge Studio] Failed to parse job status response:', {
+              jobId,
+              error: parseErr,
+              responseText: text.slice(0, 500),
+            });
+          }
+        } catch (textErr) {
+          jsonParseError = true;
+          console.error('[Knowledge Studio] Failed to read response text:', {
+            jobId,
+            error: textErr,
+          });
+        }
+        
+        // If JSON parsing failed, stop polling with helpful error
+        if (jsonParseError || !data || typeof data !== 'object') {
+          setJobForm((prev) => ({
+            ...prev,
+            polling: false,
+            error: 'Failed to parse job status response. This may indicate a backend serialization issue. Please try again or contact support.',
+          }));
+          return;
+        }
+        
         const status = data.status;
+        
+        // If status is missing, the response is invalid
+        if (status === undefined || status === null) {
+          console.error('[Knowledge Studio] Job status response missing status field:', {
+            jobId,
+            data,
+          });
+          setJobForm((prev) => ({
+            ...prev,
+            polling: false,
+            error: 'Invalid job status response. The job may still be processing. Please check the draft list or try again.',
+          }));
+          return;
+        }
+        
         if (status === 'completed' && data.draft_id) {
           resetJob();
           router.push(`/admin/knowledge/drafts/${data.draft_id}`);

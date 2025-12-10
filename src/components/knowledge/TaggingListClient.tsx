@@ -69,24 +69,41 @@ export function TaggingListClient() {
       // Pagination
       params.append('limit', '100');
       
-      const res = await fetch(`/api/admin/knowledge/tagging?${params.toString()}`, { cache: 'no-store' });
+      const url = `/api/admin/knowledge/tagging?${params.toString()}`;
+      console.log('[Tagging] Fetching:', url);
+      
+      const res = await fetch(url, { cache: 'no-store' });
+      
+      console.log('[Tagging] Response status:', res.status);
       
       if (res.status === 401) {
         setError('Authentication required. Please sign in again.');
+        setLoading(false);
         return;
       }
       
       if (res.status === 403) {
         setError('Knowledge Studio is not enabled for this tenant.');
+        setLoading(false);
+        return;
+      }
+      
+      if (res.status === 404) {
+        setError('Tagging endpoint not found. The backend endpoint may not be implemented yet.');
+        setLoading(false);
         return;
       }
       
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(text || `Failed to load documents (${res.status})`);
+        console.error('[Tagging] Error response:', text);
+        setError(`Failed to load documents (${res.status}): ${text || 'Unknown error'}`);
+        setLoading(false);
+        return;
       }
       
       const data = await res.json();
+      console.log('[Tagging] Response data:', data);
       
       // Debug logging
       if (process.env.NODE_ENV !== 'production') {
@@ -106,9 +123,21 @@ export function TaggingListClient() {
         (Array.isArray(data) && data) ||
         [];
       
-      console.log('[Tagging] Loaded documents:', items.length);
+      console.log('[Tagging] Loaded documents:', items.length, 'items');
+      console.log('[Tagging] Sample item:', items[0]);
+      
+      if (items.length === 0) {
+        console.log('[Tagging] No documents returned. Filters:', {
+          missingType: filters.missingType,
+          missingRole: filters.missingRole,
+          missingCandidate: filters.missingCandidate,
+          search: filters.search,
+        });
+      }
+      
       setDocs(items);
     } catch (err) {
+      console.error('[Tagging] Exception:', err);
       setError(err instanceof Error ? err.message : 'Failed to load documents.');
     } finally {
       setLoading(false);
@@ -306,8 +335,6 @@ export function TaggingListClient() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <Breadcrumbs items={[{ label: 'Needs tagging' }]} />
-
       <Card className="shadow-sm border-slate-200">
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4">
           <div>

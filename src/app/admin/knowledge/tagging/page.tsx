@@ -1,5 +1,6 @@
 import { requireAuth } from '@/lib/auth';
 import { TaggingListClient } from '@/components/knowledge/TaggingListClient';
+import { Breadcrumbs } from '@/components/knowledge/Breadcrumbs';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +9,8 @@ export default async function KnowledgeTaggingPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 space-y-4 sm:space-y-6">
+      <Breadcrumbs items={[{ label: 'Needs tagging' }]} />
+      
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">

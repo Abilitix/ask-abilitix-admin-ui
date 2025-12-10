@@ -99,11 +99,13 @@ export default function KnowledgeStudioPage() {
     error: null,
     jobId: null,
   });
+  const [jobSelectedDocIds, setJobSelectedDocIds] = useState<string[]>([]);
   const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pollAttemptsRef = useRef(0);
 
   const resetJob = () => {
     setJobTemplate(null);
+    setJobSelectedDocIds([]);
     setJobForm({
       roleId: '',
       candidateId: '',
@@ -262,10 +264,12 @@ export default function KnowledgeStudioPage() {
   const handleSubmitJob = async () => {
     if (!jobTemplate) return;
     const hasContext = jobForm.roleId || jobForm.candidateId || jobForm.clientId;
-    const docIds = jobForm.docIds
-      .split(',')
-      .map((d) => d.trim())
-      .filter(Boolean);
+    const docIds = jobSelectedDocIds.length > 0
+      ? jobSelectedDocIds
+      : jobForm.docIds
+          .split(',')
+          .map((d) => d.trim())
+          .filter(Boolean);
 
     if (!hasContext && docIds.length === 0) {
       setJobForm((prev) => ({ ...prev, error: 'Add role/candidate/client or doc IDs.' }));
@@ -1009,14 +1013,42 @@ export default function KnowledgeStudioPage() {
               <details className="text-xs text-slate-500">
                 <summary className="cursor-pointer hover:text-slate-700">Advanced: use specific doc IDs</summary>
                 <div className="mt-2 space-y-2">
-                  <Textarea
-                    placeholder="doc_id_1, doc_id_2"
-                    value={jobForm.docIds}
-                    onChange={(e) => setJobForm((prev) => ({ ...prev, docIds: e.target.value }))}
-                    disabled={jobForm.submitting || jobForm.polling}
-                    rows={2}
-                  />
-                  <p className="text-xs text-slate-500">Comma-separated document IDs. Use if context docs are missing.</p>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-slate-600">Select documents</Label>
+                    <DocumentPicker
+                      selectedDocIds={jobSelectedDocIds}
+                      onSelectionChange={(docIds) => {
+                        setJobSelectedDocIds(docIds);
+                        setJobForm((prev) => ({ ...prev, docIds: docIds.join(', ') }));
+                      }}
+                      disabled={jobForm.submitting || jobForm.polling}
+                    />
+                    <p className="text-xs text-slate-500">
+                      Pick your JD and CVs. One CV → single brief; multiple CVs → comparison brief.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-slate-600">Or enter doc IDs manually</Label>
+                    <Textarea
+                      placeholder="doc_id_1, doc_id_2"
+                      value={jobForm.docIds}
+                      onChange={(e) => {
+                        setJobForm((prev) => ({ ...prev, docIds: e.target.value }));
+                        const manualIds = e.target.value
+                          .split(',')
+                          .map((d) => d.trim())
+                          .filter(Boolean);
+                        if (manualIds.length > 0) {
+                          setJobSelectedDocIds(manualIds);
+                        } else {
+                          setJobSelectedDocIds([]);
+                        }
+                      }}
+                      disabled={jobForm.submitting || jobForm.polling}
+                      rows={2}
+                    />
+                    <p className="text-xs text-slate-500">Comma-separated document IDs. Use if context docs are missing.</p>
+                  </div>
                 </div>
               </details>
 

@@ -34,11 +34,37 @@ type FilterState = {
 
 const KNOWN_TYPES = ['jd', 'job_description', 'cv', 'resume', 'policy', 'contract', 'note', 'email'];
 
+// Helper function to check which fields are missing for a document
+// Data model:
+// - JD: requires role_id only, candidate_id should be NULL
+// - CV: requires candidate_id, role_id is recommended
+const needsTagging = (doc: Doc) => {
+  const type = doc.document_type?.toLowerCase();
+  const missingType = !type || !KNOWN_TYPES.includes(type);
+  const isJD = type === 'jd' || type === 'job_description';
+  const isCV = type === 'cv' || type === 'resume';
+  
+  // JD: only role_id is required
+  const missingRole = isJD && !doc.role_id;
+  // CV: candidate_id is required, role_id is recommended
+  const missingCandidate = isCV && !doc.candidate_id;
+  const missingRoleForCV = isCV && !doc.role_id; // Recommended but not required
+  
+  return {
+    missingType,
+    missingRole,
+    missingCandidate,
+    missingRoleForCV,
+    needs: missingType || missingRole || missingCandidate,
+  };
+};
+
 export function TaggingListClient() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  const [showAll, setShowAll] = useState(false); // Toggle between "Needs Tagging" and "All Documents"
   const [filters, setFilters] = useState<FilterState>({
     search: '',
     missingType: true,
@@ -50,27 +76,45 @@ export function TaggingListClient() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      
-      // Search query
-      if (filters.search.trim()) {
-        params.append('q', filters.search.trim());
+      let url: string;
+      let params: URLSearchParams;
+
+      if (showAll) {
+        // Show all documents - use /api/admin/docs
+        params = new URLSearchParams();
+        params.append('status', 'all');
+        params.append('limit', '100');
+        
+        if (filters.search.trim()) {
+          params.append('search', filters.search.trim());
+        }
+        
+        url = `/api/admin/docs?${params.toString()}`;
+        console.log('[Tagging] Fetching all documents:', url);
+      } else {
+        // Show only documents needing tags - use /api/admin/knowledge/tagging
+        params = new URLSearchParams();
+        
+        // Search query
+        if (filters.search.trim()) {
+          params.append('q', filters.search.trim());
+        }
+        
+        // Filter flags - backend handles filtering
+        if (filters.missingType) {
+          params.append('missing_type', 'true');
+        }
+        // missing_role covers both role_id and candidate_id for recruiter docs
+        if (filters.missingRole || filters.missingCandidate) {
+          params.append('missing_role', 'true');
+        }
+        
+        // Pagination
+        params.append('limit', '100');
+        
+        url = `/api/admin/knowledge/tagging?${params.toString()}`;
+        console.log('[Tagging] Fetching documents needing tags:', url);
       }
-      
-      // Filter flags - backend handles filtering
-      if (filters.missingType) {
-        params.append('missing_type', 'true');
-      }
-      // missing_role covers both role_id and candidate_id for recruiter docs
-      if (filters.missingRole || filters.missingCandidate) {
-        params.append('missing_role', 'true');
-      }
-      
-      // Pagination
-      params.append('limit', '100');
-      
-      const url = `/api/admin/knowledge/tagging?${params.toString()}`;
-      console.log('[Tagging] Fetching:', url);
       
       const res = await fetch(url, { cache: 'no-store' });
       
@@ -150,6 +194,34 @@ export function TaggingListClient() {
         });
       }
       
+      // If showing all documents, apply client-side filtering based on filters
+      if (showAll) {
+        let filtered = items;
+        
+        // Apply search filter
+        if (filters.search.trim()) {
+          const searchLower = filters.search.trim().toLowerCase();
+          filtered = filtered.filter((doc) => {
+            const text = `${doc.title || ''} ${doc.file_name || ''} ${doc.doc_id || ''} ${doc.document_type || ''}`.toLowerCase();
+            return text.includes(searchLower);
+          });
+        }
+        
+        // Apply tag filters (client-side for "all" view)
+        if (filters.missingType || filters.missingRole || filters.missingCandidate) {
+          filtered = filtered.filter((doc) => {
+            const { missingType, missingRole, missingCandidate } = needsTagging(doc);
+            if (filters.missingType && !missingType) return false;
+            if (filters.missingRole && !missingRole) return false;
+            if (filters.missingCandidate && !missingCandidate) return false;
+            return true;
+          });
+        }
+        
+        items = filtered;
+        console.log('[Tagging] Filtered all documents to', items.length, 'items');
+      }
+      
       setDocs(items);
     } catch (err) {
       console.error('[Tagging] Exception:', err);
@@ -157,36 +229,11 @@ export function TaggingListClient() {
     } finally {
       setLoading(false);
     }
-  }, [filters.search, filters.missingType, filters.missingRole, filters.missingCandidate]);
+  }, [showAll, filters.search, filters.missingType, filters.missingRole, filters.missingCandidate]);
 
   useEffect(() => {
     loadDocs();
   }, [loadDocs]);
-
-  // Backend handles filtering, but we need to check which fields are missing for UI badges
-  // Data model:
-  // - JD: requires role_id only, candidate_id should be NULL
-  // - CV: requires candidate_id, role_id is recommended
-  const needsTagging = (doc: Doc) => {
-    const type = doc.document_type?.toLowerCase();
-    const missingType = !type || !KNOWN_TYPES.includes(type);
-    const isJD = type === 'jd' || type === 'job_description';
-    const isCV = type === 'cv' || type === 'resume';
-    
-    // JD: only role_id is required
-    const missingRole = isJD && !doc.role_id;
-    // CV: candidate_id is required, role_id is recommended
-    const missingCandidate = isCV && !doc.candidate_id;
-    const missingRoleForCV = isCV && !doc.role_id; // Recommended but not required
-    
-    return {
-      missingType,
-      missingRole,
-      missingCandidate,
-      missingRoleForCV,
-      needs: missingType || missingRole || missingCandidate,
-    };
-  };
 
   const handleFieldChange = (docId: string, field: keyof Doc, value: string) => {
     setDocs((prev) =>
@@ -271,12 +318,12 @@ export function TaggingListClient() {
                 <Badge variant="destructive" className="text-xs font-medium">
                   Needs tagging
                 </Badge>
-              ) : (
+              ) : showAll ? (
                 <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-medium">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Ready
+                  Tagged
                 </Badge>
-              )}
+              ) : null}
             </div>
           </div>
         </CardHeader>
@@ -421,9 +468,13 @@ export function TaggingListClient() {
       <Card className="shadow-sm border-slate-200 bg-white">
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-100">
           <div className="space-y-1">
-            <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">Documents Needing Tags</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">
+              {showAll ? 'All Documents' : 'Documents Needing Tags'}
+            </CardTitle>
             <CardDescription className="text-sm text-slate-600">
-              Filter and tag documents with missing type, role, or candidate information.
+              {showAll
+                ? 'View all documents. Documents needing tags are highlighted.'
+                : 'Filter and tag documents with missing type, role, or candidate information.'}
             </CardDescription>
           </div>
           <Button 
@@ -438,6 +489,31 @@ export function TaggingListClient() {
         </CardHeader>
         <CardContent className="p-4 sm:p-6 space-y-5 sm:space-y-6">
           <div className="space-y-4">
+            {/* Toggle between "Needs Tagging" and "All Documents" */}
+            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-slate-700">View:</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant={!showAll ? 'default' : 'outline'}
+                    onClick={() => setShowAll(false)}
+                    className="min-h-[36px] sm:min-h-[32px] px-4 font-medium shadow-sm hover:shadow-md transition-all"
+                  >
+                    Needs Tagging
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={showAll ? 'default' : 'outline'}
+                    onClick={() => setShowAll(true)}
+                    className="min-h-[36px] sm:min-h-[32px] px-4 font-medium shadow-sm hover:shadow-md transition-all"
+                  >
+                    All Documents
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2.5">
               <Label htmlFor="search" className="text-sm font-semibold text-slate-700">Search</Label>
               <Input
@@ -449,7 +525,9 @@ export function TaggingListClient() {
               />
             </div>
             <div className="space-y-2.5">
-              <Label className="text-sm font-semibold text-slate-700">Show documents missing</Label>
+              <Label className="text-sm font-semibold text-slate-700">
+                {showAll ? 'Filter by missing tags' : 'Show documents missing'}
+              </Label>
               <div className="flex flex-wrap gap-2.5">
                 <Button
                   type="button"
@@ -480,7 +558,11 @@ export function TaggingListClient() {
                 </Button>
               </div>
               <p className="text-xs text-slate-500 mt-2">
-                {filters.missingType || filters.missingRole || filters.missingCandidate
+                {showAll
+                  ? filters.missingType || filters.missingRole || filters.missingCandidate
+                    ? 'Filtering all documents to show those missing the selected tags.'
+                    : 'Showing all documents. Enable filters to see only documents missing specific tags.'
+                  : filters.missingType || filters.missingRole || filters.missingCandidate
                   ? 'Showing documents that need any of the selected tags. Documents with all tags complete are not shown.'
                   : 'Enable at least one filter to see documents needing tags.'}
               </p>
@@ -512,9 +594,15 @@ export function TaggingListClient() {
             <div className="text-center py-12 space-y-4">
               <FileText className="h-12 w-12 mx-auto text-slate-300" />
               <div className="space-y-2">
-                <p className="text-base text-slate-700 font-semibold">No documents need tagging</p>
+                <p className="text-base text-slate-700 font-semibold">
+                  {showAll ? 'No documents found' : 'No documents need tagging'}
+                </p>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  {filters.missingType || filters.missingRole || filters.missingCandidate
+                  {showAll
+                    ? filters.missingType || filters.missingRole || filters.missingCandidate
+                      ? 'No documents match your current filters. Try adjusting the filters or clearing them to see all documents.'
+                      : 'No documents found. Try uploading new documents.'
+                    : filters.missingType || filters.missingRole || filters.missingCandidate
                     ? 'No documents match your current filters. Documents that are already fully tagged are not shown here. Try adjusting the filters or uploading new documents.'
                     : 'Enable at least one filter above to see documents needing tags. Documents that are already fully tagged are not shown.'}
                 </p>
@@ -538,24 +626,41 @@ export function TaggingListClient() {
             </div>
           )}
 
-          {!loading && !error && docs.length > 0 && (
-            <div className="space-y-5 sm:space-y-6">
-              <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-slate-100">
-                <div className="text-sm text-slate-700 font-semibold">
-                  Showing <span className="text-slate-900 text-base">{docs.length}</span> document{docs.length === 1 ? '' : 's'} needing tagging
+          {!loading && !error && docs.length > 0 && (() => {
+            const needsActionCount = docs.filter(d => {
+              const { missingType, missingRole, missingCandidate } = needsTagging(d);
+              return missingType || missingRole || missingCandidate;
+            }).length;
+            
+            return (
+              <div className="space-y-5 sm:space-y-6">
+                <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-slate-100">
+                  <div className="text-sm text-slate-700 font-semibold">
+                    {showAll ? (
+                      <>
+                        Showing <span className="text-slate-900 text-base">{docs.length}</span> document{docs.length === 1 ? '' : 's'}
+                        {needsActionCount > 0 && (
+                          <> · <span className="text-amber-600">{needsActionCount}</span> need tagging</>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        Showing <span className="text-slate-900 text-base">{docs.length}</span> document{docs.length === 1 ? '' : 's'} needing tagging
+                      </>
+                    )}
+                  </div>
+                  {needsActionCount > 0 && (
+                    <div className="text-xs text-amber-600 font-medium">
+                      {needsActionCount} require action
+                    </div>
+                  )}
                 </div>
-                <div className="text-xs text-slate-500 font-medium">
-                  {docs.filter(d => {
-                    const { missingType, missingRole, missingCandidate } = needsTagging(d);
-                    return missingType || missingRole || missingCandidate;
-                  }).length} require action
+                <div className="space-y-4 sm:space-y-5">
+                  {docs.map((doc) => renderDoc(doc))}
                 </div>
               </div>
-              <div className="space-y-4 sm:space-y-5">
-                {docs.map((doc) => renderDoc(doc))}
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </CardContent>
       </Card>
     </div>

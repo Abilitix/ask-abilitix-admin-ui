@@ -163,17 +163,27 @@ export function TaggingListClient() {
     loadDocs();
   }, [loadDocs]);
 
-  // Backend handles filtering, so we just display the returned docs
-  // But we still need to check which fields are missing for UI badges
+  // Backend handles filtering, but we need to check which fields are missing for UI badges
+  // Data model:
+  // - JD: requires role_id only, candidate_id should be NULL
+  // - CV: requires candidate_id, role_id is recommended
   const needsTagging = (doc: Doc) => {
     const type = doc.document_type?.toLowerCase();
     const missingType = !type || !KNOWN_TYPES.includes(type);
-    const missingRole = !doc.role_id;
-    const missingCandidate = !doc.candidate_id;
+    const isJD = type === 'jd' || type === 'job_description';
+    const isCV = type === 'cv' || type === 'resume';
+    
+    // JD: only role_id is required
+    const missingRole = isJD && !doc.role_id;
+    // CV: candidate_id is required, role_id is recommended
+    const missingCandidate = isCV && !doc.candidate_id;
+    const missingRoleForCV = isCV && !doc.role_id; // Recommended but not required
+    
     return {
       missingType,
       missingRole,
       missingCandidate,
+      missingRoleForCV,
       needs: missingType || missingRole || missingCandidate,
     };
   };
@@ -193,10 +203,14 @@ export function TaggingListClient() {
     if (!id) return;
     setSavingIds((prev) => new Set(prev).add(id));
     try {
+      const typeLower = (doc.document_type || '').toLowerCase();
+      const isJD = typeLower === 'jd' || typeLower === 'job_description';
+      
+      // Data model: JD should have candidate_id = null
       const payload = {
         document_type: doc.document_type || null,
         role_id: doc.role_id || null,
-        candidate_id: doc.candidate_id || null,
+        candidate_id: isJD ? null : (doc.candidate_id || null), // JD: always null, CV: use value
         client_id: doc.client_id || null,
       };
       const res = await fetch(`/api/admin/docs/${id}/metadata`, {
@@ -230,8 +244,11 @@ export function TaggingListClient() {
   const renderDoc = (doc: Doc) => {
     const id = (doc as any).id || doc.doc_id || 'unknown';
     const type = doc.document_type || '';
+    const typeLower = type.toLowerCase();
+    const isJD = typeLower === 'jd' || typeLower === 'job_description';
+    const isCV = typeLower === 'cv' || typeLower === 'resume';
     const status = doc.status || doc.doc_status;
-    const { missingType, missingRole, missingCandidate } = needsTagging(doc);
+    const { missingType, missingRole, missingCandidate, missingRoleForCV } = needsTagging(doc);
     const isSaving = savingIds.has(id);
 
     return (
@@ -297,19 +314,26 @@ export function TaggingListClient() {
               <Label htmlFor={`role-${id}`} className="text-sm font-semibold text-slate-700">
                 Role ID
                 {missingRole && <span className="text-red-500 ml-1">*</span>}
+                {isCV && !missingRole && <span className="text-slate-400 ml-1 text-xs font-normal">(recommended)</span>}
               </Label>
               <Input
                 id={`role-${id}`}
                 value={doc.role_id || ''}
                 onChange={(e) => handleFieldChange(id, 'role_id', e.target.value)}
                 disabled={isSaving}
-                placeholder="Enter role identifier"
+                placeholder={isJD ? "Enter role identifier (required)" : "Enter role identifier (recommended)"}
                 className="min-h-[44px] sm:min-h-0 font-mono text-sm"
               />
               {missingRole && (
                 <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
-                  Required for recruiter templates
+                  {isJD ? 'Required for JD documents' : 'Recommended for CV documents'}
+                </p>
+              )}
+              {missingRoleForCV && !missingRole && (
+                <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Recommended: Link CV to a specific role
                 </p>
               )}
             </div>
@@ -317,19 +341,33 @@ export function TaggingListClient() {
               <Label htmlFor={`candidate-${id}`} className="text-sm font-semibold text-slate-700">
                 Candidate ID
                 {missingCandidate && <span className="text-red-500 ml-1">*</span>}
+                {isJD && <span className="text-slate-400 ml-1 text-xs font-normal">(leave empty for JD)</span>}
               </Label>
               <Input
                 id={`candidate-${id}`}
                 value={doc.candidate_id || ''}
-                onChange={(e) => handleFieldChange(id, 'candidate_id', e.target.value)}
-                disabled={isSaving}
-                placeholder="Enter candidate identifier"
+                onChange={(e) => {
+                  // For JD, always set to empty/null
+                  if (isJD) {
+                    handleFieldChange(id, 'candidate_id', '');
+                  } else {
+                    handleFieldChange(id, 'candidate_id', e.target.value);
+                  }
+                }}
+                disabled={isSaving || isJD}
+                placeholder={isJD ? "Not applicable for JD documents" : "Enter candidate identifier (required)"}
                 className="min-h-[44px] sm:min-h-0 font-mono text-sm"
               />
               {missingCandidate && (
                 <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
-                  Required for recruiter templates
+                  Required for CV documents
+                </p>
+              )}
+              {isJD && doc.candidate_id && (
+                <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  JD documents should not have candidate_id (will be cleared on save)
                 </p>
               )}
             </div>
@@ -351,7 +389,12 @@ export function TaggingListClient() {
           <div className="flex justify-end pt-4 border-t border-slate-100">
             <Button
               onClick={() => saveDoc(doc)}
-              disabled={isSaving || (!doc.document_type && missingType)}
+              disabled={
+                isSaving || 
+                (!doc.document_type && missingType) ||
+                (isJD && !doc.role_id) || // JD requires role_id
+                (isCV && !doc.candidate_id) // CV requires candidate_id
+              }
               className="min-h-[44px] sm:min-h-0 min-w-[140px] font-semibold shadow-sm hover:shadow-md transition-shadow"
             >
               {isSaving ? (

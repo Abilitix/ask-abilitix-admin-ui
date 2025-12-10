@@ -49,6 +49,25 @@ export default function KnowledgeStudioPage() {
       console.log('[Knowledge Studio] Has knowledge_studio:', features?.knowledge_studio);
     }
   }, [features, featuresLoading]);
+
+  // Debug helper: Expose debug function to window for console access
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).debugKnowledgeStudio = async () => {
+        try {
+          console.log('[Knowledge Studio] Fetching debug info...');
+          const res = await fetch('/api/admin/knowledge/debug/features', { cache: 'no-store' });
+          const data = await res.json();
+          console.log('[Knowledge Studio] Debug info:', data);
+          return data;
+        } catch (err) {
+          console.error('[Knowledge Studio] Debug fetch failed:', err);
+          return null;
+        }
+      };
+      console.log('[Knowledge Studio] Debug helper available: window.debugKnowledgeStudio()');
+    }
+  }, []);
   const [selected, setSelected] = useState<Template | null>(null);
   const [gen, setGen] = useState<GenerateState>({
     template: undefined,
@@ -140,10 +159,22 @@ export default function KnowledgeStudioPage() {
         }
         if (status === 'failed') {
           const detail = data.detail || data.message || 'Generation failed.';
+          // Check for SQL generation failures specifically
+          const isSqlError = detail.toLowerCase().includes('sql') || 
+                            detail.toLowerCase().includes('generation failed');
+          const errorMsg = isSqlError
+            ? `SQL generation failed: ${detail}. Check backend logs and feature flags. Use the debug endpoint to diagnose: GET /api/admin/knowledge/debug/features`
+            : detail;
+          console.error('[Knowledge Studio] Job failed:', {
+            jobId,
+            status,
+            detail,
+            fullData: data,
+          });
           setJobForm((prev) => ({
             ...prev,
             polling: false,
-            error: detail,
+            error: errorMsg,
           }));
           return;
         }
@@ -199,7 +230,22 @@ export default function KnowledgeStudioPage() {
           errData.detail ||
           (errData as any).message ||
           (await res.text().catch(() => 'Failed to start generation.'));
-        setJobForm((prev) => ({ ...prev, submitting: false, error: msg }));
+        
+        // Enhanced error logging for SQL generation issues
+        console.error('[Knowledge Studio] Generation start failed:', {
+          status: res.status,
+          statusText: res.statusText,
+          error: errData,
+          message: msg,
+        });
+        
+        // Check for 403 (feature/permission) errors
+        if (res.status === 403) {
+          const enhancedMsg = `${msg}. Check feature flags and tenant entitlements. Use GET /api/admin/knowledge/debug/features to diagnose.`;
+          setJobForm((prev) => ({ ...prev, submitting: false, error: enhancedMsg }));
+        } else {
+          setJobForm((prev) => ({ ...prev, submitting: false, error: msg }));
+        }
         return;
       }
 
@@ -416,10 +462,26 @@ export default function KnowledgeStudioPage() {
       if (!res.ok) {
         const errorData = (await res.json().catch(() => ({}))) as KnowledgeErrorResponse;
         const errorText = errorData.detail || errorData.message || await res.text().catch(() => '');
+        
+        // Enhanced error logging for SQL generation issues
+        console.error('[Knowledge Studio] Inline generation failed:', {
+          status: res.status,
+          statusText: res.statusText,
+          error: errorData,
+          message: errorText,
+        });
+        
+        // Check for SQL generation failures
+        const isSqlError = errorText.toLowerCase().includes('sql') || 
+                          errorText.toLowerCase().includes('generation failed');
+        const enhancedError = isSqlError
+          ? `SQL generation failed: ${errorText}. Check backend logs and feature flags. Use GET /api/admin/knowledge/debug/features to diagnose.`
+          : errorText || `Generation failed (${res.status}). Please try again.`;
+        
         setGen((prev) => ({
           ...prev,
           submitting: false,
-          error: errorText || `Generation failed (${res.status}). Please try again.`,
+          error: enhancedError,
         }));
         return;
       }

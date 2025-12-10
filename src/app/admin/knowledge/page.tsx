@@ -842,7 +842,7 @@ export default function KnowledgeStudioPage() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white w-full sm:max-w-lg rounded-xl shadow-2xl p-5 space-y-4">
+          <div className="bg-white w-full sm:max-w-lg rounded-xl shadow-2xl p-5 space-y-4 max-h-[85vh] flex flex-col">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Generate drafts</p>
@@ -856,7 +856,7 @@ export default function KnowledgeStudioPage() {
               </Button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1 overflow-y-auto pr-1">
               <div className="space-y-2">
                 <Label>Select Documents</Label>
                 <DocumentPicker
@@ -873,26 +873,7 @@ export default function KnowledgeStudioPage() {
                 </p>
               </div>
               
-              {/* Fallback: Manual document ID input (hidden by default, can be shown if needed) */}
-              <details className="text-xs text-slate-400">
-                <summary className="cursor-pointer hover:text-slate-600">Or enter document IDs manually</summary>
-                <div className="mt-2 space-y-2">
-                  <Textarea
-                    value={gen.docIds}
-                    onChange={(e) => {
-                      setGen((prev) => ({ ...prev, docIds: e.target.value }));
-                      // Sync with selectedDocIds if manual input is used
-                      const manualIds = e.target.value.split(',').map((d) => d.trim()).filter(Boolean);
-                      if (manualIds.length > 0) {
-                        setSelectedDocIds(manualIds);
-                      }
-                    }}
-                    placeholder="doc_id_1, doc_id_2"
-                    rows={2}
-                    disabled={gen.submitting}
-                  />
-                </div>
-              </details>
+              {/* Manual doc ID entry removed for best-in-class picker-only flow */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Category (optional)</Label>

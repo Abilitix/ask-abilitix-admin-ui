@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -42,6 +42,74 @@ type CitationsEditorProps = {
 };
 
 function CitationsEditor({ citations = [], onChange }: CitationsEditorProps) {
+  const [docTitles, setDocTitles] = useState<Record<string, string>>({});
+  const [loadingDocs, setLoadingDocs] = useState<Set<string>>(new Set());
+  const fetchedRef = useRef<Set<string>>(new Set());
+
+  // Fetch document title for a given doc_id
+  const fetchDocTitle = useCallback(async (docId: string) => {
+    if (!docId || docId.trim() === '') return;
+    
+    // Skip if already fetched (using ref to avoid stale closures)
+    if (fetchedRef.current.has(docId)) {
+      return;
+    }
+
+    // Mark as fetched and loading
+    fetchedRef.current.add(docId);
+    setLoadingDocs((prev) => new Set(prev).add(docId));
+
+    try {
+      const res = await fetch(`/api/admin/docs/${encodeURIComponent(docId)}`, {
+        cache: 'no-store',
+      });
+
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const title = data.title || data.file_name || 'Unknown Document';
+        setDocTitles((prev) => {
+          // Only update if we don't already have it (avoid overwriting)
+          if (!prev[docId]) {
+            return { ...prev, [docId]: title };
+          }
+          return prev;
+        });
+      } else {
+        // Document not found or error - set a placeholder
+        setDocTitles((prev) => {
+          if (!prev[docId]) {
+            return { ...prev, [docId]: 'Document not found' };
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.error('[CitationsEditor] Failed to fetch document:', err);
+      setDocTitles((prev) => {
+        if (!prev[docId]) {
+          return { ...prev, [docId]: 'Error loading document' };
+        }
+        return prev;
+      });
+    } finally {
+      setLoadingDocs((prev) => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
+    }
+  }, []); // No dependencies - uses ref and functional updates
+
+  // Fetch titles for all citations when they change
+  useEffect(() => {
+    citations.forEach((citation) => {
+      const docId = citation.doc_id?.trim();
+      if (docId && !fetchedRef.current.has(docId)) {
+        fetchDocTitle(docId);
+      }
+    });
+  }, [citations, fetchDocTitle]);
+
   const updateCitation = (index: number, field: string, value: string | number) => {
     const updated = [...citations];
     if (!updated[index]) {
@@ -49,6 +117,11 @@ function CitationsEditor({ citations = [], onChange }: CitationsEditorProps) {
     }
     updated[index] = { ...updated[index], [field]: value };
     onChange(updated);
+    
+    // If doc_id changed, fetch the new document title
+    if (field === 'doc_id' && typeof value === 'string' && value.trim() !== '') {
+      fetchDocTitle(value);
+    }
   };
 
   const removeCitation = (index: number) => {
@@ -72,48 +145,90 @@ function CitationsEditor({ citations = [], onChange }: CitationsEditorProps) {
         <p className="text-sm text-slate-500">No citations added yet.</p>
       ) : (
         <div className="space-y-2">
-          {citations.map((citation, index) => (
-            <div key={index} className="flex items-start gap-2 p-3 border rounded-lg">
-              <div className="flex-1 space-y-2">
-                <Input
-                  placeholder="Document ID"
-                  value={citation.doc_id || ''}
-                  onChange={(e) => updateCitation(index, 'doc_id', e.target.value)}
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Page (optional)"
-                    value={citation.page || ''}
-                    onChange={(e) =>
-                      updateCitation(index, 'page', e.target.value ? parseInt(e.target.value) : 0)
-                    }
-                  />
-                  <Input
-                    placeholder="Span (optional)"
-                    value={citation.span || ''}
-                    onChange={(e) => updateCitation(index, 'span', e.target.value)}
-                  />
+          {citations.map((citation, index) => {
+            const docId = citation.doc_id || '';
+            const docTitle = docId ? docTitles[docId] : null;
+            const isLoading = docId ? loadingDocs.has(docId) : false;
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(docId);
+
+            return (
+              <div key={index} className="flex items-start gap-2 p-3 border rounded-lg bg-slate-50/50">
+                <div className="flex-1 space-y-2">
+                  {/* Document name display */}
+                  {docId && (
+                    <div className="space-y-1">
+                      {isLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-slate-500">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Loading document...</span>
+                        </div>
+                      ) : docTitle ? (
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                          <span className="text-sm font-medium text-slate-700 truncate" title={docTitle}>
+                            {docTitle}
+                          </span>
+                        </div>
+                      ) : isUuid ? (
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                          <span className="text-sm text-slate-500 font-mono">
+                            {docId.substring(0, 8)}...
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                  
+                  {/* Document ID input */}
+                  <div className="space-y-1">
+                    <Label htmlFor={`citation-doc-${index}`} className="text-xs text-slate-600">
+                      Document ID
+                    </Label>
+                    <Input
+                      id={`citation-doc-${index}`}
+                      placeholder="Enter document UUID..."
+                      value={docId}
+                      onChange={(e) => updateCitation(index, 'doc_id', e.target.value)}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Page (optional)"
+                      value={citation.page || ''}
+                      onChange={(e) =>
+                        updateCitation(index, 'page', e.target.value ? parseInt(e.target.value) : 0)
+                      }
+                    />
+                    <Input
+                      placeholder="Span (optional)"
+                      value={citation.span || ''}
+                      onChange={(e) => updateCitation(index, 'span', e.target.value)}
+                    />
+                  </div>
+                  {citation.text && (
+                    <Textarea
+                      placeholder="Citation text (optional)"
+                      value={citation.text}
+                      onChange={(e) => updateCitation(index, 'text', e.target.value)}
+                      rows={2}
+                    />
+                  )}
                 </div>
-                {citation.text && (
-                  <Textarea
-                    placeholder="Citation text (optional)"
-                    value={citation.text}
-                    onChange={(e) => updateCitation(index, 'text', e.target.value)}
-                    rows={2}
-                  />
-                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeCitation(index)}
+                  className="mt-1"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => removeCitation(index)}
-                className="mt-1"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

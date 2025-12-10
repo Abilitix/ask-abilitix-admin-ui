@@ -310,6 +310,11 @@ export function DraftEditorClient({ draftId }: Props) {
     channel: '',
     citations: [],
   });
+  const modeLabel = (() => {
+    const m = (draft as any)?.metadata?.origin?.mode;
+    return m === 'multi_candidate' ? 'Comparison' : 'Single';
+  })();
+  const candidatesMeta = ((draft as any)?.metadata?.candidates as any[]) || [];
   const [confirmationDialog, setConfirmationDialog] = useState<{
     open: boolean;
     title: string;
@@ -584,6 +589,9 @@ export function DraftEditorClient({ draftId }: Props) {
                       'Draft'
                     )}
                   </Badge>
+                  <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
+                    {modeLabel === 'Comparison' ? 'Comparison mode' : 'Single candidate'}
+                  </Badge>
                 </div>
               </div>
 
@@ -625,6 +633,24 @@ export function DraftEditorClient({ draftId }: Props) {
                   Approve
                 </Button>
               </div>
+
+              {candidatesMeta.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {candidatesMeta.map((c, idx) => (
+                    <Badge key={`${c.id || c.name || idx}`} variant="outline" className="flex items-center gap-2">
+                      <span className="font-medium">{c.name || c.id || `Candidate ${idx + 1}`}</span>
+                      {c.label && (
+                        <span className="text-xs text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                          {c.label}
+                        </span>
+                      )}
+                      {typeof c.score === 'number' && (
+                        <span className="text-xs text-slate-500">Score {(c.score * 100).toFixed(0)}%</span>
+                      )}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

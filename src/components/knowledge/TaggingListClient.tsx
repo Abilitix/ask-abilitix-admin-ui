@@ -418,11 +418,11 @@ export function TaggingListClient() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <Card className="shadow-sm border-slate-200">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4">
-          <div>
-            <CardTitle className="text-lg sm:text-xl">Documents Needing Tags</CardTitle>
-            <CardDescription className="text-sm mt-1">
+      <Card className="shadow-sm border-slate-200 bg-white">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-100">
+          <div className="space-y-1">
+            <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900">Documents Needing Tags</CardTitle>
+            <CardDescription className="text-sm text-slate-600">
               Filter and tag documents with missing type, role, or candidate information.
             </CardDescription>
           </div>
@@ -430,33 +430,32 @@ export function TaggingListClient() {
             variant="outline" 
             onClick={loadDocs} 
             disabled={loading} 
-            className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+            className="min-h-[44px] sm:min-h-0 w-full sm:w-auto font-medium shadow-sm hover:shadow-md transition-shadow"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </CardHeader>
-        <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 sm:gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="search" className="text-sm font-medium">Search</Label>
+        <CardContent className="p-4 sm:p-6 space-y-5 sm:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5 sm:gap-6">
+            <div className="space-y-2.5">
+              <Label htmlFor="search" className="text-sm font-semibold text-slate-700">Search</Label>
               <Input
                 id="search"
                 placeholder="Search by title, filename, or ID"
                 value={filters.search}
                 onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-                className="min-h-[44px] sm:min-h-0"
+                className="min-h-[44px] sm:min-h-0 shadow-sm focus:shadow-md transition-shadow"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Filters</Label>
-              <div className="flex flex-wrap gap-2">
+            <div className="space-y-2.5">
+              <Label className="text-sm font-semibold text-slate-700">Filters</Label>
+              <div className="flex flex-wrap gap-2.5">
                 <Button
                   type="button"
                   variant={filters.missingType ? 'default' : 'outline'}
-                  size="sm"
                   onClick={() => setFilters((prev) => ({ ...prev, missingType: !prev.missingType }))}
-                  className="min-h-[44px] sm:min-h-0 gap-2"
+                  className="min-h-[44px] sm:min-h-[36px] gap-2 font-medium shadow-sm hover:shadow-md transition-shadow"
                 >
                   <Filter className="h-4 w-4" />
                   <span className="hidden sm:inline">Missing type</span>
@@ -465,9 +464,8 @@ export function TaggingListClient() {
                 <Button
                   type="button"
                   variant={filters.missingRole ? 'default' : 'outline'}
-                  size="sm"
                   onClick={() => setFilters((prev) => ({ ...prev, missingRole: !prev.missingRole }))}
-                  className="min-h-[44px] sm:min-h-0 gap-2"
+                  className="min-h-[44px] sm:min-h-[36px] gap-2 font-medium shadow-sm hover:shadow-md transition-shadow"
                 >
                   <Filter className="h-4 w-4" />
                   <span className="hidden sm:inline">Missing role</span>
@@ -476,9 +474,8 @@ export function TaggingListClient() {
                 <Button
                   type="button"
                   variant={filters.missingCandidate ? 'default' : 'outline'}
-                  size="sm"
                   onClick={() => setFilters((prev) => ({ ...prev, missingCandidate: !prev.missingCandidate }))}
-                  className="min-h-[44px] sm:min-h-0 gap-2"
+                  className="min-h-[44px] sm:min-h-[36px] gap-2 font-medium shadow-sm hover:shadow-md transition-shadow"
                 >
                   <Filter className="h-4 w-4" />
                   <span className="hidden sm:inline">Missing candidate</span>
@@ -540,11 +537,11 @@ export function TaggingListClient() {
 
           {!loading && !error && docs.length > 0 && (
             <div className="space-y-5 sm:space-y-6">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="text-sm text-slate-600 font-semibold">
-                  Showing <span className="text-slate-900">{docs.length}</span> document{docs.length === 1 ? '' : 's'} needing tagging
+              <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-slate-100">
+                <div className="text-sm text-slate-700 font-semibold">
+                  Showing <span className="text-slate-900 text-base">{docs.length}</span> document{docs.length === 1 ? '' : 's'} needing tagging
                 </div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-slate-500 font-medium">
                   {docs.filter(d => {
                     const { missingType, missingRole, missingCandidate } = needsTagging(d);
                     return missingType || missingRole || missingCandidate;

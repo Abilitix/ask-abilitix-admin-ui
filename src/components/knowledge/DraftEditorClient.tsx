@@ -557,7 +557,18 @@ export function DraftEditorClient({ draftId }: Props) {
                 onChange={(e) => setFormData((prev) => ({ ...prev, answer: e.target.value }))}
                 placeholder="Enter the answer..."
                 rows={10}
+                className="font-mono text-sm"
               />
+              {/* HTML Preview */}
+              {formData.answer && formData.answer.trim() !== '' && (
+                <div className="mt-3 space-y-2">
+                  <Label className="text-xs text-slate-600">Preview:</Label>
+                  <div 
+                    className="prose prose-slate max-w-none border rounded-lg p-4 bg-slate-50 min-h-[100px] prose-headings:text-slate-900 prose-strong:text-slate-900 prose-p:text-slate-900 prose-li:text-slate-900 prose-a:text-blue-600 hover:prose-a:text-blue-700"
+                    dangerouslySetInnerHTML={{ __html: formData.answer }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Metadata */}

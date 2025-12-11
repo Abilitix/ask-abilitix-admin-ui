@@ -102,3 +102,12 @@ export type ErrorDetailCode =
   | 'drafts_not_found'
   | 'send_failed';
 
+/**
+ * Custom dimension for candidate evaluation
+ */
+export type CustomDimension = {
+  label: string;
+  keywords: string[];
+  importance: 'must' | 'nice';
+};
+

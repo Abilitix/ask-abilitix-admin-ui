@@ -22,6 +22,8 @@ import { hasFeature, hasKnowledgeStudio } from '@/lib/features';
 import { useUserFeatures } from '@/hooks/useUserFeatures';
 import { DocumentPicker } from '@/components/knowledge/DocumentPicker';
 import { Breadcrumbs } from '@/components/knowledge/Breadcrumbs';
+import { DimensionsPanel } from '@/components/knowledge/DimensionsPanel';
+import type { CustomDimension } from '@/lib/types/knowledge';
 
 type TemplatesResponse = Template[];
 
@@ -100,12 +102,20 @@ export default function KnowledgeStudioPage() {
     jobId: null,
   });
   const [jobSelectedDocIds, setJobSelectedDocIds] = useState<string[]>([]);
+  const [jobDimensions, setJobDimensions] = useState<CustomDimension[]>([]);
+  const [extractedDimensions, setExtractedDimensions] = useState<CustomDimension[]>([]);
+  const [dimensionExtractionLoading, setDimensionExtractionLoading] = useState(false);
+  const [dimensionExtractionError, setDimensionExtractionError] = useState<string | null>(null);
   const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pollAttemptsRef = useRef(0);
 
   const resetJob = () => {
     setJobTemplate(null);
     setJobSelectedDocIds([]);
+    setJobDimensions([]);
+    setExtractedDimensions([]);
+    setDimensionExtractionLoading(false);
+    setDimensionExtractionError(null);
     setJobForm({
       roleId: '',
       candidateId: '',
@@ -121,6 +131,44 @@ export default function KnowledgeStudioPage() {
       pollTimeoutRef.current = null;
     }
     pollAttemptsRef.current = 0;
+  };
+
+  // Extract dimensions from JD document
+  const extractDimensions = async (docId: string) => {
+    if (!docId || jobTemplate?.id !== 'recruiter_candidate_brief_v1') return;
+    
+    setDimensionExtractionLoading(true);
+    setDimensionExtractionError(null);
+    
+    try {
+      // TODO: Replace with actual dimension extraction endpoint when available
+      // For now, we'll set empty and let backend handle extraction
+      // When backend provides endpoint, uncomment below:
+      /*
+      const res = await fetch(`/api/admin/knowledge/extract-dimensions/${docId}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      
+      if (!res.ok) {
+        throw new Error(`Failed to extract dimensions (${res.status})`);
+      }
+      
+      const data = await res.json();
+      setExtractedDimensions(data.dimensions || []);
+      */
+      
+      // Temporary: Set empty, backend will extract during generation
+      setExtractedDimensions([]);
+    } catch (err) {
+      console.error('Dimension extraction failed:', err);
+      setDimensionExtractionError(
+        err instanceof Error ? err.message : 'Failed to extract dimensions'
+      );
+      setExtractedDimensions([]);
+    } finally {
+      setDimensionExtractionLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -284,12 +332,21 @@ export default function KnowledgeStudioPage() {
         doc_ids: docIds, // Always include doc_ids (empty array if none provided)
       };
       
-      if (hasContext) {
+      // Only send context if no explicit doc_ids (per backend requirements)
+      // When doc_ids are provided, backend should use them directly (single-candidate path)
+      if (hasContext && docIds.length === 0) {
         body.context = {
           ...(jobForm.roleId ? { role_id: jobForm.roleId } : {}),
           ...(jobForm.candidateId ? { candidate_id: jobForm.candidateId } : {}),
           ...(jobForm.clientId ? { client_id: jobForm.clientId } : {}),
         };
+      }
+
+      // Add custom dimensions if any are provided
+      // Combine extracted (that weren't removed) and custom dimensions
+      const allCustomDimensions = [...extractedDimensions, ...jobDimensions];
+      if (allCustomDimensions.length > 0) {
+        body.custom_dimensions = allCustomDimensions;
       }
 
       const res = await fetch('/api/admin/knowledge/generate', {
@@ -1001,6 +1058,13 @@ export default function KnowledgeStudioPage() {
                       onSelectionChange={(docIds) => {
                         setJobSelectedDocIds(docIds);
                         setJobForm((prev) => ({ ...prev, docIds: docIds.join(', ') }));
+                        // Extract dimensions when JD is selected (first doc is typically JD)
+                        if (docIds.length > 0 && jobTemplate?.id === 'recruiter_candidate_brief_v1') {
+                          extractDimensions(docIds[0]);
+                        } else {
+                          setExtractedDimensions([]);
+                          setDimensionExtractionError(null);
+                        }
                       }}
                       disabled={jobForm.submitting || jobForm.polling}
                     />
@@ -1010,6 +1074,36 @@ export default function KnowledgeStudioPage() {
                   </div>
                 </div>
               </details>
+
+              {/* Custom Dimensions Panel (only for recruiter brief) */}
+              {jobTemplate?.id === 'recruiter_candidate_brief_v1' && (
+                <details className="border-t pt-4 mt-4">
+                  <summary className="cursor-pointer text-sm font-medium text-slate-700 hover:text-slate-900">
+                    Customize Evaluation Dimensions (Optional)
+                  </summary>
+                  <div className="mt-4">
+                    <DimensionsPanel
+                      extractedDimensions={extractedDimensions}
+                      customDimensions={jobDimensions}
+                      onDimensionsChange={(allDimensions) => {
+                        // Separate extracted and custom dimensions based on original extracted list
+                        const extractedLabels = new Set(extractedDimensions.map(d => d.label.toLowerCase()));
+                        const extracted = allDimensions.filter(d => 
+                          extractedLabels.has(d.label.toLowerCase())
+                        );
+                        const custom = allDimensions.filter(d => 
+                          !extractedLabels.has(d.label.toLowerCase())
+                        );
+                        setExtractedDimensions(extracted);
+                        setJobDimensions(custom);
+                      }}
+                      extractionLoading={dimensionExtractionLoading}
+                      extractionError={dimensionExtractionError}
+                      disabled={jobForm.submitting || jobForm.polling}
+                    />
+                  </div>
+                </details>
+              )}
 
               {jobForm.error && (
                 <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 space-y-2">

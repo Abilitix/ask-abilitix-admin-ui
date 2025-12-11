@@ -319,6 +319,19 @@ export function DraftEditorClient({ draftId }: Props) {
     return m === 'multi_candidate' ? 'Comparison' : 'Single';
   })();
   const candidatesMeta = ((draft as any)?.metadata?.candidates as any[]) || [];
+  // Structured recruiter brief (optional)
+  const recruiterBrief = (draft as any)?.metadata?.recruiter_brief;
+  const templateDomain = (draft as any)?.template_domain;
+  const isRecruiterBrief = templateDomain === 'recruiter' && recruiterBrief;
+  const shortlist = recruiterBrief?.shortlist || [];
+  const candidatesStructured = recruiterBrief?.candidates || [];
+  const comparisonRows = recruiterBrief?.comparison_rows || [];
+  const topFitLabel = recruiterBrief?.scores?.overall_top_fit_label;
+  const topFitPercent = recruiterBrief?.scores?.overall_top_fit_percent;
+  const candidateById = candidatesStructured.reduce((acc: Record<string, any>, c: any) => {
+    if (c?.candidate_id) acc[c.candidate_id] = c;
+    return acc;
+  }, {});
   const [confirmationDialog, setConfirmationDialog] = useState<{
     open: boolean;
     title: string;
@@ -782,6 +795,175 @@ export function DraftEditorClient({ draftId }: Props) {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Recruiter structured brief (optional) */}
+            {isRecruiterBrief && (
+              <div className="space-y-4 border rounded-lg p-4 bg-slate-50">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="space-y-1">
+                    <div className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">
+                      Recruiter Summary (structured)
+                    </div>
+                    <div className="text-lg font-semibold text-slate-900">
+                      {draft.template_id || 'Recruiter Brief'}
+                    </div>
+                    {(topFitLabel || topFitPercent) && (
+                      <div className="text-sm text-slate-700">
+                        Top fit: {topFitLabel ?? '—'}{topFitPercent !== undefined ? ` (${topFitPercent}%)` : ''}
+                      </div>
+                    )}
+                    <div className="text-xs text-slate-500">
+                      Candidates: {shortlist.length || candidatesStructured.length || 0}
+                    </div>
+                  </div>
+                  {recruiterBrief?.warnings?.length ? (
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                      ⚠️ Warnings
+                    </Badge>
+                  ) : null}
+                </div>
+
+                {/* Warnings */}
+                {recruiterBrief?.warnings?.length ? (
+                  <div className="flex items-start gap-3 p-3 border border-amber-200 rounded-lg bg-amber-50">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="space-y-1">
+                      <div className="font-semibold text-amber-800 text-sm">Warnings</div>
+                      <ul className="list-disc list-inside text-sm text-amber-800 space-y-1">
+                        {recruiterBrief.warnings.map((w: string, idx: number) => (
+                          <li key={idx}>{w}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Shortlist */}
+                {shortlist.length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="font-semibold text-slate-900">Shortlist</div>
+                    <ol className="list-decimal list-inside text-sm text-slate-700 space-y-1">
+                      {([...shortlist] as any[]).sort((a, b) => (a.rank || 0) - (b.rank || 0)).map((s, idx) => (
+                        <li key={s.candidate_id || idx}>
+                          {s.display_name || s.candidate_id || 'Candidate'} — {s.fit_label || '—'}{s.fit_percent !== undefined ? ` (${s.fit_percent}%)` : ''}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-500">No candidates were scored. Check if JD and CVs are correctly tagged.</div>
+                )}
+
+                {/* Candidate cards */}
+                {candidatesStructured.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="font-semibold text-slate-900">Candidate Cards</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {candidatesStructured.map((c: any, idx: number) => (
+                        <div key={c.candidate_id || idx} className="border rounded-lg bg-white p-3 space-y-2 shadow-sm">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-1">
+                              <div className="font-semibold text-slate-900">{c.display_name || c.candidate_id || `Candidate ${idx + 1}`}</div>
+                              <div className="text-sm text-slate-700">
+                                Fit: <span className="font-semibold">{c.fit_label || '—'}</span>
+                                {c.fit_percent !== undefined ? ` (${c.fit_percent}%)` : ''}
+                              </div>
+                              {typeof c.must_have_coverage === 'number' && (
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                  Must-haves: {(c.must_have_coverage * 100).toFixed(0)}%
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          {/* Strengths */}
+                          {Array.isArray(c.strengths) && c.strengths.length > 0 && (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                                ✅ Strengths
+                              </div>
+                              <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                {c.strengths.map((s: any, sIdx: number) => (
+                                  <li key={sIdx}>
+                                    <span className="font-medium">{s.label || s.dimension}</span>
+                                    {s.snippet ? <span className="text-slate-600"> — {s.snippet}</span> : null}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {/* Gaps */}
+                          {Array.isArray(c.gaps) && c.gaps.length > 0 && (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                                ⚠️ Gaps
+                              </div>
+                              <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                                {c.gaps.map((g: any, gIdx: number) => (
+                                  <li key={gIdx}>
+                                    <span className="font-medium">{g.label || g.dimension}</span>
+                                    {g.snippet ? <span className="text-slate-600"> — {g.snippet}</span> : null}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Skills comparison */}
+                {comparisonRows.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="font-semibold text-slate-900">Skills Comparison</div>
+                    <div className="w-full overflow-x-auto">
+                      <table className="min-w-full border border-slate-200 text-sm">
+                        <thead className="bg-slate-100">
+                          <tr>
+                            <th className="border border-slate-200 px-3 py-2 text-left font-semibold text-slate-800">Requirement</th>
+                            {candidatesStructured.map((c: any, idx: number) => (
+                              <th key={c.candidate_id || idx} className="border border-slate-200 px-3 py-2 text-left font-semibold text-slate-800">
+                                {c.display_name || c.candidate_id || `Candidate ${idx + 1}`}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {comparisonRows.map((row: any, rIdx: number) => (
+                            <tr key={row.dimension || rIdx} className={rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                              <td className="border border-slate-200 px-3 py-2 align-top">
+                                <div className="font-semibold text-slate-800">{row.label || row.dimension || 'Requirement'}</div>
+                                {row.importance === 'must_have' && (
+                                  <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200 mt-1">
+                                    Must-have
+                                  </Badge>
+                                )}
+                                {row.jd_note && (
+                                  <div className="text-xs text-slate-600 mt-1">{row.jd_note}</div>
+                                )}
+                              </td>
+                              {candidatesStructured.map((c: any, cIdx: number) => {
+                                const cell = (row.candidates || []).find((rc: any) => rc.candidate_id === c.candidate_id) || {};
+                                return (
+                                  <td key={c.candidate_id || cIdx} className="border border-slate-200 px-3 py-2 align-top">
+                                    <div className="font-medium text-slate-800">{cell.badge || '—'}</div>
+                                    {cell.snippet ? (
+                                      <div className="text-xs text-slate-600 mt-1 whitespace-pre-wrap">{cell.snippet}</div>
+                                    ) : null}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Question */}
             <div className="space-y-2">
               <Label htmlFor="question">Question</Label>

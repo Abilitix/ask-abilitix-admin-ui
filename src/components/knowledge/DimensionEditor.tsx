@@ -204,7 +204,8 @@ export function DimensionEditor({
             type="button"
             variant={importance === 'must' ? 'default' : 'outline'}
             onClick={() => setImportance('must')}
-            className="flex-1"
+            className="flex-1 data-[state=on]:ring-2 data-[state=on]:ring-offset-2"
+            data-state={importance === 'must' ? 'on' : 'off'}
           >
             Must Have
           </Button>
@@ -212,7 +213,8 @@ export function DimensionEditor({
             type="button"
             variant={importance === 'nice' ? 'default' : 'outline'}
             onClick={() => setImportance('nice')}
-            className="flex-1"
+            className="flex-1 data-[state=on]:ring-2 data-[state=on]:ring-offset-2"
+            data-state={importance === 'nice' ? 'on' : 'off'}
           >
             Nice to Have
           </Button>

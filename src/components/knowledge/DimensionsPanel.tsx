@@ -102,7 +102,7 @@ export function DimensionsPanel({
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
-          <Label className="text-base font-semibold">Customize Evaluation Dimensions</Label>
+          <Label className="text-base font-semibold">Customise Evaluation Dimensions</Label>
           <p className="text-xs text-slate-500 mt-1">
             Optional - System will auto-extract if not customized
           </p>

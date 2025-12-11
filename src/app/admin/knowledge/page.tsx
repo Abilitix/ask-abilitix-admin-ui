@@ -1049,7 +1049,9 @@ export default function KnowledgeStudioPage() {
               </div>
 
               <details className="text-xs text-slate-500">
-                <summary className="cursor-pointer hover:text-slate-700">Advanced: use specific doc IDs</summary>
+                <summary className="cursor-pointer hover:text-slate-700 px-1 py-2 text-sm font-medium text-slate-700">
+                  Advanced: use specific doc IDs
+                </summary>
                 <div className="mt-2 space-y-2">
                   <div className="space-y-2">
                     <Label className="text-xs text-slate-600">Select documents</Label>
@@ -1078,8 +1080,8 @@ export default function KnowledgeStudioPage() {
               {/* Custom Dimensions Panel (only for recruiter brief) */}
               {jobTemplate?.id === 'recruiter_candidate_brief_v1' && (
                 <details className="border-t pt-4 mt-4">
-                  <summary className="cursor-pointer text-sm font-medium text-slate-700 hover:text-slate-900">
-                    Customize Evaluation Dimensions (Optional)
+                  <summary className="cursor-pointer text-sm font-medium text-slate-700 hover:text-slate-900 px-1 py-2">
+                    Customise Evaluation Dimensions (Optional)
                   </summary>
                   <div className="mt-4">
                     <DimensionsPanel

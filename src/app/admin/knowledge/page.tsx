@@ -349,6 +349,11 @@ export default function KnowledgeStudioPage() {
         body.custom_dimensions = allCustomDimensions;
       }
 
+      // Debug: log payload to verify custom_dimensions is present (remove after verification)
+      if (typeof window !== 'undefined') {
+        console.log('[Knowledge Studio] Generate payload', body);
+      }
+
       const res = await fetch('/api/admin/knowledge/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -93,11 +93,26 @@ export function DimensionEditor({
       return;
     }
 
+    const slugifyLabel = (text: string) =>
+      text
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 50);
+
     const validKeywords = keywords
       .map(k => k.trim())
       .filter(k => k.length > 0);
 
+    // Preserve existing key when editing; generate one when adding
+    const generatedKey =
+      isEditing && dimension?.key
+        ? dimension.key
+        : slugifyLabel(label) || `dim-${Date.now()}`;
+
     onSave({
+      key: generatedKey,
       label: label.trim(),
       keywords: validKeywords,
       importance,

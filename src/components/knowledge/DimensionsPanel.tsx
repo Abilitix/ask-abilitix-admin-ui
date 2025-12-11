@@ -25,6 +25,7 @@ export function DimensionsPanel({
   extractionError = null,
   disabled = false,
 }: DimensionsPanelProps) {
+  const MAX_DIMENSIONS = 20;
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
 
@@ -33,10 +34,11 @@ export function DimensionsPanel({
   const existingLabels = allDimensions.map(d => d.label.toLowerCase());
 
   const handleAdd = useCallback((dimension: CustomDimension) => {
+    if (allDimensions.length >= MAX_DIMENSIONS) return;
     const updated = [...customDimensions, dimension];
     onDimensionsChange([...extractedDimensions, ...updated]);
     setIsAddingNew(false);
-  }, [customDimensions, extractedDimensions, onDimensionsChange]);
+  }, [allDimensions.length, customDimensions, extractedDimensions, onDimensionsChange]);
 
   const handleEdit = useCallback((index: number, dimension: CustomDimension) => {
     // Determine if editing extracted or custom dimension
@@ -215,12 +217,18 @@ export function DimensionsPanel({
         <Button
           variant="outline"
           onClick={() => setIsAddingNew(true)}
-          disabled={disabled}
+          disabled={disabled || allDimensions.length >= MAX_DIMENSIONS}
           className="w-full"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Custom Dimension
         </Button>
+      )}
+
+      {allDimensions.length >= MAX_DIMENSIONS && (
+        <p className="text-xs text-amber-700">
+          You’ve reached the limit of {MAX_DIMENSIONS} dimensions.
+        </p>
       )}
 
       {/* Dimension editor (for add/edit) */}

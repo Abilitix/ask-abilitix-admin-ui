@@ -106,6 +106,7 @@ export type ErrorDetailCode =
  * Custom dimension for candidate evaluation
  */
 export type CustomDimension = {
+  key: string;
   label: string;
   keywords: string[];
   importance: 'must' | 'nice';

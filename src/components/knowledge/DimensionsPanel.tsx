@@ -82,14 +82,6 @@ export function DimensionsPanel({
     onDimensionsChange(updated);
   }, [allDimensions, onDimensionsChange]);
 
-  const getEditingDimension = (): CustomDimension | null | undefined => {
-    if (isAddingNew) return null;
-    if (editingIndex !== null && editingIndex < allDimensions.length) {
-      return allDimensions[editingIndex];
-    }
-    return undefined;
-  };
-
   const handleEditorSave = (dimension: CustomDimension) => {
     if (isAddingNew) {
       handleAdd(dimension);
@@ -233,7 +225,14 @@ export function DimensionsPanel({
 
       {/* Dimension editor (for add/edit) */}
       <DimensionEditor
-        dimension={getEditingDimension()}
+        isOpen={isAddingNew || editingIndex !== null}
+        dimension={
+          isAddingNew
+            ? null
+            : editingIndex !== null && editingIndex < allDimensions.length
+            ? allDimensions[editingIndex]
+            : undefined
+        }
         onSave={handleEditorSave}
         onCancel={handleEditorCancel}
         existingLabels={existingLabels}

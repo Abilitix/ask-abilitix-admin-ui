@@ -9,6 +9,7 @@ import { X, Plus } from 'lucide-react';
 import type { CustomDimension } from '@/lib/types/knowledge';
 
 type DimensionEditorProps = {
+  isOpen: boolean; // Controls visibility
   dimension?: CustomDimension | null; // null = new dimension, undefined = closed
   onSave: (dimension: CustomDimension) => void;
   onCancel: () => void;
@@ -22,6 +23,7 @@ type ValidationErrors = {
 };
 
 export function DimensionEditor({
+  isOpen,
   dimension,
   onSave,
   onCancel,
@@ -120,7 +122,7 @@ export function DimensionEditor({
     }
   };
 
-  if (!isEditing) {
+  if (!isOpen) {
     return null;
   }
 

@@ -221,13 +221,16 @@ export function DimensionEditor({
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button onClick={handleSave}>
-          Save
-        </Button>
+      {/* Actions stay visible */}
+      <div className="sticky bottom-0 pt-3 bg-slate-50">
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave}>
+            Save
+          </Button>
+        </div>
       </div>
     </div>
   );

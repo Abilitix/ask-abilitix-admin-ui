@@ -49,6 +49,7 @@ export function DraftsListClient() {
   const [searchInput, setSearchInput] = useState('');
   const [actionLoading, setActionLoading] = useState<Map<string, boolean>>(new Map());
   const [selectedDraftIds, setSelectedDraftIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [confirmationDialog, setConfirmationDialog] = useState<{
     open: boolean;
@@ -169,6 +170,95 @@ export function DraftsListClient() {
       });
     }
   };
+
+  // Bulk selection handlers
+  const handleToggleSelect = useCallback((draftId: string) => {
+    setSelectedDraftIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(draftId)) {
+        next.delete(draftId);
+      } else {
+        next.add(draftId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (bulkDeleteLoading) return;
+    setSelectedDraftIds((prev) => {
+      const pageIds = filteredDrafts.map((d) => d.id);
+      const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach((id) => next.delete(id));
+      } else {
+        pageIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, [filteredDrafts, bulkDeleteLoading]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedDraftIds(new Set());
+  }, []);
+
+  // Bulk delete handler
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedDraftIds);
+    if (ids.length === 0) return;
+
+    setConfirmationDialog({
+      open: true,
+      title: 'Bulk Delete Drafts',
+      message: `Are you sure you want to delete ${ids.length} draft(s)? This action cannot be undone.`,
+      confirmText: 'Delete',
+      variant: 'destructive',
+      onConfirm: async () => {
+        setConfirmationDialog((prev) => ({ ...prev, open: false }));
+        setBulkDeleteLoading(true);
+        try {
+          const response = await fetch('/api/admin/knowledge/drafts/bulk', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ draft_ids: ids }),
+            cache: 'no-store',
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.details || errorData.detail || `Failed to bulk delete: ${response.status}`);
+          }
+
+          const result = await response.json();
+          const deletedCount = result.deleted_count || 0;
+          const requestedCount = result.requested_count || ids.length;
+
+          if (deletedCount < requestedCount) {
+            toast.warning(
+              `Successfully deleted ${deletedCount} of ${requestedCount} draft(s). Some drafts may not exist or you may not have permission to delete them.`
+            );
+          } else {
+            toast.success(`Successfully deleted ${deletedCount} draft(s).`);
+          }
+
+          clearSelection();
+          await fetchDrafts();
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to bulk delete drafts';
+          toast.error(errorMessage);
+          console.error('Bulk delete error:', err);
+        } finally {
+          setBulkDeleteLoading(false);
+        }
+      },
+    });
+  }, [selectedDraftIds, clearSelection, fetchDrafts]);
+
+  // Clear selection when filters change
+  useEffect(() => {
+    clearSelection();
+  }, [statusFilter, templateFilter, categoryFilter, searchTerm, clearSelection]);
 
 
   // Open editor (navigate to draft editor page)
@@ -356,9 +446,69 @@ export function DraftsListClient() {
             </div>
           )}
 
+          {/* Bulk Actions Toolbar */}
+          {selectedDraftIds.size > 0 && (
+            <Card className="bg-blue-50 border-blue-200 shadow-sm">
+              <CardContent className="py-3 sm:py-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm text-blue-800">
+                    <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                    <span className="font-medium">{selectedDraftIds.size} draft(s) selected</span>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={clearSelection}
+                      disabled={bulkDeleteLoading}
+                      className="text-blue-800 hover:text-blue-900 h-auto p-0 ml-2"
+                    >
+                      Clear selection
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={handleBulkDelete}
+                      disabled={bulkDeleteLoading}
+                      className="min-h-[44px] sm:min-h-0"
+                    >
+                      {bulkDeleteLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <span>Deleting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          <span>Delete Selected ({selectedDraftIds.size})</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Drafts list */}
           {!loading && !error && filteredDrafts.length > 0 && (
             <div className="space-y-2">
+              {/* Select All Header */}
+              <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                <input
+                  type="checkbox"
+                  checked={filteredDrafts.length > 0 && filteredDrafts.every((d) => selectedDraftIds.has(d.id))}
+                  onChange={handleSelectAll}
+                  disabled={bulkDeleteLoading || filteredDrafts.length === 0}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Select all drafts"
+                />
+                <span className="text-sm font-medium text-slate-700">
+                  {filteredDrafts.length > 0 && filteredDrafts.every((d) => selectedDraftIds.has(d.id))
+                    ? 'Deselect all'
+                    : 'Select all'}
+                </span>
+              </div>
               {filteredDrafts.map((draft) => {
                 const isLoading = actionLoading.get(draft.id);
                 const isSelected = selectedDraftIds.has(draft.id);
@@ -376,18 +526,10 @@ export function DraftsListClient() {
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedDraftIds((prev) => new Set(prev).add(draft.id));
-                          } else {
-                            setSelectedDraftIds((prev) => {
-                              const next = new Set(prev);
-                              next.delete(draft.id);
-                              return next;
-                            });
-                          }
-                        }}
-                        className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        onChange={() => handleToggleSelect(draft.id)}
+                        disabled={bulkDeleteLoading}
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={`Select draft ${draft.id}`}
                       />
                       {/* Main content */}
                       <div className="flex-1 space-y-2">

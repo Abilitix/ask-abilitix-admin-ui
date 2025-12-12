@@ -330,6 +330,24 @@ export function DraftEditorClient({ draftId }: Props) {
   const topFitPercent = recruiterBrief?.scores?.overall_top_fit_percent;
   // Explanation data (single-candidate: metadata.explanation, multi-candidate: candidates[i].explanation)
   const singleCandidateExplanation = (draft as any)?.metadata?.explanation;
+  // Also check candidates array for explanation (multi-candidate without recruiter_brief)
+  const candidatesWithExplanation = ((draft as any)?.metadata?.candidates as any[]) || [];
+  
+  // Debug: log explanation data location
+  useEffect(() => {
+    if (draft) {
+      const metadata = (draft as any)?.metadata;
+      console.log('[DraftEditor] Metadata structure:', {
+        hasRecruiterBrief: !!metadata?.recruiter_brief,
+        hasExplanation: !!metadata?.explanation,
+        hasCandidates: !!metadata?.candidates,
+        candidatesCount: Array.isArray(metadata?.candidates) ? metadata.candidates.length : 0,
+        explanationLocation: metadata?.explanation ? 'metadata.explanation' : 
+          (Array.isArray(metadata?.candidates) && metadata.candidates[0]?.explanation) ? 'candidates[0].explanation' : 'not found',
+        explanationData: metadata?.explanation || (Array.isArray(metadata?.candidates) ? metadata.candidates[0]?.explanation : null),
+      });
+    }
+  }, [draft]);
   const candidateById = candidatesStructured.reduce((acc: Record<string, any>, c: any) => {
     if (c?.candidate_id) acc[c.candidate_id] = c;
     return acc;
@@ -780,6 +798,74 @@ export function DraftEditorClient({ draftId }: Props) {
                   This draft needs manual input or refinement before it can be approved.
                 </p>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Explanation (standalone, if not in structured brief) */}
+        {!isRecruiterBrief && (singleCandidateExplanation || (candidatesWithExplanation.length > 0 && candidatesWithExplanation[0]?.explanation)) && (
+          <Card className="border-blue-200 bg-blue-50 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                📊 Score Explanation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(() => {
+                const explanation = singleCandidateExplanation || candidatesWithExplanation[0]?.explanation;
+                if (!explanation) return null;
+                return (
+                  <>
+                    {explanation.score_summary && (
+                      <p className="text-sm text-slate-700 bg-white p-3 rounded border border-blue-200">
+                        {explanation.score_summary}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {explanation.must_have_coverage && (
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${
+                            explanation.must_have_coverage_level === 'High'
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : explanation.must_have_coverage_level === 'Medium'
+                                ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                : 'bg-red-50 text-red-700 border-red-200'
+                          }`}
+                        >
+                          Must-have: {explanation.must_have_coverage}
+                          {explanation.must_have_coverage_level ? ` (${explanation.must_have_coverage_level})` : ''}
+                        </Badge>
+                      )}
+                      {explanation.core_skills_coverage && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          Core skills: {explanation.core_skills_coverage}
+                        </Badge>
+                      )}
+                    </div>
+                    {Array.isArray(explanation.top_strengths) && explanation.top_strengths.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-sm font-semibold text-slate-800">💪 Top Strengths:</div>
+                        <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                          {explanation.top_strengths.map((s: string, sIdx: number) => (
+                            <li key={sIdx}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {Array.isArray(explanation.top_gaps) && explanation.top_gaps.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-sm font-semibold text-slate-800">⚠️ Top Gaps:</div>
+                        <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                          {explanation.top_gaps.map((g: string, gIdx: number) => (
+                            <li key={gIdx}>{g}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
         )}

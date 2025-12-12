@@ -328,6 +328,8 @@ export function DraftEditorClient({ draftId }: Props) {
   const comparisonRows = recruiterBrief?.comparison_rows || [];
   const topFitLabel = recruiterBrief?.scores?.overall_top_fit_label;
   const topFitPercent = recruiterBrief?.scores?.overall_top_fit_percent;
+  // Explanation data (single-candidate: metadata.explanation, multi-candidate: candidates[i].explanation)
+  const singleCandidateExplanation = (draft as any)?.metadata?.explanation;
   const candidateById = candidatesStructured.reduce((acc: Record<string, any>, c: any) => {
     if (c?.candidate_id) acc[c.candidate_id] = c;
     return acc;
@@ -823,6 +825,62 @@ export function DraftEditorClient({ draftId }: Props) {
                   ) : null}
                 </div>
 
+                {/* Single-candidate explanation (if no structured candidates but explanation exists) */}
+                {singleCandidateExplanation && candidatesStructured.length === 0 && (
+                  <div className="border rounded-lg bg-white p-3 space-y-2 shadow-sm">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                      📊 Score Explanation
+                    </div>
+                    {singleCandidateExplanation.score_summary && (
+                      <p className="text-sm text-slate-700 bg-blue-50 p-2 rounded border border-blue-200">
+                        {singleCandidateExplanation.score_summary}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {singleCandidateExplanation.must_have_coverage && (
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${
+                            singleCandidateExplanation.must_have_coverage_level === 'High'
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : singleCandidateExplanation.must_have_coverage_level === 'Medium'
+                                ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                : 'bg-red-50 text-red-700 border-red-200'
+                          }`}
+                        >
+                          Must-have: {singleCandidateExplanation.must_have_coverage}
+                          {singleCandidateExplanation.must_have_coverage_level ? ` (${singleCandidateExplanation.must_have_coverage_level})` : ''}
+                        </Badge>
+                      )}
+                      {singleCandidateExplanation.core_skills_coverage && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          Core skills: {singleCandidateExplanation.core_skills_coverage}
+                        </Badge>
+                      )}
+                    </div>
+                    {Array.isArray(singleCandidateExplanation.top_strengths) && singleCandidateExplanation.top_strengths.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-semibold text-slate-800">💪 Top Strengths:</div>
+                        <ul className="list-disc list-inside text-xs text-slate-700 space-y-0.5">
+                          {singleCandidateExplanation.top_strengths.map((s: string, sIdx: number) => (
+                            <li key={sIdx}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {Array.isArray(singleCandidateExplanation.top_gaps) && singleCandidateExplanation.top_gaps.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-semibold text-slate-800">⚠️ Top Gaps:</div>
+                        <ul className="list-disc list-inside text-xs text-slate-700 space-y-0.5">
+                          {singleCandidateExplanation.top_gaps.map((g: string, gIdx: number) => (
+                            <li key={gIdx}>{g}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Warnings */}
                 {recruiterBrief?.warnings?.length ? (
                   <div className="flex items-start gap-3 p-3 border border-amber-200 rounded-lg bg-amber-50">
@@ -875,6 +933,61 @@ export function DraftEditorClient({ draftId }: Props) {
                               )}
                             </div>
                           </div>
+                          {/* Explanation (Explainable AI) */}
+                          {c.explanation && (
+                            <div className="border-t pt-2 mt-2 space-y-2">
+                              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                                📊 Score Explanation
+                              </div>
+                              {c.explanation.score_summary && (
+                                <p className="text-sm text-slate-700 bg-blue-50 p-2 rounded border border-blue-200">
+                                  {c.explanation.score_summary}
+                                </p>
+                              )}
+                              <div className="flex flex-wrap gap-2">
+                                {c.explanation.must_have_coverage && (
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-xs ${
+                                      c.explanation.must_have_coverage_level === 'High'
+                                        ? 'bg-green-50 text-green-700 border-green-200'
+                                        : c.explanation.must_have_coverage_level === 'Medium'
+                                          ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                          : 'bg-red-50 text-red-700 border-red-200'
+                                    }`}
+                                  >
+                                    Must-have: {c.explanation.must_have_coverage}
+                                    {c.explanation.must_have_coverage_level ? ` (${c.explanation.must_have_coverage_level})` : ''}
+                                  </Badge>
+                                )}
+                                {c.explanation.core_skills_coverage && (
+                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                    Core skills: {c.explanation.core_skills_coverage}
+                                  </Badge>
+                                )}
+                              </div>
+                              {Array.isArray(c.explanation.top_strengths) && c.explanation.top_strengths.length > 0 && (
+                                <div className="space-y-1">
+                                  <div className="text-xs font-semibold text-slate-800">💪 Top Strengths:</div>
+                                  <ul className="list-disc list-inside text-xs text-slate-700 space-y-0.5">
+                                    {c.explanation.top_strengths.map((s: string, sIdx: number) => (
+                                      <li key={sIdx}>{s}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {Array.isArray(c.explanation.top_gaps) && c.explanation.top_gaps.length > 0 && (
+                                <div className="space-y-1">
+                                  <div className="text-xs font-semibold text-slate-800">⚠️ Top Gaps:</div>
+                                  <ul className="list-disc list-inside text-xs text-slate-700 space-y-0.5">
+                                    {c.explanation.top_gaps.map((g: string, gIdx: number) => (
+                                      <li key={gIdx}>{g}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           {/* Strengths */}
                           {Array.isArray(c.strengths) && c.strengths.length > 0 && (
                             <div className="space-y-1">
